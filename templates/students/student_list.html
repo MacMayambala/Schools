@@ -1,0 +1,247 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid py-2">
+    <div class="d-flex justify-content-between align-items-end mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item small"><a href="/" class="text-decoration-none text-muted">Dashboard</a></li>
+                    <li class="breadcrumb-item small active" aria-current="page">Registry</li>
+                </ol>
+            </nav>
+            <h2 class="fw-bold mb-0 text-dark" style="letter-spacing: -1px;">Student Registry</h2>
+            <p class="text-muted small mb-0">Centralized management for <strong>{{ request.school.name }}</strong></p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'students:bulk_import' %}" class="btn btn-white border shadow-sm btn-sm px-3 fw-semibold">
+                <i class="fas fa-file-excel me-2 text-success"></i> Bulk Import
+            </a>
+            <a href="{% url 'students:student_add' %}" class="btn btn-primary btn-sm px-4 fw-bold shadow-sm">
+                <i class="fas fa-plus me-2"></i> Add Student
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card p-3 shadow-sm border-0">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="text-muted small fw-bold text-uppercase">Total Enrolled</div>
+                        <div class="h3 fw-bold mb-0 mt-1">{% if is_paginated %}{{ paginator.count }}{% else %}{{ students.count }}{% endif %}</div>
+                    </div>
+                    <div class="stat-icon bg-primary-subtle text-primary">
+                        <i class="fas fa-user-graduate"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card p-3 shadow-sm border-0">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="text-muted small fw-bold text-uppercase">Active Classes</div>
+                        <div class="h3 fw-bold mb-0 mt-1">{{ classrooms.count }}</div>
+                    </div>
+                    <div class="stat-icon bg-warning-subtle text-warning">
+                        <i class="fas fa-door-open"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4" style="border-radius: 15px;">
+        <div class="card-body p-2">
+            <form method="GET" class="row g-2">
+                <div class="col-md-7">
+                    <div class="input-group input-group-merge">
+                        <span class="input-group-text bg-transparent border-0"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" name="q" class="form-control border-0 bg-transparent" 
+                               placeholder="Search by name or admission number..." value="{{ query|default:'' }}">
+                    </div>
+                </div>
+                <div class="col-md-3 border-start">
+                    <select name="class" class="form-select border-0 bg-transparent">
+                        <option value="">All Classes</option>
+                        {% for cls in classrooms %}
+                            <option value="{{ cls.id }}" {% if selected_class == cls.id|stringformat:"i" %}selected{% endif %}>
+                                {{ cls.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100 fw-bold rounded-3">Filter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <form action="{% url 'students:bulk_action' %}" method="POST" id="bulk-action-form">
+        {% csrf_token %}
+        <div id="bulk-action-bar" class="bulk-floating-bar shadow-lg d-none">
+            <div class="d-flex align-items-center justify-content-between px-4 py-2">
+                <div class="text-white small">
+                    <span class="fw-bold"><span id="selected-count" class="badge bg-white text-primary rounded-pill me-2">0</span> Selected</span>
+                </div>
+                <div class="d-flex gap-2 align-items-center">
+                    <select name="action" class="form-select form-select-sm border-0 shadow-sm" style="width: 200px;" required>
+                        <option value="">Choose Action...</option>
+                        <option value="promote">Promote Class</option>
+                        <option value="generate_invoices">Generate Invoices</option>
+                        <option value="delete">Remove Records</option>
+                    </select>
+                    <button type="submit" class="btn btn-light btn-sm fw-bold px-3">Execute</button>
+                    <button type="button" class="btn btn-link text-white text-decoration-none btn-sm" onclick="deselectAll()">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm overflow-hidden" style="border-radius: 15px;">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 custom-table">
+                    <thead class="bg-light">
+                        <tr class="text-muted small text-uppercase fw-bold">
+                            <th class="ps-4" style="width: 40px;">
+                                <input type="checkbox" class="form-check-input" id="select-all">
+                            </th>
+                            <th class="py-3">Student Name</th>
+                            <th>ID Number</th>
+                            <th>Class</th>
+                            <th>Financial Balance</th>
+                            <th class="text-end pe-4">Options</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in students %}
+                        <tr class="student-row">
+                            <td class="ps-4">
+                                <input type="checkbox" name="student_ids" value="{{ student.id }}" class="form-check-input student-checkbox">
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-box me-3">
+                                        {% if student.photo %}
+                                            <img src="{{ student.photo.url }}" alt="">
+                                        {% else %}
+                                            <span>{{ student.first_name|first }}{{ student.last_name|first }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold text-dark" style="font-size: 0.95rem;">{{ student.get_full_name }}</div>
+                                        <div class="text-muted" style="font-size: 0.75rem;">Enrolled: {{ student.date_enrolled|date:"M Y" }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td><span class="badge bg-light text-dark border fw-medium px-2 py-1">{{ student.admission_number }}</span></td>
+                            <td><span class="fw-semibold text-primary">{{ student.classroom.short_name|default:student.classroom.name }}</span></td>
+                            <td>
+                                {% with inv=student.invoices.first %}
+                                    {% if inv %}
+                                        {% if inv.balance <= 0 %}
+                                            <span class="text-success fw-bold small"><i class="fas fa-check-circle me-1"></i> Clear</span>
+                                        {% else %}
+                                            <span class="text-danger fw-bold small">UGX {{ inv.balance|floatformat:0 }}</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted small fst-italic">Pending Billing</span>
+                                    {% endif %}
+                                {% endwith %}
+                            </td>
+                            <td class="text-end pe-4">
+                                <div class="btn-group">
+                                    <a href="{% url 'finance:student_statement' student.id %}" class="btn btn-link btn-sm text-muted" title="Statement">
+                                        <i class="fas fa-receipt"></i>
+                                    </a>
+                                    <a href="#" class="btn btn-link btn-sm text-muted" title="Edit">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-5">
+                                <img src="https://illustrations.popsy.co/gray/search.svg" style="width: 150px;" class="mb-3">
+                                <h6 class="text-muted">No students found matching those filters.</h6>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </form>
+</div>
+
+<style>
+    /* Professional Styling Upgrades */
+    .btn-white { background: white; color: var(--text-dark); border-color: #e2e8f0; }
+    .btn-white:hover { background: #f8fafc; }
+
+    .stat-card { background: white; border-radius: 16px; transition: transform 0.2s; }
+    .stat-card:hover { transform: translateY(-3px); }
+    .stat-icon { width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+
+    .input-group-merge .form-control:focus { outline: none; box-shadow: none; }
+    
+    .avatar-box {
+        width: 40px; height: 40px; border-radius: 10px; background: #f1f5f9;
+        display: flex; align-items: center; justify-content: center; font-weight: 700;
+        color: var(--primary); font-size: 0.8rem; overflow: hidden; border: 1px solid #e2e8f0;
+    }
+    .avatar-box img { width: 100%; height: 100%; object-fit: cover; }
+
+    .custom-table tbody tr { border-bottom: 1px solid #f1f5f9; transition: background 0.2s; }
+    .custom-table tbody tr:hover { background-color: #f8fafc; }
+    .student-row.selected { background-color: #f0fdf4 !important; }
+
+    .bulk-floating-bar {
+        position: fixed; bottom: 30px; left: 55%; transform: translateX(-50%);
+        width: 90%; max-width: 700px; background: #1e293b; border-radius: 16px;
+        z-index: 1050; padding: 10px;
+    }
+
+    .form-check-input:checked { background-color: var(--primary); border-color: var(--primary); }
+</style>
+
+<script>
+    // Logic for Bulk Actions
+    const selectAll = document.getElementById('select-all');
+    const checkboxes = document.querySelectorAll('.student-checkbox');
+    const actionBar = document.getElementById('bulk-action-bar');
+    const countSpan = document.getElementById('selected-count');
+
+    function updateUI() {
+        const checked = document.querySelectorAll('.student-checkbox:checked');
+        countSpan.innerText = checked.length;
+        
+        if (checked.length > 0) {
+            actionBar.classList.remove('d-none');
+        } else {
+            actionBar.classList.add('d-none');
+        }
+
+        checkboxes.forEach(cb => {
+            const row = cb.closest('tr');
+            if (cb.checked) row.classList.add('selected');
+            else row.classList.remove('selected');
+        });
+    }
+
+    selectAll.addEventListener('change', e => {
+        checkboxes.forEach(cb => cb.checked = e.target.checked);
+        updateUI();
+    });
+
+    checkboxes.forEach(cb => cb.addEventListener('change', updateUI));
+
+    function deselectAll() {
+        checkboxes.forEach(cb => cb.checked = false);
+        selectAll.checked = false;
+        updateUI();
+    }
+</script>
+{% endblock %}

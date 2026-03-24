@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 d-print-none">
+        <a href="{% url 'finance:daily_report' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Reports
+        </a>
+        <button type="button" onclick="window.print()" class="btn btn-dark px-4">
+            <i class="fas fa-print me-2"></i>Print Statement
+        </button>
+    </div>
+
+    <div class="card border-0 shadow-lg p-5 report-paper bg-white position-relative">
+        
+        <div class="row mb-5 border-bottom border-2 pb-4 align-items-center">
+            <div class="col-2 text-center">
+                {% if request.school.logo %}
+                    <img src="{{ request.school.logo.url }}" alt="School Logo" class="img-fluid" style="max-height: 90px;">
+                {% else %}
+                    <div class="bg-success text-white d-flex align-items-center justify-content-center rounded mx-auto" style="width: 70px; height: 70px;">
+                        <i class="fas fa-university fa-2x"></i>
+                    </div>
+                {% endif %}
+            </div>
+            <div class="col-6">
+                <h2 class="fw-bold text-dark mb-0">{{ request.school.name|upper }}</h2>
+                <p class="text-success fw-bold mb-0 small">OFFICIAL STUDENT ACCOUNT STATEMENT</p>
+                <p class="text-muted extra-small mb-0">{{ request.school.address|default:"Kampala, Uganda" }}</p>
+            </div>
+            <div class="col-4 text-end">
+                <div class="p-2 border rounded bg-light">
+                    <p class="extra-small text-uppercase fw-bold text-muted mb-1">Date Generated</p>
+                    <p class="fw-bold mb-0">{{ today|date:"d M Y" }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4 align-items-start">
+            <div class="col-md-2 text-center">
+                {% if student.photo %}
+                    <img src="{{ student.photo.url }}" alt="{{ student.get_full_name }}" 
+                         class="img-thumbnail shadow-sm rounded mb-2" 
+                         style="width: 120px; height: 120px; object-fit: cover;">
+                {% else %}
+                    <div class="bg-light border d-flex align-items-center justify-content-center rounded mb-2 mx-auto" 
+                         style="width: 120px; height: 120px;">
+                        <i class="fas fa-user fa-3x text-secondary opacity-25"></i>
+                    </div>
+                {% endif %}
+                <div class="extra-small text-uppercase fw-bold text-muted">Student Photo</div>
+            </div>
+
+            <div class="col-md-5">
+                <h6 class="text-uppercase text-muted small fw-bold border-bottom pb-1">Student Details</h6>
+                <table class="table table-sm table-borderless mt-2">
+                    <tr><td class="ps-0 text-muted small" style="width: 30%;">Name:</td><td class="fw-bold">{{ student.get_full_name }}</td></tr>
+                    <tr><td class="ps-0 text-muted small">Adm No:</td><td class="fw-bold text-primary">{{ student.admission_number }}</td></tr>
+                    <tr><td class="ps-0 text-muted small">Class:</td><td class="fw-bold">{{ student.classroom.name }}</td></tr>
+                </table>
+            </div>
+
+            <div class="col-md-5">
+                <h6 class="text-uppercase text-muted small fw-bold border-bottom pb-1">Guardian Contact</h6>
+                <table class="table table-sm table-borderless mt-2">
+                    <tr><td class="ps-0 text-muted small" style="width: 35%;">Guardian:</td><td class="fw-bold">{{ student.guardian_name }}</td></tr>
+                    <tr><td class="ps-0 text-muted small">Phone:</td><td class="fw-bold text-success">{{ student.guardian_phone }}</td></tr>
+                    <tr><td class="ps-0 text-muted small">Relation:</td><td class="fw-bold small">{{ student.get_guardian_relation_display }}</td></tr>
+                </table>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle ledger-table">
+                <thead class="table-dark">
+                    <tr class="small text-uppercase">
+                        <th class="py-3">Date</th>
+                        <th>Description</th>
+                        <th class="text-end">Debit (Fees)</th>
+                        <th class="text-end">Credit (Paid)</th>
+                        <th class="text-end bg-secondary">Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in ledger %}
+                    <tr>
+                        <td class="small">{{ entry.date|date:"d/m/Y" }}</td>
+                        <td>{{ entry.description }}</td>
+                        <td class="text-end text-danger">
+                            {% if entry.debit > 0 %}{{ entry.debit|floatformat:0 }}{% else %}-{% endif %}
+                        </td>
+                        <td class="text-end text-success">
+                            {% if entry.credit > 0 %}{{ entry.credit|floatformat:0 }}{% else %}-{% endif %}
+                        </td>
+                        <td class="text-end fw-bold {% if entry.running_balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                            UGX {{ entry.running_balance|floatformat:0 }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="bg-light fs-5">
+                        <td colspan="4" class="text-end fw-black py-3">Closing Balance:</td>
+                        <td class="text-end fw-black py-3 border-start-0 {% if final_balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                            UGX {{ final_balance|floatformat:0 }}
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <div class="mt-4 p-3 rounded-3 {% if final_balance <= 0 %}bg-success-subtle border-success{% else %}bg-warning-subtle border-warning{% endif %} border border-2 text-center">
+            {% if final_balance <= 0 %}
+                <h5 class="fw-bold text-success mb-0"><i class="fas fa-check-circle me-2"></i>ACCOUNT CLEARED</h5>
+                <p class="small mb-0">No outstanding balance for this period. Thank you for your support.</p>
+            {% else %}
+                <h5 class="fw-bold text-dark mb-0"><i class="fas fa-exclamation-triangle me-2"></i>OUTSTANDING DEBT</h5>
+                <p class="small mb-0">Please clear the balance of <strong>UGX {{ final_balance|floatformat:0 }}</strong> as soon as possible.</p>
+            {% endif %}
+        </div>
+
+        <div class="row mt-5 pt-4 text-center">
+            <div class="col-4">
+                <div class="border-top border-dark mx-auto w-75 mt-4"></div>
+                <p class="small fw-bold">Parent's Acknowledgement</p>
+            </div>
+            <div class="col-4">
+                <div class="border-top border-dark mx-auto w-75 mt-4"></div>
+                <p class="small fw-bold">Bursar's Stamp</p>
+            </div>
+            <div class="col-4 text-muted small">
+                <p class="mb-0">Powered by</p>
+                <p class="fw-bold text-success">Saozirobwe System</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .report-paper {
+        border-radius: 0;
+        min-height: 29.7cm;
+        font-family: 'Inter', sans-serif;
+    }
+    .extra-small { font-size: 0.7rem; }
+    .fw-black { font-weight: 900; }
+    .ledger-table th { letter-spacing: 0.5px; }
+    
+    @media print {
+        .d-print-none { display: none !important; }
+        body { background: white !important; padding: 0 !important; }
+        .container { max-width: 100% !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
+        .report-paper { box-shadow: none !important; padding: 15px !important; }
+        .table-dark { background-color: #212529 !important; color: white !important; -webkit-print-color-adjust: exact; }
+        .bg-success-subtle { background-color: #d1e7dd !important; -webkit-print-color-adjust: exact; }
+        .bg-warning-subtle { background-color: #fff3cd !important; -webkit-print-color-adjust: exact; }
+    }
+</style>
+{% endblock %}

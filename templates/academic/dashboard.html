@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+
+{% block title %}Academic Center | {{ request.school.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1 text-dark" style="letter-spacing: -1.5px;">Academic Control Center</h2>
+            <p class="text-muted small mb-0">Managing <b>{{ term|default:"Term 1" }} {{ year|default:"2026" }}</b> Performance Data</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'academic:manage_subjects' %}" class="btn btn-white border btn-sm px-3 fw-bold shadow-sm">
+                <i class="fas fa-cog me-2 text-muted"></i> Academic Settings
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm academic-card bg-white">
+                <div class="card-body p-4 d-flex align-items-center">
+                    <div class="academic-icon bg-soft-primary text-primary me-3">
+                        <i class="fas fa-user-graduate"></i>
+                    </div>
+                    <div>
+                        <h4 class="fw-bold mb-0">{{ student_count|default:"0" }}</h4>
+                        <span class="extra-small text-uppercase fw-bold text-muted ls-1">Active Students</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm academic-card bg-white">
+                <div class="card-body p-4 d-flex align-items-center">
+                    <div class="academic-icon bg-soft-success text-success me-3">
+                        <i class="fas fa-check-double"></i>
+                    </div>
+                    <div>
+                        <h4 class="fw-bold mb-0">{{ reports_generated|default:"0" }}</h4>
+                        <span class="extra-small text-uppercase fw-bold text-muted ls-1">Validated Reports</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm academic-card bg-white">
+                <div class="card-body p-4 d-flex align-items-center">
+                    <div class="academic-icon bg-soft-warning text-warning me-3">
+                        <i class="fas fa-hourglass-half"></i>
+                    </div>
+                    <div>
+                        <h4 class="fw-bold mb-0 text-danger">{{ pending_marks|default:"0" }}</h4>
+                        <span class="extra-small text-uppercase fw-bold text-muted ls-1">Missing Entries</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm" style="border-radius: 20px; overflow: hidden;">
+        <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
+            <h5 class="fw-bold mb-0 text-dark">Classroom Grading Portals</h5>
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" placeholder="Filter classes...">
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 custom-academic-table">
+                <thead class="bg-light">
+                    <tr class="text-muted extra-small text-uppercase fw-bold">
+                        <th class="ps-4 py-3">Class Description</th>
+                        <th>Status</th>
+                        <th>Enrollment</th>
+                        <th>Avg Score</th>
+                        <th class="text-end pe-4">Data Entry</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for classroom in classrooms %}
+                    <tr>
+                        <td class="ps-4">
+                            <div class="fw-bold text-dark">{{ classroom.name }}</div>
+                            <div class="text-muted extra-small">{{ classroom.get_level_display|default:"Secondary Level" }}</div>
+                        </td>
+                        <td>
+                            <span class="badge-pill-info">{{ classroom.stream|default:"Main" }}</span>
+                        </td>
+                        <td class="small fw-bold text-muted">
+                            {{ classroom.student_set.count }} Students
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="progress shadow-none" style="height: 8px; width: 80px; background: #eee; border-radius: 10px;">
+                                    <div class="progress-bar bg-primary rounded-pill" style="width: 75%"></div>
+                                </div>
+                                <span class="ms-2 extra-small fw-bold">75%</span>
+                            </div>
+                        </td>
+                        <td class="text-end pe-4">
+                            <div class="dropdown d-inline-block">
+                                <button class="btn btn-primary btn-sm rounded-pill px-4 fw-bold shadow-sm dropdown-toggle" 
+                                        type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fas fa-edit me-1"></i> Enter Marks
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 p-3 mt-2" style="min-width: 400px; border-radius: 18px;">
+                                    <div class="px-2 mb-3 d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0 fw-bold text-dark small text-uppercase ls-1">Select Subject</h6>
+                                        <span class="badge bg-light text-dark border extra-small">{{ classroom.name }}</span>
+                                    </div>
+                                    <div class="row g-2">
+                                        {% for subject in classroom.subjects.all %}
+                                        <div class="col-6">
+                                            <li>
+                                                <a class="dropdown-item subject-item p-2 rounded-3 border bg-light d-flex align-items-center" 
+                                                   href="{% url 'academic:enter_marks' classroom.id subject.id %}">
+                                                    <div class="subj-icon me-2">{{ subject.name|slice:":1"|upper }}</div>
+                                                    <span class="small fw-bold">{{ subject.name }}</span>
+                                                </a>
+                                            </li>
+                                        </div>
+                                        {% empty %}
+                                        <div class="col-12 text-center py-4">
+                                            <i class="fas fa-book-dead fa-2x text-light mb-2"></i>
+                                            <p class="text-muted extra-small mb-0">No subjects linked to this class.</p>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </ul>
+                            </div>
+                            <a href="{% url 'students:student_list' %}?classroom={{ classroom.id }}" class="btn btn-light btn-sm rounded-circle border ms-1" title="View Students">
+                                <i class="fas fa-eye text-muted"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Clean Layout Basics */
+    .ls-1 { letter-spacing: 1px; }
+    .extra-small { font-size: 0.7rem; }
+    
+    .academic-icon { width: 50px; height: 50px; border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+    .bg-soft-primary { background-color: #eef2ff; color: #4f46e5; }
+    .bg-soft-success { background-color: #ecfdf5; color: #10b981; }
+    .bg-soft-warning { background-color: #fffbeb; color: #f59e0b; }
+
+    /* Search Box Design */
+    .search-box { position: relative; }
+    .search-box i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 0.8rem; }
+    .search-box input { border: 1.5px solid #e2e8f0; padding: 6px 12px 6px 35px; border-radius: 50px; font-size: 0.85rem; transition: 0.3s; width: 220px; }
+    .search-box input:focus { outline: none; border-color: var(--primary); width: 280px; }
+
+    /* Custom Table Styling */
+    .custom-academic-table thead th { border-top: none; padding: 15px 10px; color: #64748b; letter-spacing: 0.5px; }
+    .custom-academic-table tbody tr { transition: 0.2s; }
+    .custom-academic-table tbody tr:hover { background-color: #f8fafc; }
+    .badge-pill-info { background: #e0f2fe; color: #0369a1; padding: 4px 12px; border-radius: 50px; font-size: 0.7rem; font-weight: 800; }
+
+    /* Modern Dropdown Grid */
+    .subject-item { transition: 0.2s; }
+    .subject-item:hover { background: var(--primary) !important; color: white !important; border-color: var(--primary) !important; transform: scale(1.02); }
+    .subj-icon { width: 28px; height: 28px; background: white; color: var(--primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.7rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .subject-item:hover .subj-icon { background: rgba(255,255,255,0.2); color: white; }
+
+    .btn-white { background: white; color: #475569; border-color: #e2e8f0; }
+    .btn-white:hover { background: #f8fafc; color: #1e293b; }
+
+    .academic-card { border: 1px solid #f1f5f9 !important; border-radius: 18px; }
+</style>
+{% endblock %}

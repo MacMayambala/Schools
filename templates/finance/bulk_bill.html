@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0"><i class="fas fa-file-invoice-dollar me-2"></i> Bulk Term Billing</h5>
+                </div>
+                <div class="card-body p-4">
+                    <p class="text-muted">This action will generate invoices for all students in the selected class based on the defined Fee Structure.</p>
+                    
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Select Classroom</label>
+                                <select name="classroom" class="form-select" required>
+                                    <option value="">---------</option>
+                                    {% for class in classrooms %}
+                                        <option value="{{ class.id }}">{{ class.name }} ({{ class.short_name }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Term</label>
+                                <select name="term" class="form-select" required>
+                                    <option value="1">Term 1</option>
+                                    <option value="2">Term 2</option>
+                                    <option value="3">Term 3</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Year</label>
+                                <input type="number" name="year" class="form-control" value="2026" required>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-warning mt-4 small">
+                            <i class="fas fa-exclamation-circle me-1"></i> 
+                            <strong>Note:</strong> Invoices will only be created for students who do not already have an invoice for this term/year.
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'finance:dashboard' %}" class="btn btn-outline-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary px-4">Generate Invoices</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="card shadow-sm col-md-6 mx-auto mt-5">
+    <div class="card-body">
+        <h4 class="card-title">Bulk Student Import</h4>
+        <p class="text-muted">Upload an Excel (.xlsx) file with columns: <b>First Name, Last Name, Class Code</b></p>
+        
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="mb-3">
+                <input type="file" name="import_file" class="form-control" required>
+            </div>
+            <button type="submit" class="btn btn-success w-100">Upload & Process</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

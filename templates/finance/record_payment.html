@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-9 col-lg-8"> 
+            <div class="card shadow border-0 overflow-hidden" style="border-radius: 15px;">
+                <div class="card-header bg-success text-white py-3 d-flex align-items-center">
+                    <i class="fas fa-money-bill-wave fa-lg me-2"></i>
+                    <h5 class="mb-0 fw-bold">Record Fee Payment</h5>
+                </div>
+                
+                <div class="card-body p-4">
+                    <div class="row align-items-center mb-4 p-3 bg-light rounded border-start border-success border-5 mx-0 shadow-sm">
+                        <div class="col-auto">
+                            {% if invoice.student.photo %}
+                                <img src="{{ invoice.student.photo.url }}" alt="{{ invoice.student.first_name }}" 
+                                     class="rounded-circle border border-white shadow-sm" 
+                                     style="width: 85px; height: 85px; object-fit: cover;">
+                            {% else %}
+                                <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-white shadow-sm" 
+                                     style="width: 85px; height: 85px;">
+                                    <i class="fas fa-user fa-2x"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col">
+                            <h6 class="text-muted small text-uppercase fw-bold mb-1">Fee Payment For:</h6>
+                            <h3 class="mb-0 fw-bold text-dark">{{ invoice.student.get_full_name }}</h3>
+                            <span class="badge bg-success-subtle text-success border border-success px-3">{{ invoice.student.admission_number }}</span>
+                            <span class="ms-2 text-muted small"><i class="fas fa-chalkboard me-1"></i>{{ invoice.student.classroom.name }}</span>
+                        </div>
+                        <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                            <div class="text-muted small text-uppercase fw-bold">Current Balance</div>
+                            <h4 class="text-danger fw-bold mb-0">UGX {{ invoice.balance|floatformat:0 }}</h4>
+                        </div>
+                    </div>
+
+                    <form method="POST">
+                        {% csrf_token %}
+                        
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold"><i class="fas fa-university me-1 text-success"></i> Deposit To Account</label>
+                                <select name="account" class="form-select form-select-lg border-success" required>
+                                    {% if not accounts %}
+                                        <option value="" disabled selected>⚠️ No Asset Accounts Found!</option>
+                                    {% else %}
+                                        <option value="" selected disabled>-- Select School Account --</option>
+                                        {% for acc in accounts %}
+                                            <option value="{{ acc.id }}">
+                                                {{ acc.name }} (UGX {{ acc.balance|floatformat:0 }})
+                                            </option>
+                                        {% endfor %}
+                                    {% endif %}
+                                </select>
+                                {% if not accounts %}
+                                <div class="form-text text-danger small">Go to Chart of Accounts and create an "Asset" account first.</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold"><i class="fas fa-coins me-1 text-success"></i> Amount Paid (UGX)</label>
+                                <div class="input-group input-group-lg">
+                                    <span class="input-group-text bg-light fw-bold text-success">UGX</span>
+                                    <input type="number" name="amount" class="form-control fw-bold" 
+                                           max="{{ invoice.balance }}" value="{{ invoice.balance|floatformat:0 }}" required>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Payment Method</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white"><i class="fas fa-wallet text-muted"></i></span>
+                                    <select name="method" class="form-select">
+                                        <option value="Cash">Cash</option>
+                                        <option value="Bank">Bank Deposit</option>
+                                        <option value="Mobile Money">Mobile Money</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Reference / Slip No.</label>
+                                <input type="text" name="reference" class="form-control" placeholder="e.g. Bank Slip ID">
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label fw-bold">Depositor Name (Parent/Student)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white"><i class="fas fa-user-tag text-muted"></i></span>
+                                    <input type="text" name="depositor" class="form-control" required 
+                                           placeholder="Who brought the money?">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 mt-5">
+                            <button type="submit" class="btn btn-success btn-lg py-3 fw-bold shadow-sm" {% if not accounts %}disabled{% endif %}>
+                                <i class="fas fa-save me-2"></i> Post Payment to Ledger
+                            </button>
+                            <div class="d-flex justify-content-between">
+                                <a href="{% url 'finance:dashboard' %}" class="btn btn-link text-secondary text-decoration-none">
+                                    <i class="fas fa-arrow-left me-1"></i> Exit Finance
+                                </a>
+                                <span class="text-muted small align-self-center">
+                                    Operator: <strong>{{ request.user.username }}</strong>
+                                </span>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-control:focus, .form-select:focus {
+        border-color: #198754;
+        box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.15);
+    }
+    label { font-size: 0.9rem; margin-bottom: 0.4rem; color: #444; }
+</style>
+{% endblock %}

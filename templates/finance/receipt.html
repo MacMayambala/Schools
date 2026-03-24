@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow-sm border-0 mx-auto" style="max-width: 800px;" id="printableReceipt">
+        <div class="card-body p-5">
+            <div class="d-flex justify-content-between mb-4">
+                <div>
+                    <h2 class="fw-bold text-uppercase mb-0">{{ request.school.name }}</h2>
+                    <p class="text-muted">School Code: {{ request.school.code }}</p>
+                </div>
+                <div class="text-end">
+                    <h4 class="text-success fw-bold">OFFICIAL RECEIPT</h4>
+                    <p class="mb-0">No: <b>{{ payment.receipt_number }}</b></p>
+                    <p>Date: {{ payment.date_paid }}</p>
+                </div>
+            </div>
+
+            <hr>
+
+            <div class="row mb-4">
+                <div class="col-6">
+                    <p class="mb-1 text-muted">Received From:</p>
+                    <h5>{{ payment.invoice.student.first_name }} {{ payment.invoice.student.last_name }}</h5>
+                    <p>Class: {{ payment.invoice.student.classroom.short_name }}</p>
+                </div>
+                <div class="col-6 text-end">
+                    <p class="mb-1 text-muted">Payment Method:</p>
+                    <h5>{{ payment.payment_method }}</h5>
+                </div>
+            </div>
+
+            <table class="table table-bordered mb-4">
+                <thead class="bg-light">
+                    <tr>
+                        <th>Description</th>
+                        <th class="text-end">Amount Paid (UGX)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Fees Payment for Term {{ payment.invoice.term }} ({{ payment.invoice.year }})</td>
+                        <td class="text-end fw-bold">{{ payment.amount_paid }}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="text-end mb-4">
+                <p class="mb-0">Total Due: UGX {{ payment.invoice.total_amount }}</p>
+                <p class="fw-bold">New Balance: UGX {{ payment.invoice.balance }}</p>
+            </div>
+
+            <div class="mt-5 pt-5 d-flex justify-content-between">
+                <div class="text-center" style="border-top: 1px solid #ddd; width: 200px;">
+                    <p class="small">Bursar's Signature</p>
+                </div>
+                <div class="text-center" style="border-top: 1px solid #ddd; width: 200px;">
+                    <p class="small">School Stamp</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="text-center mt-4 no-print">
+        <button onclick="window.print();" class="btn btn-dark btn-lg">
+            <i class="fas fa-print me-2"></i> Print Receipt
+        </button>
+        <a href="{% url 'finance:dashboard' %}" class="btn btn-link">Back to Dashboard</a>
+    </div>
+</div>
+
+<style>
+    @media print {
+        .no-print, #sidebar, .navbar { display: none !important; }
+        #content { margin-left: 0 !important; padding: 0 !important; }
+        .card { border: none !important; box-shadow: none !important; }
+    }
+</style>
+{% endblock %}

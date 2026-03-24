@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid py-2">
+    <div class="d-flex justify-content-between align-items-end mb-4">
+        <div>
+            <h2 class="fw-bold mb-0 text-dark" style="letter-spacing: -1px;">Management Overview</h2>
+            <p class="text-muted small mb-0">Operational summary for <strong>{{ request.school.name|default:"Our Lady of Africa" }}</strong></p>
+        </div>
+        <div class="text-end d-none d-md-block">
+            <div class="badge bg-white border text-dark py-2 px-3 rounded-pill shadow-sm">
+                <i class="far fa-calendar-alt me-2 text-primary"></i>
+                <span class="fw-bold">{% now "l, jS F Y" %}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100 overflow-hidden" style="border-radius: 16px;">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted small fw-bold text-uppercase mb-1" style="letter-spacing: 0.5px;">Student Body</p>
+                            <h2 class="fw-bold mb-0">{{ student_count|default:"0" }}</h2>
+                            <span class="badge bg-primary-subtle text-primary mt-2">Active Enrollment</span>
+                        </div>
+                        <div class="icon-shape bg-primary text-white shadow-sm">
+                            <i class="fas fa-user-graduate"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100 overflow-hidden" style="border-radius: 16px;">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted small fw-bold text-uppercase mb-1" style="letter-spacing: 0.5px;">Revenue Collected</p>
+                            <h2 class="fw-bold mb-0 text-dark">UGX {{ total_fees|default:"0" }}</h2>
+                            <span class="badge bg-success-subtle text-success mt-2">+12% from last term</span>
+                        </div>
+                        <div class="icon-shape bg-success text-white shadow-sm">
+                            <i class="fas fa-coins"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100 overflow-hidden" style="border-radius: 16px;">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted small fw-bold text-uppercase mb-1" style="letter-spacing: 0.5px;">Outstanding Arrears</p>
+                            <h2 class="fw-bold mb-0 text-danger">UGX {{ balance|default:"0" }}</h2>
+                            <span class="badge bg-danger-subtle text-danger mt-2">Requires Attention</span>
+                        </div>
+                        <div class="icon-shape bg-danger text-white shadow-sm">
+                            <i class="fas fa-exclamation-circle"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4" style="border-radius: 16px; background: linear-gradient(to right, #ffffff, #f8fafc);">
+        <div class="card-body p-4">
+            <h6 class="text-muted small mb-3 text-uppercase fw-bold ls-1">Administrative Shortcuts</h6>
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{% url 'students:student_add' %}" class="btn btn-primary btn-sm px-4 py-2 rounded-pill fw-bold shadow-sm">
+                    <i class="fas fa-plus-circle me-2"></i>New Student
+                </a>
+                <a href="{% url 'finance:bulk_bill' %}" class="btn btn-dark btn-sm px-4 py-2 rounded-pill fw-bold shadow-sm">
+                    <i class="fas fa-file-invoice-dollar me-2"></i>Run Term Billing
+                </a>
+                <a href="{% url 'students:student_list' %}" class="btn btn-white border btn-sm px-4 py-2 rounded-pill fw-bold shadow-sm">
+                    <i class="fas fa-search me-2 text-primary"></i>Registry Lookup
+                </a>
+                <a href="/admin" class="btn btn-white border btn-sm px-4 py-2 rounded-pill fw-bold shadow-sm">
+                    <i class="fas fa-user-shield me-2 text-secondary"></i>System Admin
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm h-100" style="border-radius: 16px;">
+                <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0">Recent Billing Activity</h5>
+                    <a href="{% url 'finance:dashboard' %}" class="text-primary fw-bold small text-decoration-none">Review All →</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 custom-dashboard-table">
+                        <thead class="bg-light">
+                            <tr class="text-muted extra-small text-uppercase fw-bold">
+                                <th class="ps-4 py-3">Student Name</th>
+                                <th>Academic Period</th>
+                                <th class="text-end pe-4">Current Balance</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for inv in recent_invoices %}
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar-initials me-3 bg-light text-primary">
+                                            {{ inv.student.first_name|first }}{{ inv.student.last_name|first }}
+                                        </div>
+                                        <span class="fw-bold text-dark">{{ inv.student.get_full_name }}</span>
+                                    </div>
+                                </td>
+                                <td><span class="text-muted">Term {{ inv.term }} (2026)</span></td>
+                                <td class="text-end pe-4">
+                                    <span class="text-danger fw-bold">UGX {{ inv.balance|default:"0" }}</span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center py-5 text-muted small fst-italic">No billing records found for this period.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 bg-primary text-white shadow-lg mb-4" style="border-radius: 20px; background: linear-gradient(135deg, var(--primary), #1e5c39) !important;">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center mb-4">
+                        <div class="bg-white p-2 rounded-3 me-3" style="width: 50px; height: 50px;">
+                            <img src="{{ request.school.logo.url }}" class="img-fluid" alt="OLA">
+                        </div>
+                        <h5 class="fw-bold mb-0">System Status</h5>
+                    </div>
+                    
+                    <div class="mb-3 border-bottom border-white border-opacity-10 pb-2">
+                        <label class="extra-small opacity-75 d-block">Institution</label>
+                        <span class="fw-bold">{{ request.school.name }}</span>
+                    </div>
+                    <div class="mb-3 border-bottom border-white border-opacity-10 pb-2">
+                        <label class="extra-small opacity-75 d-block">Session Manager</label>
+                        <span class="fw-bold">{{ user.username }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <label class="extra-small opacity-75 d-block">Operational Year</label>
+                            <span class="fw-bold">2026</span>
+                        </div>
+                        <span class="badge bg-white text-primary fw-bold px-3 py-2 rounded-pill">ONLINE</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm" style="border-radius: 16px;">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3">System Updates</h6>
+                    <div class="d-flex gap-3 mb-3">
+                        <i class="fas fa-info-circle text-primary"></i>
+                        <p class="small text-muted mb-0">Automated backups for the school database are scheduled for 12:00 AM daily.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .ls-1 { letter-spacing: 0.5px; }
+    .extra-small { font-size: 0.7rem; }
+    
+    .icon-shape {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+    }
+
+    .bg-primary-subtle { background-color: #eef2ff; color: #4f46e5; }
+    .bg-success-subtle { background-color: #ecfdf5; color: #10b981; }
+    .bg-danger-subtle { background-color: #fff1f2; color: #f43f5e; }
+
+    .btn-white { background: white; color: #475569; }
+    .btn-white:hover { background: #f8fafc; color: var(--primary); }
+
+    .avatar-initials {
+        width: 35px;
+        height: 35px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.75rem;
+    }
+
+    .custom-dashboard-table thead th { border-top: none; color: #94a3b8; }
+    .custom-dashboard-table tbody tr:hover { background-color: #f8fafc; cursor: pointer; }
+</style>
+{% endblock %}

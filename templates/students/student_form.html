@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Admission | {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-2">
+    <div class="d-flex justify-content-between align-items-end mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item small"><a href="{% url 'students:student_list' %}" class="text-decoration-none text-muted">Registry</a></li>
+                    <li class="breadcrumb-item small active" aria-current="page">New Admission</li>
+                </ol>
+            </nav>
+            <h2 class="fw-bold mb-0 text-dark" style="letter-spacing: -1px;">Student Enrollment</h2>
+            <p class="text-muted small mb-0">Registering a new student into the <strong>2026 Academic Year</strong></p>
+        </div>
+        <a href="{% url 'students:student_list' %}" class="btn btn-white border btn-sm px-3 fw-semibold shadow-sm">
+            <i class="fas fa-list me-2 text-primary"></i> View All Students
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-xl-10 mx-auto">
+            <div class="card border-0 shadow-sm overflow-hidden" style="border-radius: 20px;">
+                <div class="bg-primary p-1"></div>
+                
+                <div class="card-body p-lg-5">
+                    <form method="post" enctype="multipart/form-data" class="admission-form">
+                        {% csrf_token %}
+                        
+                        <div class="row g-5">
+                            <div class="col-lg-6 border-end-lg">
+                                <div class="d-flex align-items-center mb-4">
+                                    <div class="icon-box bg-soft-primary text-primary me-3">
+                                        <i class="fas fa-user-graduate"></i>
+                                    </div>
+                                    <h5 class="fw-bold mb-0 text-dark">Personal Information</h5>
+                                </div>
+
+                                <div class="photo-upload-wrapper mb-4 text-center p-4 rounded-4 border-dashed">
+                                    <label for="id_photo" class="d-block cursor-pointer">
+                                        <div class="avatar-preview mb-2 mx-auto shadow-sm">
+                                            <i class="fas fa-camera fa-2x text-muted opacity-50"></i>
+                                        </div>
+                                        <span class="small fw-bold text-primary">Upload Passport Photo</span>
+                                        <p class="extra-small text-muted mb-0">PNG or JPG, Max 2MB</p>
+                                    </label>
+                                    <div class="d-none">{{ form.photo|as_crispy_field }}</div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">{{ form.first_name|as_crispy_field }}</div>
+                                    <div class="col-md-6">{{ form.last_name|as_crispy_field }}</div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">{{ form.classroom|as_crispy_field }}</div>
+                                    <div class="col-md-6">{{ form.gender|as_crispy_field }}</div>
+                                </div>
+
+                                {{ form.date_of_birth|as_crispy_field }}
+                            </div>
+
+                            <div class="col-lg-6">
+                                <div class="d-flex align-items-center mb-4">
+                                    <div class="icon-box bg-soft-success text-success me-3">
+                                        <i class="fas fa-shield-alt"></i>
+                                    </div>
+                                    <h5 class="fw-bold mb-0 text-dark">Guardian Details</h5>
+                                </div>
+
+                                {{ form.guardian_name|as_crispy_field }}
+
+                                <div class="row">
+                                    <div class="col-md-6">{{ form.guardian_relation|as_crispy_field }}</div>
+                                    <div class="col-md-6">{{ form.guardian_phone|as_crispy_field }}</div>
+                                </div>
+
+                                {{ form.guardian_email|as_crispy_field }}
+                                {{ form.guardian_address|as_crispy_field }}
+
+                                <div class="alert alert-info border-0 shadow-sm mt-4 p-3 rounded-4" style="background: #f0f7ff;">
+                                    <div class="d-flex">
+                                        <i class="fas fa-info-circle text-primary me-3 mt-1"></i>
+                                        <p class="small text-dark mb-0">
+                                            <b>Note:</b> Ensure the phone number is active for SMS alerts and financial notifications.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-5 pt-4 border-top d-flex justify-content-between align-items-center">
+                            <span class="text-muted small">
+                                <i class="fas fa-lock me-1"></i> Encrypted Secure Admission
+                            </span>
+                            <div class="d-flex gap-2">
+                                <button type="reset" class="btn btn-white border px-4 fw-bold">Clear Form</button>
+                                <button type="submit" class="btn btn-primary btn-lg px-5 fw-bold shadow">
+                                    <i class="fas fa-check-circle me-2"></i> Confirm Admission
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Professional Admission UI */
+    .extra-small { font-size: 0.72rem; }
+    .ls-1 { letter-spacing: 0.5px; }
+    
+    .icon-box { width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
+    .bg-soft-primary { background-color: #eef2ff; }
+    .bg-soft-success { background-color: #ecfdf5; }
+
+    /* Custom Form Styling */
+    .form-control, .form-select {
+        border-radius: 10px;
+        padding: 0.6rem 1rem;
+        border: 1px solid #e2e8f0;
+        background-color: #f8fafc;
+        transition: all 0.2s ease;
+    }
+
+    .form-control:focus {
+        background-color: #fff;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 4px rgba(46, 139, 87, 0.1);
+    }
+
+    label { font-weight: 700; color: #475569; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.4rem; }
+
+    /* Photo Upload Area */
+    .border-dashed { border: 2px dashed #cbd5e1; border-radius: 16px; background: #f8fafc; transition: 0.3s; }
+    .border-dashed:hover { border-color: var(--primary); background: #f0fdf4; }
+    .avatar-preview { width: 80px; height: 80px; border-radius: 50%; background: #fff; border: 2px solid #e2e8f0; display: flex; align-items: center; justify-content: center; }
+    .cursor-pointer { cursor: pointer; }
+
+    .btn-white { background: white; color: #64748b; border-color: #e2e8f0; }
+    .btn-white:hover { background: #f8fafc; color: #1e293b; }
+
+    @media (min-width: 992px) {
+        .border-end-lg { border-right: 1px solid #f1f5f9 !important; }
+    }
+</style>
+{% endblock %}

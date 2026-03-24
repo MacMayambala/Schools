@@ -1,0 +1,240 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow-sm border-0 mb-4 d-print-none overflow-hidden" style="border-radius: 12px;">
+        <div class="card-body bg-white p-4">
+            <form method="GET" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="uppercase-label">From Date</label>
+                    <input type="date" name="start_date" class="form-control custom-date-picker" 
+                           value="{{ start_date|default:today|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="uppercase-label">To Date</label>
+                    <input type="date" name="end_date" class="form-control custom-date-picker" 
+                           value="{{ end_date|default:today|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-6 d-flex gap-2">
+                    <button type="submit" class="btn btn-success px-4 fw-bold flex-grow-1 shadow-sm">
+                        <i class="fas fa-sync-alt me-2"></i>Generate Report
+                    </button>
+                    <a href="{% url 'finance:export_excel' %}?start_date={{ start_date }}&end_date={{ end_date }}" 
+                       class="btn btn-outline-success px-3 shadow-sm" title="Export to Excel">
+                        <i class="fas fa-file-excel"></i>
+                    </a>
+                    <button type="button" onclick="window.print()" class="btn btn-dark px-3 shadow-sm">
+                        <i class="fas fa-print"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-lg p-5 report-paper bg-white position-relative">
+        <div class="watermark d-none d-print-block">SAOZIROBWE OFFICIAL</div>
+
+        <div class="row mb-5 border-bottom border-2 pb-4 align-items-center">
+            <div class="col-2 text-center">
+                {% if request.school.logo %}
+                    <img src="{{ request.school.logo.url }}" alt="School Logo" class="img-fluid" style="max-height: 110px;">
+                {% else %}
+                    <div class="bg-success text-white d-flex align-items-center justify-content-center rounded shadow-sm mx-auto" 
+                         style="width: 85px; height: 85px;">
+                        <i class="fas fa-university fa-2x"></i>
+                    </div>
+                {% endif %}
+            </div>
+            <div class="col-6">
+                <h1 class="fw-black text-dark mb-0" style="letter-spacing: -1.5px; font-size: 2.3rem;">{{ request.school.name|upper }}</h1>
+                <p class="text-success fw-bold mb-0">FINANCE & ACCOUNTING DEPARTMENT</p>
+                <p class="text-muted small mb-0">{{ request.school.address|default:"P.O. Box 123, Kampala, Uganda" }}</p>
+            </div>
+            <div class="col-4 text-end">
+                <h4 class="fw-bold text-uppercase text-muted mt-2">Collection Report</h4>
+                <div class="badge bg-dark px-3 py-2 mt-1">
+                    {{ start_date|date:"d M Y" }} — {{ end_date|date:"d M Y" }}
+                </div>
+                <p class="extra-small text-muted mt-2 mb-0">Report ID: #COL-{{ today|date:"Ymd" }}</p>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle custom-table">
+                <thead>
+                    <tr class="table-light">
+                        <th class="ps-3 py-3">Date</th>
+                        <th>Student / Parent Contact</th>
+                        <th>Method</th>
+                        <th class="text-end">Amount Paid</th>
+                        <th class="text-end pe-3">Remaining Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in payments %}
+                    <tr>
+                        <td class="small text-muted">{{ p.date_paid|date:"d/m/y" }}</td>
+                        <td>
+                            <div class="fw-bold text-dark">{{ p.invoice.student.get_full_name }}</div>
+                            <div class="text-success small fw-bold">
+                                <i class="fas fa-phone-alt me-1 extra-small"></i>
+                                <a href="tel:{{ p.invoice.student.guardian_phone }}" class="text-decoration-none text-success">
+                                    {{ p.invoice.student.guardian_phone|default:"No Contact" }}
+                                </a>
+                            </div>
+                            <div class="text-muted extra-small">
+                                {{ p.invoice.student.admission_number }} | {{ p.invoice.student.classroom.name }}
+                            </div>
+                        </td>
+                        <td><span class="badge payment-badge">{{ p.method }}</span></td>
+                        <td class="text-end fw-bold text-dark">
+                            UGX {{ p.amount|floatformat:0 }}
+                        </td>
+                        <td class="text-end pe-3">
+                            {% if p.invoice.balance <= 0 %}
+                                <span class="badge bg-success-subtle text-success border border-success px-2">
+                                    <i class="fas fa-check-circle me-1"></i>Cleared
+                                </span>
+                            {% else %}
+                                <span class="text-danger fw-bold small">
+                                    UGX {{ p.invoice.balance|floatformat:0 }}
+                                </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5 text-muted">
+                            <i class="fas fa-search fa-3x mb-3 d-block opacity-25"></i>
+                            No transactions found for this period.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-success border-top border-success border-3">
+                        <td colspan="3" class="text-end fw-bold py-3 fs-5 text-uppercase">Total Revenue Collected:</td>
+                        <td class="text-end fw-bold py-3 text-success fs-5">
+                            UGX {{ total_collected|floatformat:0 }}
+                        </td>
+                        <td class="bg-white"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <div class="row mt-5">
+            <div class="col-md-5">
+                <div class="p-3 bg-light rounded-3 border shadow-sm">
+                    <h6 class="fw-bold small text-uppercase mb-3 text-success">Summary by Method</h6>
+                    {% for item in summary_by_method %}
+                    <div class="d-flex justify-content-between mb-2 pb-1 border-bottom border-white">
+                        <span class="text-muted small">{{ item.method }}</span>
+                        <span class="fw-bold">UGX {{ item.total|floatformat:0 }}</span>
+                    </div>
+                    {% empty %}
+                    <p class="small text-muted mb-0">No data available</p>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <div class="col-md-7">
+                <div class="row mt-5 text-center">
+                    <div class="col-6">
+                        <div class="sig-line"></div>
+                        <p class="small fw-bold mb-0">Bursar's Signature</p>
+                        <p class="extra-small text-muted">{{ request.user.get_full_name|default:request.user.username }}</p>
+                    </div>
+                    <div class="col-6">
+                        <div class="sig-line"></div>
+                        <p class="small fw-bold mb-0">Authorized Auditor</p>
+                        <p class="extra-small text-muted">Stamp & Date</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center mt-5 d-none d-print-block">
+            <p class="extra-small text-muted">This is an automated financial report generated by the Saozirobwe Management System.</p>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* 🕒 MODERN DATE PICKER STYLING */
+    .custom-date-picker {
+        border: 2px solid #edeff1;
+        border-radius: 10px;
+        padding: 10px 15px;
+        font-weight: 500;
+        color: #495057;
+        transition: all 0.2s ease-in-out;
+        background-color: #fcfcfc;
+    }
+    .custom-date-picker:focus {
+        border-color: #198754;
+        background-color: #fff;
+        box-shadow: 0 0 0 4px rgba(25, 135, 84, 0.1);
+        outline: none;
+    }
+
+    /* 📄 REPORT STYLING */
+    .report-paper {
+        border-radius: 0;
+        min-height: 29.7cm; /* Ensures A4 vertical height */
+        font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+    }
+    .uppercase-label { 
+        font-size: 0.65rem; 
+        letter-spacing: 1.2px; 
+        margin-bottom: 8px; 
+        text-transform: uppercase; 
+        font-weight: 700; 
+        color: #198754;
+        display: block;
+    }
+    .extra-small { font-size: 0.7rem; }
+    .fw-black { font-weight: 900; }
+    .sig-line { border-top: 2px solid #333; width: 80%; margin: 0 auto 8px; }
+    
+    .payment-badge {
+        background-color: #f8f9fa;
+        color: #333;
+        border: 1px solid #dee2e6;
+        font-weight: 500;
+        padding: 4px 10px;
+    }
+
+    .custom-table thead th {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #555;
+        border-bottom: 2px solid #198754;
+    }
+
+    .watermark {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(-35deg);
+        font-size: 7rem;
+        color: rgba(0,0,0,0.02);
+        font-weight: 900;
+        z-index: 0;
+        pointer-events: none;
+        white-space: nowrap;
+    }
+
+    /* 🖨️ PRINT RULES */
+    @media print {
+        .d-print-none, .sidebar, .navbar, .breadcrumb, footer { display: none !important; }
+        .container { width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
+        .report-paper { box-shadow: none !important; padding: 20px !important; border: none !important; }
+        body { background: white !important; }
+        .table-success { background-color: #d1e7dd !important; -webkit-print-color-adjust: exact; }
+        .bg-success { background-color: #198754 !important; color: white !important; -webkit-print-color-adjust: exact; }
+        .badge { border: 1px solid #ccc !important; -webkit-print-color-adjust: exact; }
+    }
+</style>
+{% endblock %}

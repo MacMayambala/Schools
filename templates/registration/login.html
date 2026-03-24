@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Portal | {{ request.school.name|default:"Our Lady of Africa" }}</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --ola-green: #2E8B57; 
+            --ola-green-rgb: 46, 139, 87;
+            --ola-gold: #FFD700;
+            --soft-bg: #f8fafc;
+            --text-dark: #1e293b;
+        }
+
+        body, html { height: 100%; margin: 0; font-family: 'Inter', sans-serif; background-color: var(--soft-bg); }
+
+        /* Left Branding Pane */
+        .branding-pane {
+            background: linear-gradient(135deg, rgba(var(--ola-green-rgb), 0.92), rgba(0, 50, 0, 0.85)), 
+                        url('https://images.unsplash.com/photo-1523050335392-9affa74744a8?auto=format&fit=crop&q=80&w=1200');
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            padding: 3rem;
+            text-align: center;
+        }
+
+        .logo-container {
+            width: 130px;
+            height: 130px;
+            background: white;
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            margin-bottom: 2rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .logo-container img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+        .background-watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60%;
+            opacity: 0.03;
+            z-index: -1;
+            pointer-events: none;
+            filter: grayscale(100%);
+        }
+
+        /* Input Styling */
+        .form-label { font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 0.5rem; }
+        
+        .input-group {
+            background: white;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .input-group:focus-within {
+            border-color: var(--ola-green);
+            box-shadow: 0 0 0 4px rgba(var(--ola-green-rgb), 0.1);
+        }
+
+        .input-group-text {
+            background: transparent;
+            border: none;
+            padding-left: 1.2rem;
+            color: #94a3b8;
+        }
+
+        .form-control {
+            border: none;
+            padding: 0.8rem 1.2rem;
+            font-size: 0.95rem;
+            color: var(--text-dark);
+            background: transparent;
+        }
+        
+        .form-control:focus { background: transparent; box-shadow: none; border: none; }
+
+        /* Button Styling */
+        .btn-ola {
+            background: var(--ola-green);
+            color: white;
+            border: none;
+            padding: 1rem;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            letter-spacing: 0.5px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            margin-top: 1rem;
+        }
+
+        .btn-ola:hover {
+            background: #246e45;
+            color: var(--ola-gold);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(var(--ola-green-rgb), 0.2);
+        }
+
+        /* Layout Adjustments */
+        .login-card {
+            width: 100%;
+            max-width: 420px;
+            padding: 2.5rem;
+            z-index: 10;
+        }
+
+        .school-info-pill {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            padding: 8px 16px;
+            border-radius: 50px;
+            border: 1px solid rgba(255,255,255,0.2);
+            font-size: 0.8rem;
+            margin-top: 2rem;
+        }
+
+        /* Mac Technologies Branding */
+        .login-footer-branding {
+            margin-top: 3rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #f1f5f9;
+            text-align: center;
+        }
+
+        .mac-tech-credit {
+            position: absolute;
+            bottom: 20px;
+            right: 30px;
+            font-size: 0.72rem;
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .mac-tech-credit:hover {
+            color: var(--ola-green);
+        }
+
+        .credit-dot {
+            width: 4px;
+            height: 4px;
+            background: #cbd5e1;
+            border-radius: 50%;
+        }
+
+        @media (max-width: 767px) {
+            .branding-pane { display: none; }
+            .mac-tech-credit { position: relative; right: auto; bottom: auto; justify-content: center; margin-bottom: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid vh-100 p-0">
+    <div class="row g-0 h-100">
+        
+        <div class="col-md-6 d-none d-md-flex branding-pane position-relative">
+            <div class="logo-container">
+                {% if request.school.logo %}
+                    <img src="{{ request.school.logo.url }}" alt="School Logo">
+                {% else %}
+                    <i class="fas fa-university fa-4x text-success"></i>
+                {% endif %}
+            </div>
+
+            <h1 class="fw-bold mb-2" style="letter-spacing: -1px; font-size: 2.5rem;">{{ request.school.name|default:"Our Lady of Africa" }}</h1>
+            <p class="lead opacity-75 fw-light" style="font-style: normal; color: var(--ola-gold);">
+                {{ request.school.motto|default:"Knowledge and Virtue" }}
+            </p>
+            
+            <div class="school-info-pill mt-5">
+                <i class="fas fa-map-marker-alt me-2"></i> {{ request.school.address|default:"Mukono Campus" }}
+            </div>
+        </div>
+
+        <div class="col-md-6 d-flex align-items-center justify-content-center position-relative" style="background: white;">
+            
+            {% if request.school.logo %}
+                <img src="{{ request.school.logo.url }}" class="background-watermark" alt="Watermark">
+            {% endif %}
+
+            <div class="login-card">
+                <div class="mb-5 text-center text-md-start">
+                    <h3 class="fw-bold text-dark mb-1">Portal Login</h3>
+                    <p class="text-muted small">Access the management system for <strong>{{ request.school.code|default:"OLA" }}</strong>.</p>
+                </div>
+
+                <form method="POST">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Username</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-user-shield"></i></span>
+                            <input type="text" name="username" class="form-control" placeholder="staff.name" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Password</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-key"></i></span>
+                            <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="rem">
+                            <label class="form-check-label small text-muted" for="rem">Stay signed in</label>
+                        </div>
+                        <a href="#" class="small text-decoration-none fw-bold text-success">Recovery</a>
+                    </div>
+
+                    <button type="submit" class="btn btn-ola w-100 text-uppercase">
+                        Authenticate <i class="fas fa-chevron-right ms-2" style="font-size: 0.7rem;"></i>
+                    </button>
+
+                    <div class="login-footer-branding">
+                        <p class="text-muted mb-1" style="font-size: 0.65rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;">
+                            Authorized Personnel Only
+                        </p>
+                        <div class="d-flex align-items-center justify-content-center gap-2">
+                            <span class="small text-muted" style="font-size: 0.7rem;">System by</span>
+                            <span class="fw-bold text-dark" style="font-size: 0.75rem;">Mac Technologies</span>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="mac-tech-credit d-none d-md-flex">
+                <span>© 2026 Mac Technologies</span>
+                <div class="credit-dot"></div>
+                <span>Secure Node v4.2.0</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
