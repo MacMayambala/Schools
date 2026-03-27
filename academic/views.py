@@ -279,24 +279,28 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from .models import Teacher
 
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.core.paginator import Paginator
+from django.db.models import Q
+from .models import Teacher
+
 def teacher_directory(request):
     # 1. Get the search term and clean it
     query = request.GET.get('q', '').strip()
     
-    # --- NEW TENANT FILTERING ---
-    # We identify the school from the logged-in user's profile
-    # If a user isn't logged in or has no school, we handle the error
-    try:
-        user_school = request.user.teacher_profile.school 
-    except AttributeError:
-        # Fallback or redirect if user isn't associated with a school
-        return render(request, 'errors/403.html', {"message": "No school assigned to your account."})
+    # 2. MULTI-TENANT SECURITY CHECK
+    # Check if the user has a profile and an assigned school
+    if not hasattr(request.user, 'teacher_profile'):
+        messages.error(request, f"Access Denied: The account '{request.user.username}' is not linked to any school profile. Please contact MAC Technologies support.")
+        return redirect('/') # Redirect to home instead of crashing on a 403 template
 
-    # 2. Fetch ONLY teachers belonging to the user's school
+    user_school = request.user.teacher_profile.school
+    
+    # 3. Fetch ONLY teachers belonging to this school
     teacher_list = Teacher.objects.filter(school=user_school).select_related('user').prefetch_related('subjects', 'classrooms')
-    # ----------------------------
 
-    # 3. Apply Search Filter (only within this school's results)
+    # 4. Apply Search Filter
     if query:
         teacher_list = teacher_list.filter(
             Q(user__first_name__icontains=query) | 
@@ -304,7 +308,7 @@ def teacher_directory(request):
             Q(staff_id__icontains=query)
         )
 
-    # 4. Setup Pagination (12 cards per page)
+    # 5. Setup Pagination (12 cards per page)
     paginator = Paginator(teacher_list, 12)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
@@ -312,7 +316,7 @@ def teacher_directory(request):
     context = {
         'page_obj': page_obj,
         'query': query,
-        'total_count': teacher_list.count(), # Count the filtered list, not the total
-        'school': user_school,
+        'total_count': teacher_list.count(),
+        'current_school': user_school,
     }
     return render(request, 'teachers/directory.html', context)
