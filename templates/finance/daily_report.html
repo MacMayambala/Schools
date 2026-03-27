@@ -88,7 +88,7 @@
                         </td>
                         <td><span class="badge payment-badge">{{ p.method }}</span></td>
                         <td class="text-end fw-bold text-dark">
-                            UGX {{ p.amount|floatformat:0 }}
+                            UGX {{ p.amount_paid|floatformat:0 }}
                         </td>
                         <td class="text-end pe-3">
                             {% if p.invoice.balance <= 0 %}

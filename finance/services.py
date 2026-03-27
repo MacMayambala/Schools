@@ -1,36 +1,45 @@
+from django.db import transaction
 from .models import Invoice, FeeStructure
 from students.models import Student
 
 def generate_bulk_invoices(school, classroom, term, year):
     """
-    Calculates total fees for a class based on FeeStructure 
-    and creates Invoices for all students in that class.
+    Professional Billing: Assigns different totals to students 
+    based on their Section (Day/Boarding).
     """
-    # 1. Get all fee requirements for this class/term
-    structures = FeeStructure.objects.filter(
-        school=school,
-        classroom=classroom,
-        term=term,
-        year=year
+    students = Student.objects.filter(
+        school=school, 
+        classroom=classroom, 
+        is_active=True
     )
     
-    if not structures.exists():
-        return 0, "No Fee Structure found for this class/term."
-
-    total_bill = sum(item.amount for item in structures)
-    students = Student.objects.filter(school=school, classroom=classroom, is_active=True)
-    
-    count = 0
-    for student in students:
-        # Avoid double-billing if an invoice already exists
-        invoice, created = Invoice.objects.get_or_create(
-            school=school,
-            student=student,
-            term=term,
-            year=year,
-            defaults={'total_amount': total_bill}
+    # 1. Pre-fetch FeeStructures for both Day and Boarding to avoid multiple DB hits
+    fee_map = {
+        fs.section: fs.total_fees 
+        for fs in FeeStructure.objects.filter(
+            school=school, classroom=classroom, term=term, year=year
         )
-        if created:
-            count += 1
+    }
+
+    if not fee_map:
+        return 0, f"Error: No Fee Structures defined for {classroom.name}."
+
+    count = 0
+    with transaction.atomic(): # Ensures data integrity
+        for student in students:
+            # 2. Get the specific amount for THIS student's section
+            # If a student is 'Boarding' but no boarding fee exists, skip or fallback
+            bill_amount = fee_map.get(student.section)
             
-    return count, f"Successfully generated {count} invoices for {classroom.name}."
+            if bill_amount:
+                invoice, created = Invoice.objects.get_or_create(
+                    school=school,
+                    student=student,
+                    term=term,
+                    year=year,
+                    defaults={'total_amount': bill_amount}
+                )
+                if created:
+                    count += 1
+            
+    return count, f"Generated {count} invoices for {classroom.name}."

@@ -14,4 +14,9 @@ urlpatterns = [
     path('reports/daily-collection/', views.daily_collection_report, name='daily_report'),
     path('statement/<int:student_id>/', views.student_statement, name='student_statement'),
     path('reports/export-excel/', views.export_collections_excel, name='export_excel'),
+    path('settings/hub/', views.school_settings_hub, name='settings_hub'),
+    path('invoice/<int:invoice_id>/print/', views.print_invoice, name='print_invoice'),
+    path('momo-webhook/', views.momo_webhook, name='momo_webhook'),
+    path('payment/<int:payment_id>/status/', views.check_payment_status, name='check_status'),
+
 ]

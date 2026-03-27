@@ -16,7 +16,16 @@ import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
+
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+STATIC_URL = 'static/'
+
+# This tells Django to look in your root 'static' folder
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+]
 
 
 MEDIA_URL = '/media/'
@@ -78,7 +87,9 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    
     'core.middleware.SchoolMiddleware',
+    'core.middleware.GlobalLoginRequiredMiddleware',
 ]
 
 ROOT_URLCONF = 'school_management.urls'

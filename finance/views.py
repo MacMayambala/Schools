@@ -27,41 +27,66 @@ from django.contrib import messages
 from .models import Invoice, FeeStructure
 from students.models import Student, Classroom
 
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from .models import FeeStructure, Invoice
+from students.models import Student, Classroom
+
 def run_bulk_billing(request):
     if request.method == "POST":
         classroom_id = request.POST.get('classroom')
         term = request.POST.get('term')
         year = request.POST.get('year')
         
-        # Get fee structure for this class
-        fee_structure = FeeStructure.objects.filter(
+        # 1. Fetch ALL structures for this class (Day AND Boarding)
+        # We use a dictionary for fast lookup: {'Day': 600000, 'Boarding': 950000}
+        structures = FeeStructure.objects.filter(
             classroom_id=classroom_id, 
             term=term, 
             year=year,
             school=request.school
-        ).first()
+        )
 
-        if not fee_structure:
-            messages.error(request, "No Fee Structure found for this class and term. Please set it in Admin first.")
-            return redirect('finance:bulk_bill')
+        if not structures.exists():
+            messages.error(request, "No Fee Structures found for this class. Please set Day/Boarding rates first.")
+            return redirect('finance:settings_hub')
 
-        # Get students in this class
-        students = Student.objects.filter(classroom_id=classroom_id, school=request.school, is_active=True)
+        # Map the totals by section
+        fee_map = {fs.section: fs.total_fees for fs in structures}
+
+        # 2. Get students in this class
+        students = Student.objects.filter(
+            classroom_id=classroom_id, 
+            school=request.school, 
+            is_active=True
+        )
+        
         count = 0
-        
+        skipped = 0
+
         for student in students:
-            # Only create if invoice doesn't exist
-            _, created = Invoice.objects.get_or_create(
-                student=student,
-                term=term,
-                year=year,
-                school=request.school,
-                defaults={'total_amount': fee_structure.amount}
-            )
-            if created:
-                count += 1
+            # 3. Get the correct amount based on student's section
+            amount_to_charge = fee_map.get(student.section)
+
+            if amount_to_charge:
+                _, created = Invoice.objects.get_or_create(
+                    student=student,
+                    term=term,
+                    year=year,
+                    school=request.school,
+                    defaults={'total_amount': amount_to_charge}
+                )
+                if created:
+                    count += 1
+            else:
+                # This happens if a student is Boarding but you only set a Day fee
+                skipped += 1
         
-        messages.success(request, f"Successfully generated {count} new invoices.")
+        if count > 0:
+            messages.success(request, f"Generated {count} invoices. {skipped} students skipped (missing section fee).")
+        else:
+            messages.warning(request, "No new invoices were created. They might already exist.")
+            
         return redirect('finance:dashboard')
 
     classrooms = Classroom.objects.filter(school=request.school)
@@ -141,56 +166,46 @@ from django.db import transaction
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from .models import Invoice, Payment, Account
-
 def record_payment(request, invoice_id):
     invoice = get_object_or_404(Invoice, id=invoice_id, school=request.school)
     
     if request.method == "POST":
         try:
             with transaction.atomic():
-                amount = Decimal(request.POST.get('amount'))
-                account_id = request.POST.get('account')
-                target_account = get_object_or_404(Account, id=account_id, school=request.school)
+                # 1. Map incoming POST data to local variables
+                amount_val = Decimal(request.POST.get('amount'))
+                target_account = get_object_or_404(Account, id=request.POST.get('account'), school=request.school)
 
-                # 1. Create the payment record
+                # 2. Create the payment using the CORRECT field names
                 Payment.objects.create(
+                    school=request.school,
                     invoice=invoice,
-                    amount=amount,
-                    account=target_account,
-                    method=request.POST.get('method'),
-                    reference=request.POST.get('reference'),
+                    amount_paid=amount_val,         # Maps 'amount' -> 'amount_paid'
+                    payment_method=request.POST.get('method'), # Maps 'method' -> 'payment_method'
+                    transaction_id=request.POST.get('reference'), # Maps 'reference' -> 'transaction_id'
                     depositor=request.POST.get('depositor'),
                     recorded_by=request.user,
-                    school=request.school,
+                    status='Completed'
                 )
 
-                # 2. Update the School Account (Increase Cash/Bank)
-                target_account.balance += amount
+                # 3. Financial Updates
+                target_account.balance += amount_val
                 target_account.save()
 
-                # 3. Update the Invoice (Decrease student's debt)
-                invoice.paid_amount += amount
+                # 4. Update the Invoice Balance
+                # Note: Ensure your Invoice model uses 'paid_amount' or update to 'amount_paid'
+                invoice.paid_amount += amount_val 
                 invoice.save()
 
-            messages.success(request, f"Successfully recorded UGX {amount:,.0f} for {invoice.student.first_name}.")
+            messages.success(request, f"Successfully recorded UGX {amount_val:,.0f} for {invoice.student.first_name}.")
             return redirect('finance:dashboard')
 
         except Exception as e:
             messages.error(request, f"Error processing payment: {str(e)}")
             return redirect('finance:record_payment', invoice_id=invoice.id)
 
-    # We use __iexact to handle "Asset", "asset", or "ASSET"
-    # We also order them by name so they are easy to find
-    accounts = Account.objects.filter(
-        school=request.school, 
-        account_type__iexact='Asset'
-    ).order_by('name')
-
-    return render(request, 'finance/record_payment.html', {
-        'invoice': invoice,
-        'accounts': accounts
-    })
-
+    accounts = Account.objects.filter(school=request.school, account_type__iexact='Asset').order_by('name')
+    return render(request, 'finance/record_payment.html', {'invoice': invoice, 'accounts': accounts})
 
 from django.shortcuts import render, redirect
 from django.contrib import messages
@@ -242,32 +257,23 @@ from .models import Payment
 # Ensure you have these imports if not already there
 
 def daily_collection_report(request):
-    # 1. Capture Date Filters from the URL
     start_date_str = request.GET.get('start_date')
     end_date_str = request.GET.get('end_date')
     
-    # Default to today (Uganda Local Time) if no dates are provided
     today = timezone.localtime(timezone.now()).date()
     start_date = start_date_str if start_date_str else today
     end_date = end_date_str if end_date_str else today
 
-    # 2. Fetch Payments with related Student and Invoice data
-    # We use select_related to get parent_phone and classroom name efficiently
+    # Standardized query
     payments = Payment.objects.filter(
-        school=request.school,
-        date_paid__date__range=[start_date, end_date]
-    ).select_related(
-        'invoice__student', 
-        'invoice__student__classroom', 
-        'account',
-        'recorded_by'
-    ).order_by('-date_paid', '-id')
+        school=request.school, 
+        date_paid__date__range=[start_date, end_date],
+        status='Completed'
+    ).select_related('invoice', 'invoice__student', 'invoice__student__classroom')
 
-    # 3. Calculate Totals for the selected period
-    total_collected = payments.aggregate(Sum('amount'))['amount__sum'] or 0
-    
-    # 4. Create the Summary Breakdown by Payment Method
-    summary_by_method = payments.values('method').annotate(total=Sum('amount'))
+    # FIX: Use amount_paid and payment_method
+    total_collected = payments.aggregate(Sum('amount_paid'))['amount_paid__sum'] or 0
+    summary_by_method = payments.values('payment_method').annotate(total=Sum('amount_paid'))
 
     return render(request, 'finance/daily_report.html', {
         'payments': payments,
@@ -275,7 +281,7 @@ def daily_collection_report(request):
         'summary_by_method': summary_by_method,
         'start_date': start_date,
         'end_date': end_date,
-        'today': today,
+        'today': today,  # <-- ADD THIS LINE
     })
 import openpyxl
 from django.http import HttpResponse
@@ -283,64 +289,34 @@ from django.utils import timezone
 from .models import Payment
 
 def export_collections_excel(request):
-    # 1. Get dates from the request (matching the report view)
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
     
-    # 2. Fetch the same data as the report
     payments = Payment.objects.filter(
         school=request.school,
         date_paid__date__range=[start_date, end_date]
-    ).select_related(
-        'invoice__student', 
-        'invoice__student__classroom', 
-        'account'
-    ).order_by('-date_paid')
+    ).select_related('invoice__student', 'invoice__student__classroom', 'account')
 
-    # 3. Create Excel Workbook
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Collection_Report"
 
-    # 4. Define Headers (Including the new columns)
-    headers = [
-        'Date', 
-        'Student Name', 
-        'Admission No.', 
-        'Class', 
-        'Parent Phone', 
-        'Method', 
-        'Account', 
-        'Amount Paid (UGX)', 
-        'Remaining Balance (UGX)'
-    ]
+    headers = ['Date', 'Student Name', 'Class', 'Method', 'Account', 'Amount (UGX)', 'Receipt']
     ws.append(headers)
 
-    # 5. Add Data Rows
     for p in payments:
         ws.append([
             p.date_paid.strftime('%d/%m/%Y'),
             p.invoice.student.get_full_name(),
-            p.invoice.student.admission_number,
             p.invoice.student.classroom.name if p.invoice.student.classroom else "N/A",
-            p.invoice.student.guardian_phone or "No Contact",
-            p.method,
-            p.account.name if p.account else "No Account",  # Add this check here
-            p.amount,
-            p.invoice.balance  # This pulls the current balance from the invoice
+            p.payment_method, # FIX: was p.method
+            p.account.name if p.account else "N/A",
+            p.amount_paid,    # FIX: was p.amount
+            p.receipt_number
         ])
 
-    # 6. Formatting: Make headers bold
-    for cell in ws[1]:
-        cell.font = openpyxl.styles.Font(bold=True)
-
-    # 7. Generate Response
-    response = HttpResponse(
-        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    )
-    filename = f"Collections_{start_date}_to_{end_date}.xlsx"
-    response['Content-Disposition'] = f'attachment; filename={filename}'
-    
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename=Collections_{start_date}.xlsx'
     wb.save(response)
     return response
 from django.db.models import Q
@@ -353,42 +329,55 @@ from django.shortcuts import render, get_object_or_404
 from django.utils import timezone
 from .models import Student, Invoice, Payment
 
+from django.shortcuts import render, get_object_or_404
+from django.utils import timezone
+from .models import Invoice, Payment
+
+
+from django.shortcuts import render, get_object_or_404
+from django.utils import timezone
+from .models import Invoice, Payment
+from students.models import Student 
+
 def student_statement(request, student_id):
-    # Ensure student belongs to this school
+    # 1. Fetch data securely scoped to the current school
     student = get_object_or_404(Student, id=student_id, school=request.school)
-    
-    # 1. Fetch Invoices and Payments
-    invoices = Invoice.objects.filter(student=student, school=request.school)
-    payments = Payment.objects.filter(invoice__student=student, school=request.school)
+    invoices = Invoice.objects.filter(student=student, school=request.school).order_by('created_at')
+    payments = Payment.objects.filter(invoice__student=student, school=request.school).order_by('date_paid')
 
     ledger = []
 
-    # 2. Build the Ledger from Invoices (Debits)
+    # 2. Add Invoices (Debits) - Safe Date Handling
     for inv in invoices:
+        raw_date = inv.created_at or timezone.now()
+        # Fix for 'datetime.date' object has no attribute 'date'
+        entry_date = raw_date.date() if hasattr(raw_date, 'date') else raw_date
+        
         ledger.append({
-            # Using getattr as a safety net in case migrations aren't finished
-            'date': getattr(inv, 'created_at', timezone.now().date()), 
+            'date': entry_date, 
             'description': f"Fees Invoice - {inv.term} {inv.year}",
+            'reference': getattr(inv, 'invoice_number', 'INV-SYS'),
             'debit': inv.total_amount,
             'credit': 0,
         })
     
-    # 3. Build the Ledger from Payments (Credits)
+    # 3. Add Payments (Credits) - Using Model field names
     for pay in payments:
-        # Ensuring we use a date object for sorting
-        p_date = pay.date_paid.date() if hasattr(pay.date_paid, 'date') else pay.date_paid
+        raw_date = pay.date_paid or timezone.now()
+        # Fix for 'datetime.date' object has no attribute 'date'
+        entry_date = raw_date.date() if hasattr(raw_date, 'date') else raw_date
+        
         ledger.append({
-            'date': p_date,
-            'description': f"Fee Payment - {pay.method} ({pay.reference or 'No Ref'})",
+            'date': entry_date,
+            'description': f"Fee Payment - {pay.payment_method}",
+            'reference': pay.transaction_id or pay.receipt_number,
             'debit': 0,
-            'credit': pay.amount,
+            'credit': pay.amount_paid,
         })
 
-    # 4. Sort everything by date
-    # This is critical so that payments appear after the invoices they pay for
+    # 4. Sort and Calculate Balance
     ledger.sort(key=lambda x: x['date'])
-
-    # 5. Calculate Running Balance
+    
     running_total = 0
     for entry in ledger:
         running_total += (entry['debit'] - entry['credit'])
@@ -400,3 +389,162 @@ def student_statement(request, student_id):
         'final_balance': running_total,
         'today': timezone.now().date(),
     })
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from students.models import Classroom
+from students.forms import ClassroomForm
+from .models import FeeStructure
+from .forms import FeeStructureForm
+
+def school_settings_hub(request):
+    # 1. Fetch data for the lists (Tenancy filter is critical)
+    classrooms = Classroom.objects.filter(school=request.school)
+    fee_structures = FeeStructure.objects.filter(school=request.school).order_by('-year', 'term')
+
+    # 2. Handle POST requests
+    if request.method == "POST":
+        form_type = request.POST.get('form_type')
+
+        if form_type == "classroom":
+            form = ClassroomForm(request.POST, school=request.school)
+            if form.is_valid():
+                obj = form.save(commit=False)
+                obj.school = request.school
+                obj.save()
+                messages.success(request, f"Class {obj.name} added successfully!")
+                return redirect('finance:settings_hub')
+
+        elif form_type == "fee_structure":
+            form = FeeStructureForm(request.POST, school=request.school)
+            if form.is_valid():
+                obj = form.save(commit=False)
+                obj.school = request.school
+                obj.save()
+                messages.success(request, "Fee structure updated!")
+                return redirect('finance:settings_hub')
+
+    # 3. Initialize empty forms for GET request
+    context = {
+        'class_form': ClassroomForm(school=request.school),
+        'fee_form': FeeStructureForm(school=request.school),
+        'classrooms': classrooms,
+        'fee_structures': fee_structures,
+        'fee.school': request.school
+    }
+    return render(request, 'finance/settings_hub.html', context)
+
+
+
+from django.shortcuts import render, get_object_or_404
+from .models import Invoice
+
+def print_invoice(request, invoice_id):
+    invoice = get_object_or_404(Invoice, id=invoice_id, school=request.school)
+    # Fetch payments linked to this invoice
+    payments = invoice.payments.all()
+    
+    context = {
+        'invoice': invoice,
+        'payments': payments,
+        'school': request.school, # From your multi-tenant middleware
+    }
+    return render(request, 'finance/print_invoice.html', context)
+
+
+
+from django.views.decorators.csrf import csrf_exempt
+from django.http import HttpResponse
+import json
+
+@csrf_exempt
+def momo_webhook(request):
+    """
+    Listens for success/failure signals from the MoMo Provider.
+    """
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        tx_ref = data.get('tx_ref')
+        status = data.get('status') # e.g., 'successful'
+
+        payment = Payment.objects.filter(transaction_id=tx_ref).first()
+        
+        if payment and status == 'successful':
+            payment.status = 'Completed'
+            payment.save() # This triggers Invoice.update_totals() automatically
+            return HttpResponse(status=200)
+            
+    return HttpResponse(status=400)
+
+
+
+
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
+from .models import Payment
+
+def check_payment_status(request, payment_id):
+    """
+    Checks if a Mobile Money payment has been updated 
+    to 'Completed' via the Webhook.
+    """
+    # Ensure we only check payments belonging to the current school/tenant
+    payment = get_object_or_404(Payment, id=payment_id, school=request.school)
+    
+    return JsonResponse({
+        'status': payment.status,
+        'invoice_id': payment.invoice.id,
+        'amount': float(payment.amount_paid),
+        'balance': float(payment.invoice.balance)
+    })
+
+
+from students.models import Classroom, Stream
+from students.forms import ClassroomForm, StreamForm # Assuming these exist
+from .forms import FeeStructureForm
+from students.forms import ClassroomForm, StreamForm
+
+def school_settings_hub(request):
+    school = request.school
+    
+    if request.method == "POST":
+        form_type = request.POST.get('form_type')
+
+        if form_type == "classroom":
+            form = ClassroomForm(request.POST)
+            if form.is_valid():
+                obj = form.save(commit=False)
+                obj.school = school
+                obj.save()
+                messages.success(request, f"Class {obj.name} added!")
+
+        elif form_type == "stream":
+            form = StreamForm(request.POST)
+            if form.is_valid():
+                obj = form.save(commit=False)
+                obj.school = school
+                obj.save()
+                messages.success(request, f"Stream {obj.name} added!")
+
+        elif form_type == "fee_structure":
+            # Pass school to the form so validation knows which classrooms are valid
+            form = FeeStructureForm(request.POST, school=school)
+            if form.is_valid():
+                obj = form.save(commit=False)
+                obj.school = school
+                obj.save()
+                messages.success(request, "Fee structure saved successfully!")
+            else:
+                messages.error(request, "Error saving fee structure. Please check details.")
+
+        return redirect('finance:settings_hub')
+
+    # GET request context
+    context = {
+        'classrooms': Classroom.objects.filter(school=school),
+        'streams': Stream.objects.filter(school=school),
+        'fee_structures': FeeStructure.objects.filter(school=school).order_by('classroom', 'section'),
+        'class_form': ClassroomForm(),
+        'stream_form': StreamForm(),
+        'fee_form': FeeStructureForm(school=school),
+    }
+    return render(request, 'finance/settings_hub.html', context)

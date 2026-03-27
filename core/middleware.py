@@ -33,3 +33,29 @@ class SchoolMiddleware:
 
         response = self.get_response(request)
         return response
+    
+
+from django.shortcuts import redirect
+from django.urls import resolve, reverse
+from django.conf import settings
+
+class GlobalLoginRequiredMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        # 1. Get the name of the current view's URL pattern
+        url_name = resolve(request.path_info).url_name
+
+        # 2. Define URLs that MUST be accessible without logging in
+        # Add your password reset or landing page names here
+        exempt_url_names = ['login', 'register', 'password_reset', 'home']
+
+        # 3. Check authentication logic
+        if not request.user.is_authenticated:
+            if url_name not in exempt_url_names and not request.path.startswith(settings.STATIC_URL):
+                # Redirect to login, and keep the 'next' path so they return where they were
+                login_url = reverse('login')
+                return redirect(f"{login_url}?next={request.path}")
+
+        return self.get_response(request)

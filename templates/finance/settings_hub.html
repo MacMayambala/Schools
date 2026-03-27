@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container-fluid py-4 bg-light min-vh-100">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-0">School Setup Hub</h2>
+            <p class="text-muted small">Configure Classrooms, Streams, and Section Fees</p>
+        </div>
+        <div class="dropdown">
+            <button class="btn btn-primary rounded-pill px-4 dropdown-toggle shadow-sm" data-bs-toggle="dropdown">
+                <i class="fas fa-plus-circle me-2"></i>Add New...
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg rounded-3">
+                <li><a class="dropdown-item py-2" data-bs-toggle="modal" data-bs-target="#classModal" href="#"><i class="fas fa-school me-2 text-primary"></i>Classroom</a></li>
+                <li><a class="dropdown-item py-2" data-bs-toggle="modal" data-bs-target="#streamModal" href="#"><i class="fas fa-stream me-2 text-info"></i>Stream</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item py-2" data-bs-toggle="modal" data-bs-target="#feeModal" href="#"><i class="fas fa-money-bill-wave me-2 text-success"></i>Fee Structure</a></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold border-bottom pb-2 mb-3">Classrooms</h6>
+                    <div class="list-group list-group-flush">
+                        {% for cls in classrooms %}
+                        <div class="list-group-item border-0 d-flex justify-content-between px-0 py-2">
+                            <span><span class="badge bg-primary-subtle text-primary me-2">{{ cls.short_name }}</span> {{ cls.name }}</span>
+                            <span class="text-muted small">Lvl {{ cls.level }}</span>
+                        </div>
+                        {% empty %}
+                        <p class="text-muted small py-3">No classrooms defined yet.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold border-bottom pb-2 mb-3">Available Streams</h6>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for stream in streams %}
+                        <span class="badge bg-white text-dark border rounded-pill p-2 px-3 shadow-sm">{{ stream.name }}</span>
+                        {% empty %}
+                        <p class="text-muted small">No streams defined.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-4">Fee Structure by Section (Day/Boarding)</h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="bg-light">
+                                <tr class="smallest text-muted text-uppercase">
+                                    <th>Class</th>
+                                    <th>Section</th>
+                                    <th>Tuition (UGX)</th>
+                                    <th>Requirements</th>
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for fee in fee_structures %}
+                                <tr>
+                                    <td class="fw-bold text-dark">{{ fee.classroom.short_name }}</td>
+                                    <td>
+                                        <span class="badge {% if fee.section == 'Boarding' %}bg-warning-subtle text-warning-emphasis{% else %}bg-info-subtle text-info-emphasis{% endif %} rounded-pill px-3">
+                                            {{ fee.section }}
+                                        </span>
+                                    </td>
+                                    <td>{{ fee.tuition_amount|intcomma }}</td>
+                                    <td>{{ fee.other_requirements_total|intcomma }}</td>
+                                    <td class="text-end fw-bold text-success fs-6">
+                                        {{ fee.total_fees|intcomma }}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-5 text-muted small">
+                                        No fee structures defined for the current term.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="classModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="form_type" value="classroom">
+                <div class="modal-header border-0 p-4 pb-0">
+                    <h5 class="fw-bold">Add New Classroom</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        {{ class_form.as_p }}
+                    </div>
+                </div>
+                <div class="modal-footer border-0 p-4 pt-0">
+                    <button type="submit" class="btn btn-primary w-100 py-3 fw-bold rounded-3 shadow-sm">Save Classroom</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="streamModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="form_type" value="stream">
+                <div class="modal-header border-0 p-4 pb-0">
+                    <h5 class="fw-bold">Add New Stream</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        {{ stream_form.as_p }}
+                    </div>
+                </div>
+                <div class="modal-footer border-0 p-4 pt-0">
+                    <button type="submit" class="btn btn-primary w-100 py-3 fw-bold rounded-3 shadow-sm">Save Stream</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="feeModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="form_type" value="fee_structure">
+                <div class="modal-header border-0 p-4 pb-0">
+                    <h5 class="fw-bold">Setup Fee Structure</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        {{ fee_form.as_p }}
+                    </div>
+                </div>
+                <div class="modal-footer border-0 p-4 pt-0">
+                    <button type="submit" class="btn btn-success w-100 py-3 fw-bold rounded-3 shadow-sm">Save Fee Structure</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

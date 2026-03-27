@@ -12,23 +12,51 @@ class Subject(models.Model):
     def __str__(self):
         return f"{self.name} ({self.school.code})"
 
+from django.db import models
+from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
+from django.db import models
+from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
+
+from django.db import models
+from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
+
+class SubjectAssignment(models.Model):
+    # Change 'School' to 'school.School' if the app name is 'school'
+    school = models.ForeignKey('core.School', on_delete=models.CASCADE)
+    teacher = models.ForeignKey('Teacher', on_delete=models.CASCADE, related_name='assignments')
+    subject = models.ForeignKey('Subject', on_delete=models.CASCADE)
+    classroom = models.ForeignKey('students.Classroom', on_delete=models.CASCADE)
+    year = models.IntegerField(default=2026)
+
+    class Meta:
+        unique_together = ('subject', 'classroom', 'year')
+
+    def __str__(self):
+        return f"{self.teacher.user.last_name} - {self.subject.name} ({self.classroom.name})"
+
+
 class Mark(models.Model):
-    school = models.ForeignKey(School, on_delete=models.CASCADE)
-    student = models.ForeignKey(Student, on_delete=models.CASCADE)
-    subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
-    classroom = models.ForeignKey(Classroom, on_delete=models.CASCADE)
-    term = models.CharField(max_length=20) # '1', '2', or '3'
+    # Pointing to the 'school' app explicitly
+    school = models.ForeignKey('core.School', on_delete=models.CASCADE)
+    student = models.ForeignKey('students.Student', on_delete=models.CASCADE)
+    subject = models.ForeignKey('Subject', on_delete=models.CASCADE)
+    classroom = models.ForeignKey('students.Classroom', on_delete=models.CASCADE)
+    
+    term = models.CharField(max_length=20) 
     year = models.IntegerField(default=2026)
     
     mid_term_mark = models.FloatField(null=True, blank=True)
     end_term_mark = models.FloatField(null=True, blank=True)
+    
+    entered_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     @property
     def total_score(self):
-        # Example calculation: 30% Mid, 70% End
-        mid = self.mid_term_mark or 0
-        end = self.end_term_mark or 0
-        return mid + end # Or customize your weighting here
+        return (self.mid_term_mark or 0) + (self.end_term_mark or 0)
 
     @property
     def grade(self):
@@ -36,20 +64,68 @@ class Mark(models.Model):
         if score >= 80: return 'D1'
         if score >= 75: return 'D2'
         if score >= 70: return 'C3'
-        if score >= 60: return 'C4'
+        if score >= 65: return 'C4'
+        if score >= 60: return 'C5'
+        if score >= 55: return 'C6'
         if score >= 50: return 'P7'
+        if score >= 45: return 'P8'
         return 'F9'
 
     @property
     def grade_remark(self):
-        """Returns a standard remark based on the grade."""
-        remarks = {
-            'D1': 'Excellent', 'D2': 'Very Good',
-            'C3': 'Good', 'C4': 'Quite Good', 'C5': 'Satisfactory', 'C6': 'Fair',
-            'P7': 'Pass', 'P8': 'Weak Pass', 'F9': 'Fail'
-        }
-        return remarks.get(self.grade, 'No Grade')
+        remarks = {'D1':'Excellent','D2':'Very Good','C3':'Good','C4':'Quite Good','C5':'Satisfactory','C6':'Fair','P7':'Pass','P8':'Weak Pass','F9':'Fail'}
+        return remarks.get(self.grade, 'N/A')
+
+    def clean(self):
+        if self.entered_by and not self.entered_by.is_superuser:
+            try:
+                teacher_profile = self.entered_by.teacher_profile
+                assigned = SubjectAssignment.objects.filter(
+                    teacher=teacher_profile,
+                    subject=self.subject,
+                    classroom=self.classroom,
+                    year=self.year
+                ).exists()
+                if not assigned:
+                    raise ValidationError(f"Access Denied: You do not teach {self.subject} in {self.classroom}.")
+            except AttributeError:
+                raise ValidationError("Teacher profile not found.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        # Accessing total_score property for the admin display
-        return f"{self.student.first_name} - {self.subject.code}: {self.total_score}"
+        return f"{self.student.user.first_name} - {self.subject.name}: {self.total_score}"
+
+
+####################################################################################################################################
+from django.db import models
+from django.conf import settings
+# Assuming you use a TenantModel for multi-school support
+import os
+from django.db import models
+from django.conf import settings
+
+class Teacher(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='teacher_profile')
+    staff_id = models.CharField(max_length=20, unique=True)
+    
+    # NEW PHOTO FIELD
+    # Ensure you have 'Pillow' installed: pip install Pillow
+    profile_photo = models.ImageField(upload_to='teachers/photos/', null=True, blank=True)
+    
+    phone = models.CharField(max_length=15)
+    subjects = models.ManyToManyField('academic.Subject', related_name='teachers', blank=True)
+    classrooms = models.ManyToManyField('students.Classroom', related_name='teachers', blank=True)
+
+    def __str__(self):
+        return f"{self.user.get_full_name()}"
+
+    @property
+    def get_photo_url(self):
+        """Returns photo if exists, otherwise a professional placeholder"""
+        if self.profile_photo and hasattr(self.profile_photo, 'url'):
+            return self.profile_photo.url
+        # Path to a default image in your static folder
+        return "/static/images/default-avatar.png"

@@ -1,5 +1,9 @@
 from django.db import models
 
+
+
+
+
 # Create your models here.
 from django.db import models
 from core.models import TenantModel
@@ -17,6 +21,13 @@ class Classroom(TenantModel):
     def __str__(self):
         return f"{self.name} ({self.school.code})"
     
+
+class Stream(TenantModel):
+    name = models.CharField(max_length=50) # e.g., North, Blue, West
+
+    def __str__(self):
+        return self.name
+    
     
 # students/models.py
 from django.db import models
@@ -27,13 +38,6 @@ import datetime
 from django.db import models
 from core.models import TenantModel
 
-class Classroom(TenantModel):
-    """ e.g., Primary One, Senior One """
-    name = models.CharField(max_length=100)
-    short_name = models.CharField(max_length=10, help_text="e.g., P1")
-
-    def __str__(self):
-        return f"{self.name} ({self.school.code})"
 
 
 class Student(TenantModel):
@@ -50,6 +54,11 @@ class Student(TenantModel):
     classroom = models.ForeignKey(Classroom, on_delete=models.CASCADE, related_name='students')
     date_of_birth = models.DateField(null=True, blank=True)
     gender = models.CharField(max_length=10, choices=[('M', 'Male'), ('F', 'Female')], null=True)
+    SECTION_CHOICES = [('Day', 'Day'), ('Boarding', 'Boarding')]
+    
+    
+    stream = models.ForeignKey(Stream, on_delete=models.SET_NULL, null=True, blank=True)
+    section = models.CharField(max_length=20, choices=SECTION_CHOICES, default='Day')
     
     # --- Guardian Details (Captured at Registration) ---
     guardian_name = models.CharField(max_length=200, verbose_name="Parent/Guardian Name")

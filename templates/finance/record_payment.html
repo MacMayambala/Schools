@@ -37,7 +37,7 @@
                         </div>
                     </div>
 
-                    <form method="POST">
+                    <form method="POST" id="paymentForm">
                         {% csrf_token %}
                         
                         <div class="row g-4">
@@ -55,9 +55,6 @@
                                         {% endfor %}
                                     {% endif %}
                                 </select>
-                                {% if not accounts %}
-                                <div class="form-text text-danger small">Go to Chart of Accounts and create an "Asset" account first.</div>
-                                {% endif %}
                             </div>
 
                             <div class="col-md-6">
@@ -73,7 +70,7 @@
                                 <label class="form-label fw-bold">Payment Method</label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-white"><i class="fas fa-wallet text-muted"></i></span>
-                                    <select name="method" class="form-select">
+                                    <select name="method" id="id_method" class="form-select" required>
                                         <option value="Cash">Cash</option>
                                         <option value="Bank">Bank Deposit</option>
                                         <option value="Mobile Money">Mobile Money</option>
@@ -84,6 +81,19 @@
                             <div class="col-md-6">
                                 <label class="form-label fw-bold">Reference / Slip No.</label>
                                 <input type="text" name="reference" class="form-control" placeholder="e.g. Bank Slip ID">
+                            </div>
+
+                            <div class="col-12" id="momo_phone_container" style="display: none;">
+                                <div class="p-3 bg-primary-subtle rounded border border-primary border-opacity-25">
+                                    <label class="form-label fw-bold text-primary"><i class="fas fa-mobile-alt me-1"></i> MoMo Phone Number (MTN/Airtel)</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-primary text-white border-primary">+256</span>
+                                        <input type="number" name="phone_number" id="id_phone_number" class="form-control border-primary" placeholder="770000000">
+                                    </div>
+                                    <small class="text-primary opacity-75 mt-1 d-block italic">
+                                        <i class="fas fa-info-circle me-1"></i> A PIN prompt will be sent to this number.
+                                    </small>
+                                </div>
                             </div>
 
                             <div class="col-12">
@@ -97,7 +107,7 @@
                         </div>
 
                         <div class="d-grid gap-2 mt-5">
-                            <button type="submit" class="btn btn-success btn-lg py-3 fw-bold shadow-sm" {% if not accounts %}disabled{% endif %}>
+                            <button type="submit" id="submitBtn" class="btn btn-success btn-lg py-3 fw-bold shadow-sm" {% if not accounts %}disabled{% endif %}>
                                 <i class="fas fa-save me-2"></i> Post Payment to Ledger
                             </button>
                             <div class="d-flex justify-content-between">
@@ -122,5 +132,42 @@
         box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.15);
     }
     label { font-size: 0.9rem; margin-bottom: 0.4rem; color: #444; }
+    .italic { font-style: italic; }
 </style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const methodSelect = document.getElementById('id_method');
+        const momoContainer = document.getElementById('momo_phone_container');
+        const phoneInput = document.getElementById('id_phone_number');
+        const submitBtn = document.getElementById('submitBtn');
+
+        methodSelect.addEventListener('change', function() {
+            if (this.value === 'Mobile Money') {
+                momoContainer.style.display = 'block';
+                phoneInput.setAttribute('required', 'required');
+                submitBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i> Send MoMo PIN Prompt';
+                submitBtn.classList.replace('btn-success', 'btn-primary');
+            } else {
+                momoContainer.style.display = 'none';
+                phoneInput.removeAttribute('required');
+                submitBtn.innerHTML = '<i class="fas fa-save me-2"></i> Post Payment to Ledger';
+                submitBtn.classList.replace('btn-primary', 'btn-success');
+            }
+        });
+
+        // Simple form validation for MoMo
+        document.getElementById('paymentForm').onsubmit = function() {
+            if (methodSelect.value === 'Mobile Money') {
+                const phone = phoneInput.value;
+                if (phone.length < 9) {
+                    alert("Please enter a valid Ugandan phone number (e.g. 770000000)");
+                    return false;
+                }
+            }
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Processing...';
+        };
+    });
+</script>
 {% endblock %}

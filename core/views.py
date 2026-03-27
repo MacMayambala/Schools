@@ -38,3 +38,13 @@ def index(request):
     }
     
     return render(request, 'core/index.html', context)
+
+
+
+from django.contrib.auth import logout
+from django.shortcuts import redirect
+
+def logout_view(request):
+    logout(request)
+    request.session.flush() # Completely destroys the session data
+    return redirect('login')

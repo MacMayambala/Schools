@@ -2,31 +2,48 @@
 
 {% block content %}
 <div class="container-fluid py-2">
-    <div class="d-flex justify-content-between align-items-end mb-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-5">
         <div>
-            <h2 class="fw-bold mb-0 text-dark" style="letter-spacing: -1px;">Management Overview</h2>
-            <p class="text-muted small mb-0">Operational summary for <strong>{{ request.school.name|default:"Our Lady of Africa" }}</strong></p>
+            <h1 class="fw-bold mb-1 text-dark tracking-tight">Management Overview</h1>
+            <div class="d-flex align-items-center gap-3">
+                <span class="badge bg-soft-primary text-primary px-3 py-2 rounded-pill fw-semibold d-flex align-items-center">
+                    <i class="fas fa-shield-check me-2"></i> 
+                    SECURE ADMIN SESSION
+                </span>
+                <p class="text-muted mb-0">
+                    Operational summary for <span class="fw-semibold text-dark">{{ request.school.name|default:"OLA Portal" }}</span>
+                </p>
+            </div>
         </div>
+
         <div class="text-end d-none d-md-block">
-            <div class="badge bg-white border text-dark py-2 px-3 rounded-pill shadow-sm">
-                <i class="far fa-calendar-alt me-2 text-primary"></i>
-                <span class="fw-bold">{% now "l, jS F Y" %}</span>
+            <div class="date-display bg-white border border-light-subtle py-3 px-4 rounded-4 shadow-sm">
+                <small class="text-uppercase text-muted fw-bold d-block" style="font-size: 0.68rem; letter-spacing: 1.5px;">
+                    TODAY
+                </small>
+                <span class="fw-semibold text-dark">{% now "l, jS F Y" %}</span>
             </div>
         </div>
     </div>
 
-    <div class="row g-4 mb-4">
+    <div class="row g-4 mb-5">
         <div class="col-md-4">
-            <div class="card border-0 shadow-sm h-100 overflow-hidden" style="border-radius: 16px;">
+            <div class="card kpi-card border-0 shadow-sm h-100">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <p class="text-muted small fw-bold text-uppercase mb-1" style="letter-spacing: 0.5px;">Student Body</p>
-                            <h2 class="fw-bold mb-0">{{ student_count|default:"0" }}</h2>
-                            <span class="badge bg-primary-subtle text-primary mt-2">Active Enrollment</span>
+                            <p class="text-muted small fw-semibold text-uppercase mb-1">Total Students</p>
+                            <h2 class="fw-bold mb-0 tracking-tight">{{ student_count|default:"0" }}</h2>
+                            <div class="mt-3 d-flex align-items-center">
+                                <span class="text-success fw-bold extra-small">
+                                    <i class="fas fa-arrow-trend-up me-1"></i> Active
+                                </span>
+                                <span class="text-muted extra-small ms-2">Current Term</span>
+                            </div>
                         </div>
-                        <div class="icon-shape bg-primary text-white shadow-sm">
-                            <i class="fas fa-user-graduate"></i>
+                        <div class="kpi-icon bg-soft-primary text-primary">
+                            <i class="fas fa-user-graduate fa-lg"></i>
                         </div>
                     </div>
                 </div>
@@ -34,33 +51,47 @@
         </div>
 
         <div class="col-md-4">
-            <div class="card border-0 shadow-sm h-100 overflow-hidden" style="border-radius: 16px;">
+            <div class="card kpi-card border-0 shadow-sm h-100">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <p class="text-muted small fw-bold text-uppercase mb-1" style="letter-spacing: 0.5px;">Revenue Collected</p>
-                            <h2 class="fw-bold mb-0 text-dark">UGX {{ total_fees|default:"0" }}</h2>
-                            <span class="badge bg-success-subtle text-success mt-2">+12% from last term</span>
+                            <p class="text-muted small fw-semibold text-uppercase mb-1">Revenue Collected</p>
+                            <h2 class="fw-bold mb-0 tracking-tight text-dark">
+                                <small class="text-muted fw-normal fs-6">UGX</small> 
+                                {{ total_fees|default:"0" }}
+                            </h2>
+                            <div class="mt-3 d-flex align-items-center">
+                                <span class="text-success fw-bold extra-small">
+                                    <i class="fas fa-check-circle me-1"></i> Paid
+                                </span>
+                                <span class="text-muted extra-small ms-2">this session</span>
+                            </div>
                         </div>
-                        <div class="icon-shape bg-success text-white shadow-sm">
-                            <i class="fas fa-coins"></i>
+                        <div class="kpi-icon bg-soft-success text-success">
+                            <i class="fas fa-coins fa-lg"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        
+
         <div class="col-md-4">
-            <div class="card border-0 shadow-sm h-100 overflow-hidden" style="border-radius: 16px;">
+            <div class="card kpi-card border-0 shadow-sm h-100 border-start border-4 border-danger">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <p class="text-muted small fw-bold text-uppercase mb-1" style="letter-spacing: 0.5px;">Outstanding Arrears</p>
-                            <h2 class="fw-bold mb-0 text-danger">UGX {{ balance|default:"0" }}</h2>
-                            <span class="badge bg-danger-subtle text-danger mt-2">Requires Attention</span>
+                            <p class="text-muted small fw-semibold text-uppercase mb-1">Outstanding Arrears</p>
+                            <h2 class="fw-bold mb-0 tracking-tight text-danger">
+                                <small class="fw-normal fs-6">UGX</small> 
+                                {{ balance|default:"0" }}
+                            </h2>
+                            <div class="mt-3 d-flex align-items-center">
+                                <span class="pulse-dot me-2"></span>
+                                <span class="text-danger fw-semibold extra-small">Pending Collections</span>
+                            </div>
                         </div>
-                        <div class="icon-shape bg-danger text-white shadow-sm">
-                            <i class="fas fa-exclamation-circle"></i>
+                        <div class="kpi-icon bg-soft-danger text-danger">
+                            <i class="fas fa-receipt fa-lg"></i>
                         </div>
                     </div>
                 </div>
@@ -68,40 +99,67 @@
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm mb-4" style="border-radius: 16px; background: linear-gradient(to right, #ffffff, #f8fafc);">
+    <div class="card border-0 shadow-sm mb-5 rounded-4">
         <div class="card-body p-4">
-            <h6 class="text-muted small mb-3 text-uppercase fw-bold ls-1">Administrative Shortcuts</h6>
-            <div class="d-flex flex-wrap gap-2">
-                <a href="{% url 'students:student_add' %}" class="btn btn-primary btn-sm px-4 py-2 rounded-pill fw-bold shadow-sm">
-                    <i class="fas fa-plus-circle me-2"></i>New Student
-                </a>
-                <a href="{% url 'finance:bulk_bill' %}" class="btn btn-dark btn-sm px-4 py-2 rounded-pill fw-bold shadow-sm">
-                    <i class="fas fa-file-invoice-dollar me-2"></i>Run Term Billing
-                </a>
-                <a href="{% url 'students:student_list' %}" class="btn btn-white border btn-sm px-4 py-2 rounded-pill fw-bold shadow-sm">
-                    <i class="fas fa-search me-2 text-primary"></i>Registry Lookup
-                </a>
-                <a href="/admin" class="btn btn-white border btn-sm px-4 py-2 rounded-pill fw-bold shadow-sm">
-                    <i class="fas fa-user-shield me-2 text-secondary"></i>System Admin
-                </a>
+            <h6 class="text-muted small fw-bold text-uppercase mb-4 d-flex align-items-center">
+                <i class="fas fa-bolt text-warning me-2"></i> Quick Actions
+            </h6>
+            <div class="row g-3 text-center">
+                <div class="col-6 col-md-3">
+                    <a href="{% url 'students:student_list' %}" class="action-tile text-decoration-none d-block">
+                        <div class="tile-icon bg-primary text-white mx-auto mb-3">
+                            <i class="fas fa-user-plus"></i>
+                        </div>
+                        <span class="small fw-semibold text-dark d-block">Student Registry</span>
+                    </a>
+                </div>
+                <div class="col-6 col-md-3">
+                    <a href="{% url 'finance:bulk_bill' %}" class="action-tile text-decoration-none d-block">
+                        <div class="tile-icon bg-dark text-white mx-auto mb-3">
+                            <i class="fas fa-file-invoice-dollar"></i>
+                        </div>
+                        <span class="small fw-semibold text-dark d-block">Bulk Billing</span>
+                    </a>
+                </div>
+                <div class="col-6 col-md-3">
+                    <a href="{% url 'finance:settings_hub' %}" class="action-tile text-decoration-none d-block">
+                        <div class="tile-icon bg-info text-white mx-auto mb-3">
+                            <i class="fas fa-layer-group"></i>
+                        </div>
+                        <span class="small fw-semibold text-dark d-block">Setup Classes</span>
+                    </a>
+                </div>
+                <div class="col-6 col-md-3">
+                    <a href="{% url 'finance:dashboard' %}" class="action-tile text-decoration-none d-block">
+                        <div class="tile-icon bg-success text-white mx-auto mb-3">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <span class="small fw-semibold text-dark d-block">Financial Overview</span>
+                    </a>
+                </div>
             </div>
         </div>
     </div>
 
     <div class="row g-4">
         <div class="col-lg-8">
-            <div class="card border-0 shadow-sm h-100" style="border-radius: 16px;">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
                 <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
-                    <h5 class="fw-bold mb-0">Recent Billing Activity</h5>
-                    <a href="{% url 'finance:dashboard' %}" class="text-primary fw-bold small text-decoration-none">Review All →</a>
+                    <div>
+                        <h5 class="fw-bold mb-0">Recent Invoicing Activity</h5>
+                        <p class="text-muted small mb-0">Latest transactions</p>
+                    </div>
+                    <a href="{% url 'finance:dashboard' %}" class="btn btn-outline-primary btn-sm fw-semibold">
+                        View Full Ledger <i class="fas fa-arrow-right ms-2"></i>
+                    </a>
                 </div>
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0 custom-dashboard-table">
-                        <thead class="bg-light">
-                            <tr class="text-muted extra-small text-uppercase fw-bold">
-                                <th class="ps-4 py-3">Student Name</th>
-                                <th>Academic Period</th>
-                                <th class="text-end pe-4">Current Balance</th>
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr class="text-muted small text-uppercase fw-semibold">
+                                <th class="ps-4 py-3">Student</th>
+                                <th>Period</th>
+                                <th class="text-end pe-4">Outstanding</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -109,20 +167,29 @@
                             <tr>
                                 <td class="ps-4">
                                     <div class="d-flex align-items-center">
-                                        <div class="avatar-initials me-3 bg-light text-primary">
-                                            {{ inv.student.first_name|first }}{{ inv.student.last_name|first }}
+                                        <div class="avatar-initials me-3">
+                                            {{ inv.student.first_name|slice:":1" }}{{ inv.student.last_name|slice:":1" }}
                                         </div>
-                                        <span class="fw-bold text-dark">{{ inv.student.get_full_name }}</span>
+                                        <div>
+                                            <div class="fw-semibold">{{ inv.student.get_full_name }}</div>
+                                            <small class="text-muted">ID: {{ inv.student.admission_number|default:"—" }}</small>
+                                        </div>
                                     </div>
                                 </td>
-                                <td><span class="text-muted">Term {{ inv.term }} (2026)</span></td>
+                                <td>
+                                    <span class="badge bg-light text-dark border fw-medium">Term {{ inv.term|default:"1" }}</span>
+                                </td>
                                 <td class="text-end pe-4">
-                                    <span class="text-danger fw-bold">UGX {{ inv.balance|default:"0" }}</span>
+                                    <span class="fw-semibold text-danger">
+                                        UGX {{ inv.balance|default:"0" }}
+                                    </span>
                                 </td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="3" class="text-center py-5 text-muted small fst-italic">No billing records found for this period.</td>
+                                <td colspan="3" class="text-center py-5">
+                                    <p class="text-muted mb-0">No recent invoicing activity found.</p>
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -132,39 +199,51 @@
         </div>
 
         <div class="col-lg-4">
-            <div class="card border-0 bg-primary text-white shadow-lg mb-4" style="border-radius: 20px; background: linear-gradient(135deg, var(--primary), #1e5c39) !important;">
-                <div class="card-body p-4">
-                    <div class="d-flex align-items-center mb-4">
-                        <div class="bg-white p-2 rounded-3 me-3" style="width: 50px; height: 50px;">
-                            <img src="{{ request.school.logo.url }}" class="img-fluid" alt="OLA">
-                        </div>
-                        <h5 class="fw-bold mb-0">System Status</h5>
-                    </div>
+            <div class="card border-0 text-white shadow-sm mb-4 rounded-4 overflow-hidden" 
+                 style="background: linear-gradient(135deg, #1e293b, #0f172a);">
+                <div class="card-body p-4 position-relative">
+                    <i class="fas fa-server position-absolute top-0 end-0 opacity-10" style="font-size: 9rem; margin-top: -20px; margin-right: -20px;"></i>
                     
-                    <div class="mb-3 border-bottom border-white border-opacity-10 pb-2">
-                        <label class="extra-small opacity-75 d-block">Institution</label>
-                        <span class="fw-bold">{{ request.school.name }}</span>
+                    <div class="d-flex align-items-center mb-4">
+                        <h6 class="fw-bold mb-0 text-uppercase">Operational Status</h6>
                     </div>
-                    <div class="mb-3 border-bottom border-white border-opacity-10 pb-2">
-                        <label class="extra-small opacity-75 d-block">Session Manager</label>
-                        <span class="fw-bold">{{ user.username }}</span>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <label class="extra-small opacity-75 d-block">Operational Year</label>
-                            <span class="fw-bold">2026</span>
+
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="opacity-75 small">Institution</span>
+                            <span class="fw-semibold small">{{ request.school.name|upper|default:"OLA" }}</span>
                         </div>
-                        <span class="badge bg-white text-primary fw-bold px-3 py-2 rounded-pill">ONLINE</span>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="opacity-75 small">Session Admin</span>
+                            <span class="fw-semibold small">{{ user.username|upper }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="opacity-75 small">Connection</span>
+                            <span class="text-success small fw-semibold">
+                                <i class="fas fa-circle" style="font-size: 7px;"></i> SECURE
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white bg-opacity-10 p-3 rounded-3 d-flex justify-content-between align-items-center">
+                        <span class="fw-semibold small">Year {% now "Y" %}</span>
+                        <span class="badge bg-success px-3 py-1">ONLINE</span>
                     </div>
                 </div>
             </div>
 
-            <div class="card border-0 shadow-sm" style="border-radius: 16px;">
-                <div class="card-body">
-                    <h6 class="fw-bold mb-3">System Updates</h6>
-                    <div class="d-flex gap-3 mb-3">
-                        <i class="fas fa-info-circle text-primary"></i>
-                        <p class="small text-muted mb-0">Automated backups for the school database are scheduled for 12:00 AM daily.</p>
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold mb-3 d-flex align-items-center">
+                        <i class="fas fa-history me-2 text-muted"></i> Activity Log
+                    </h6>
+                    <div class="d-flex gap-3 pb-3 border-bottom">
+                        <div class="log-dot bg-success"></div>
+                        <div class="extra-small text-muted">System environment is stable.</div>
+                    </div>
+                    <div class="d-flex gap-3 pt-3">
+                        <div class="log-dot bg-warning"></div>
+                        <div class="extra-small text-muted">Check Finance for pending term billing.</div>
                     </div>
                 </div>
             </div>
@@ -173,38 +252,20 @@
 </div>
 
 <style>
-    .ls-1 { letter-spacing: 0.5px; }
-    .extra-small { font-size: 0.7rem; }
-    
-    .icon-shape {
-        width: 48px;
-        height: 48px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.25rem;
-    }
-
-    .bg-primary-subtle { background-color: #eef2ff; color: #4f46e5; }
-    .bg-success-subtle { background-color: #ecfdf5; color: #10b981; }
-    .bg-danger-subtle { background-color: #fff1f2; color: #f43f5e; }
-
-    .btn-white { background: white; color: #475569; }
-    .btn-white:hover { background: #f8fafc; color: var(--primary); }
-
-    .avatar-initials {
-        width: 35px;
-        height: 35px;
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-        font-size: 0.75rem;
-    }
-
-    .custom-dashboard-table thead th { border-top: none; color: #94a3b8; }
-    .custom-dashboard-table tbody tr:hover { background-color: #f8fafc; cursor: pointer; }
+    .tracking-tight { letter-spacing: -0.025em; }
+    .extra-small { font-size: 0.73rem; }
+    .kpi-card { border-radius: 20px; transition: 0.3s; }
+    .kpi-card:hover { transform: translateY(-5px); }
+    .kpi-icon { width: 50px; height: 50px; border-radius: 14px; display: flex; align-items: center; justify-content: center; }
+    .bg-soft-primary { background: rgba(46, 139, 87, 0.1); color: #2E8B57; }
+    .bg-soft-success { background: #ecfdf5; color: #10b981; }
+    .bg-soft-danger  { background: #fff1f2; color: #e11d48; }
+    .action-tile { background: #f8fafc; border: 1px solid #eef2f6; border-radius: 18px; padding: 20px 10px; transition: 0.2s; }
+    .action-tile:hover { background: #fff; border-color: #2E8B57; transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.05); }
+    .tile-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
+    .avatar-initials { width: 40px; height: 40px; border-radius: 10px; background: #f1f5f9; color: #2E8B57; display: flex; align-items: center; justify-content: center; font-weight: 700; border: 1px solid #e2e8f0; }
+    .log-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; }
+    .pulse-dot { width: 8px; height: 8px; background: #e11d48; border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(225, 29, 72, 0); } 100% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0); } }
 </style>
 {% endblock %}

@@ -2,31 +2,66 @@ from django.shortcuts import render
 
 # Create your views here.
 from django.shortcuts import render, redirect
-from .models import Mark, Subject
+from .models import Mark, Subject, Teacher
 from students.models import Student, Classroom
 
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
+from .models import Classroom, Subject, Student, Mark, SubjectAssignment
+
 def enter_marks(request, classroom_id, subject_id):
-    classroom = Classroom.objects.get(id=classroom_id, school=request.school)
-    subject = Subject.objects.get(id=subject_id, school=request.school)
+    # 1. Fetch data with school-scoping for security
+    classroom = get_object_or_404(Classroom, id=classroom_id, school=request.school)
+    subject = get_object_or_404(Subject, id=subject_id, school=request.school)
+    
+    # 2. STRICT SECURITY: Verify Teacher Assignment
+    if not request.user.is_superuser:
+        try:
+            teacher_profile = request.user.teacher_profile
+            is_assigned = SubjectAssignment.objects.filter(
+                teacher=teacher_profile,
+                subject=subject,
+                classroom=classroom,
+                year=2026
+            ).exists()
+            
+            if not is_assigned:
+                messages.error(request, f"Access Denied: You are not the assigned teacher for {subject.name} in {classroom.name}.")
+                return redirect('academic:dashboard')
+        except AttributeError:
+            messages.error(request, "Only registered teachers can access this page.")
+            return redirect('academic:dashboard')
+
+    # 3. Fetch students efficiently
     students = Student.objects.filter(classroom=classroom, school=request.school)
     
     if request.method == "POST":
+        term = request.POST.get('term')
+        
+        # 4. Atomic-style loop for mark entry
         for student in students:
-            mid_mark = request.POST.get(f'mid_{student.id}')
-            end_mark = request.POST.get(f'end_{student.id}')
+            mid_val = request.POST.get(f'mid_{student.id}')
+            end_val = request.POST.get(f'end_{student.id}')
+            
+            # Clean empty strings to None (prevents database float errors)
+            mid_mark = float(mid_val) if mid_val and mid_val.strip() else None
+            end_mark = float(end_val) if end_val and end_val.strip() else None
             
             Mark.objects.update_or_create(
                 student=student,
                 subject=subject,
                 classroom=classroom,
                 school=request.school,
-                term=request.POST.get('term'),
+                term=term,
                 year=2026,
                 defaults={
-                    'mid_term_mark': mid_mark if mid_mark else None,
-                    'end_term_mark': end_mark if end_mark else None,
+                    'mid_term_mark': mid_mark,
+                    'end_term_mark': end_mark,
+                    'entered_by': request.user, # Track who did the work
                 }
             )
+        
+        messages.success(request, f"Marks for {subject.name} in {classroom.name} have been updated successfully.")
         return redirect('academic:dashboard')
 
     return render(request, 'academic/mark_sheet.html', {
@@ -35,20 +70,37 @@ def enter_marks(request, classroom_id, subject_id):
         'students': students
     })
 
-
 from django.shortcuts import render, get_object_or_404
 from .models import Mark, Subject
 from .utils import get_class_ranking
 from students.models import Student
 
+from django.shortcuts import render, get_object_or_404
+from django.db.models import Sum
+from .models import Mark, Subject
+from students.models import Student
+# Assuming get_class_ranking is in your utils.py
+from .utils import get_class_ranking 
 def student_report_card(request, student_id, term, year):
     student = get_object_or_404(Student, id=student_id, school=request.school)
-    marks = Mark.objects.filter(student=student, term=term, year=year)
     
-    # Calculate Ranks
-    class_ranks = get_class_ranking(student.classroom, term, year)
+    # URL sends "Term-1", DB needs "1"
+    clean_term = term.replace("Term-", "").strip() 
+
+    marks = Mark.objects.filter(
+        student=student, 
+        term=clean_term, 
+        year=year,
+        school=request.school
+    ).select_related('subject')
+
+    # Aggregates
+    all_scores = [m.total_score for m in marks if m.total_score is not None]
+    average = sum(all_scores) / len(all_scores) if all_scores else 0
+    
+    # Ranks (Using the helper function you likely have)
+    class_ranks = get_class_ranking(student.classroom, clean_term, year)
     my_rank = class_ranks.get(student.id, "N/A")
-    total_students = len(class_ranks)
 
     context = {
         'student': student,
@@ -56,10 +108,12 @@ def student_report_card(request, student_id, term, year):
         'term': term,
         'year': year,
         'rank': my_rank,
-        'total_students': total_students,
+        'average': average,
+        'total_students': len(class_ranks),
         'school': request.school
     }
     return render(request, 'academic/report_card.html', context)
+
 
 
 from django.shortcuts import get_object_or_404
@@ -181,3 +235,73 @@ def manage_subjects(request):
         'subjects': subjects,
         'form': form
     })
+
+
+from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from .models import Teacher
+from django.utils import timezone
+@login_required
+def teacher_dashboard(request):
+    teacher = get_object_or_404(Teacher, user=request.user)
+    my_classes = teacher.classrooms.all().prefetch_related('subjects')
+    my_subjects = teacher.subjects.all()
+    
+    # Calculate total students safely
+    total_students = 0
+    for classroom in my_classes:
+        # Check which one works for your model: .students or .student_set
+        if hasattr(classroom, 'students'):
+            total_students += classroom.students.count()
+        elif hasattr(classroom, 'student_set'):
+            total_students += classroom.student_set.count()
+
+    context = {
+        'teacher': teacher,
+        'my_classes': my_classes,
+        'my_subjects': my_subjects,
+        'total_students': total_students,
+        'today': timezone.now(),
+    }
+    return render(request, 'teachers/dashboard.html', context)
+
+
+
+
+from django.core.paginator import Paginator
+from django.db.models import Q
+
+from django.core.paginator import Paginator
+from django.db.models import Q
+
+from django.shortcuts import render
+from django.core.paginator import Paginator
+from django.db.models import Q
+from .models import Teacher
+
+def teacher_directory(request):
+    # 1. Get the search term and clean it
+    query = request.GET.get('q', '').strip()
+    
+    # 2. Fetch all teachers (optimized with select_related for the User name)
+    teacher_list = Teacher.objects.all().select_related('user').prefetch_related('subjects', 'classrooms')
+
+    # 3. Apply Search Filter if query exists
+    if query:
+        teacher_list = teacher_list.filter(
+            Q(user__first_name__icontains=query) | 
+            Q(user__last_name__icontains=query) |
+            Q(staff_id__icontains=query)
+        )
+
+    # 4. Setup Pagination (12 cards per page)
+    paginator = Paginator(teacher_list, 12)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'page_obj': page_obj,
+        'query': query,
+        'total_count': paginator.count,
+    }
+    return render(request, 'teachers/directory.html', context)

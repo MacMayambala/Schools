@@ -5,25 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Staff Portal | {{ request.school.name|default:"Our Lady of Africa" }}</title>
     
+    {% load static %}
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+   
+    <link rel="shortcut icon" type="image/png" href="{% static 'images/favicon.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'images/favicon.png' %}">
     <style>
         :root {
-            --ola-green: #2E8B57; 
-            --ola-green-rgb: 46, 139, 87;
+            --ola-green: #1a5c37; 
+            --ola-green-light: #2E8B57;
             --ola-gold: #FFD700;
-            --soft-bg: #f8fafc;
-            --text-dark: #1e293b;
+            --slate-50: #f8fafc;
+            --slate-200: #e2e8f0;
+            --text-dark: #0f172a;
         }
 
-        body, html { height: 100%; margin: 0; font-family: 'Inter', sans-serif; background-color: var(--soft-bg); }
+        body, html { height: 100%; margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; background-color: #fff; overflow: hidden; }
 
-        /* Left Branding Pane */
+        /* Left Branding Pane - Enhanced */
         .branding-pane {
-            background: linear-gradient(135deg, rgba(var(--ola-green-rgb), 0.92), rgba(0, 50, 0, 0.85)), 
-                        url('https://images.unsplash.com/photo-1523050335392-9affa74744a8?auto=format&fit=crop&q=80&w=1200');
+            /* Using your static school background image */
+            background: linear-gradient(135deg, rgba(26, 92, 55, 0.94), rgba(13, 58, 33, 0.88)), 
+                        url("{% static 'images/school_bg.jpg' %}"); 
             background-size: cover;
             background-position: center;
             display: flex;
@@ -31,231 +36,176 @@
             justify-content: center;
             align-items: center;
             color: white;
-            padding: 3rem;
+            padding: 4rem;
             text-align: center;
+            position: relative;
         }
 
-        .logo-container {
-            width: 130px;
-            height: 130px;
-            background: white;
-            border-radius: 24px;
+        /* Modern Logo Container */
+        .logo-box {
+            width: 140px;
+            height: 140px;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 28px;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 12px;
-            margin-bottom: 2rem;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
-            border: 1px solid rgba(255,255,255,0.2);
+            padding: 20px;
+            margin-bottom: 2.5rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255, 255, 255, 0.3);
         }
-        .logo-container img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .logo-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
 
-        .background-watermark {
+        /* Form Side Styling */
+        .login-column {
+            background-color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .login-wrapper { z-index: 10; width: 100%; max-width: 420px; padding: 2rem; }
+        
+        /* Premium Input Fields */
+        .input-group-custom {
+            background: var(--slate-50);
+            border: 1.5px solid var(--slate-200);
+            border-radius: 14px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.25rem;
+        }
+        .input-group-custom:focus-within {
+            border-color: var(--ola-green-light);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(46, 139, 87, 0.1);
+        }
+        .input-icon { color: #94a3b8; padding: 0 1.2rem; font-size: 1.1rem; }
+        .form-control-custom { 
+            border: none; 
+            padding: 0.9rem 0; 
+            font-weight: 500; 
+            background: transparent; 
+            width: 100%;
+            outline: none;
+            color: var(--text-dark);
+        }
+
+        /* Button Styling */
+        .btn-authenticate {
+            background: var(--ola-green);
+            color: white;
+            border: none;
+            padding: 1.1rem;
+            border-radius: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            margin-top: 1rem;
+        }
+        .btn-authenticate:hover {
+            background: #14462a;
+            color: var(--ola-gold);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(26, 92, 55, 0.3);
+        }
+
+        .watermark {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             width: 60%;
             opacity: 0.03;
-            z-index: -1;
+            z-index: 0;
             pointer-events: none;
-            filter: grayscale(100%);
         }
 
-        /* Input Styling */
-        .form-label { font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 0.5rem; }
-        
-        .input-group {
-            background: white;
-            border: 1.5px solid #e2e8f0;
-            border-radius: 12px;
-            overflow: hidden;
-            transition: all 0.3s ease;
-        }
-        
-        .input-group:focus-within {
-            border-color: var(--ola-green);
-            box-shadow: 0 0 0 4px rgba(var(--ola-green-rgb), 0.1);
-        }
-
-        .input-group-text {
-            background: transparent;
-            border: none;
-            padding-left: 1.2rem;
-            color: #94a3b8;
-        }
-
-        .form-control {
-            border: none;
-            padding: 0.8rem 1.2rem;
-            font-size: 0.95rem;
-            color: var(--text-dark);
-            background: transparent;
-        }
-        
-        .form-control:focus { background: transparent; box-shadow: none; border: none; }
-
-        /* Button Styling */
-        .btn-ola {
-            background: var(--ola-green);
-            color: white;
-            border: none;
-            padding: 1rem;
-            border-radius: 12px;
-            font-weight: 700;
-            font-size: 0.9rem;
-            letter-spacing: 0.5px;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            margin-top: 1rem;
-        }
-
-        .btn-ola:hover {
-            background: #246e45;
-            color: var(--ola-gold);
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(var(--ola-green-rgb), 0.2);
-        }
-
-        /* Layout Adjustments */
-        .login-card {
-            width: 100%;
-            max-width: 420px;
-            padding: 2.5rem;
-            z-index: 10;
-        }
-
-        .school-info-pill {
-            background: rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
-            padding: 8px 16px;
-            border-radius: 50px;
-            border: 1px solid rgba(255,255,255,0.2);
-            font-size: 0.8rem;
-            margin-top: 2rem;
-        }
-
-        /* Mac Technologies Branding */
-        .login-footer-branding {
-            margin-top: 3rem;
-            padding-top: 1.5rem;
-            border-top: 1px solid #f1f5f9;
-            text-align: center;
-        }
-
-        .mac-tech-credit {
-            position: absolute;
-            bottom: 20px;
-            right: 30px;
-            font-size: 0.72rem;
-            color: #94a3b8;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            text-decoration: none;
-            font-weight: 500;
-            transition: color 0.2s;
-        }
-
-        .mac-tech-credit:hover {
-            color: var(--ola-green);
-        }
-
-        .credit-dot {
-            width: 4px;
-            height: 4px;
-            background: #cbd5e1;
-            border-radius: 50%;
-        }
-
-        @media (max-width: 767px) {
+        @media (max-width: 768px) {
             .branding-pane { display: none; }
-            .mac-tech-credit { position: relative; right: auto; bottom: auto; justify-content: center; margin-bottom: 20px; }
+            .login-column { height: 100vh; }
         }
     </style>
 </head>
 <body>
 
-<div class="container-fluid vh-100 p-0">
+<div class="container-fluid h-100 p-0">
     <div class="row g-0 h-100">
         
-        <div class="col-md-6 d-none d-md-flex branding-pane position-relative">
-            <div class="logo-container">
+        <div class="col-md-6 d-none d-md-flex branding-pane">
+            <div class="logo-box">
                 {% if request.school.logo %}
                     <img src="{{ request.school.logo.url }}" alt="School Logo">
                 {% else %}
-                    <i class="fas fa-university fa-4x text-success"></i>
+                    <img src="{% static 'images/favicon.png' %}" alt="Logo">
                 {% endif %}
             </div>
-
-            <h1 class="fw-bold mb-2" style="letter-spacing: -1px; font-size: 2.5rem;">{{ request.school.name|default:"Our Lady of Africa" }}</h1>
-            <p class="lead opacity-75 fw-light" style="font-style: normal; color: var(--ola-gold);">
-                {{ request.school.motto|default:"Knowledge and Virtue" }}
+            <h1 class="display-5 fw-bold mb-0" style="letter-spacing: -1px;">{{ request.school.name|upper|default:"Our Lady Of Africa Mukono" }}</h1>
+            <p class="fs-5 mt-3 text-warning fw-light" style="letter-spacing: 3px; opacity: 0.9;">
+                {{ request.school.motto|default:"EVER FORWARD" }}
             </p>
             
-            <div class="school-info-pill mt-5">
-                <i class="fas fa-map-marker-alt me-2"></i> {{ request.school.address|default:"Mukono Campus" }}
+            <div class="mt-5 badge rounded-pill px-4 py-2" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); backdrop-filter: blur(5px);">
+                <i class="fas fa-shield-check me-2 text-warning"></i> Secure Staff Access Portal
             </div>
         </div>
 
-        <div class="col-md-6 d-flex align-items-center justify-content-center position-relative" style="background: white;">
+        <div class="col-md-6 login-column">
             
-            {% if request.school.logo %}
-                <img src="{{ request.school.logo.url }}" class="background-watermark" alt="Watermark">
-            {% endif %}
+            
+                <img src="{% static 'images/favicon.png' %}" class="watermark" alt="">
+                
+            
 
-            <div class="login-card">
-                <div class="mb-5 text-center text-md-start">
-                    <h3 class="fw-bold text-dark mb-1">Portal Login</h3>
-                    <p class="text-muted small">Access the management system for <strong>{{ request.school.code|default:"OLA" }}</strong>.</p>
+
+            <div class="login-wrapper">
+                <div class="mb-5">
+                    <h2 class="fw-bold text-dark mb-1">Welcome back</h2>
+                    <p class="text-muted">Enter your staff credentials to continue</p>
                 </div>
 
                 <form method="POST">
                     {% csrf_token %}
                     
-                    <div class="mb-3">
-                        <label class="form-label">Username</label>
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="fas fa-user-shield"></i></span>
-                            <input type="text" name="username" class="form-control" placeholder="staff.name" required>
-                        </div>
+                    <label class="form-label small fw-bold text-uppercase text-muted ms-1">Staff ID / Username</label>
+                    <div class="input-group-custom">
+                        <span class="input-icon"><i class="fa-regular fa-circle-user"></i></span>
+                        <input type="text" name="username" class="form-control-custom" placeholder="e.g. m.mayambala" required>
                     </div>
 
-                    <div class="mb-4">
-                        <label class="form-label">Password</label>
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="fas fa-key"></i></span>
-                            <input type="password" name="password" class="form-control" placeholder="••••••••" required>
-                        </div>
+                    <label class="form-label small fw-bold text-uppercase text-muted ms-1">Password</label>
+                    <div class="input-group-custom">
+                        <span class="input-icon"><i class="fa-solid fa-key"></i></span>
+                        <input type="password" name="password" class="form-control-custom" placeholder="••••••••" required>
                     </div>
 
-                    <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-4 mt-2 px-1">
                         <div class="form-check">
-                            <input type="checkbox" class="form-check-input" id="rem">
-                            <label class="form-check-label small text-muted" for="rem">Stay signed in</label>
+                            <input type="checkbox" class="form-check-input" id="remember">
+                            <label class="form-check-label small text-muted" for="remember">Remember me</label>
                         </div>
-                        <a href="#" class="small text-decoration-none fw-bold text-success">Recovery</a>
+                        <a href="#" class="small text-decoration-none fw-bold text-success">Forgot Password?</a>
                     </div>
 
-                    <button type="submit" class="btn btn-ola w-100 text-uppercase">
-                        Authenticate <i class="fas fa-chevron-right ms-2" style="font-size: 0.7rem;"></i>
+                    <button type="submit" class="btn btn-authenticate w-100">
+                        Sign In to Portal <i class="fas fa-arrow-right ms-2 opacity-50"></i>
                     </button>
-
-                    <div class="login-footer-branding">
-                        <p class="text-muted mb-1" style="font-size: 0.65rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;">
-                            Authorized Personnel Only
-                        </p>
-                        <div class="d-flex align-items-center justify-content-center gap-2">
-                            <span class="small text-muted" style="font-size: 0.7rem;">System by</span>
-                            <span class="fw-bold text-dark" style="font-size: 0.75rem;">Mac Technologies</span>
-                        </div>
-                    </div>
                 </form>
-            </div>
 
-            <div class="mac-tech-credit d-none d-md-flex">
-                <span>© 2026 Mac Technologies</span>
-                <div class="credit-dot"></div>
-                <span>Secure Node v4.2.0</span>
+                <div class="text-center mt-5 pt-4 border-top">
+                    <p class="mb-0 text-muted small">Powered by</p>
+                    <h6 class="fw-bold text-dark mt-1" style="letter-spacing: 1px;">MAC TECHNOLOGIES</h6>
+                    <div class="d-flex justify-content-center gap-2 mt-3">
+                        <span class="badge bg-light text-secondary border fw-normal px-3">v4.2.0</span>
+                        <span class="badge bg-light text-success border fw-normal px-3"><i class="fas fa-circle-check me-1"></i> System Online</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

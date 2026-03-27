@@ -2,50 +2,74 @@
 {% load crispy_forms_tags %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container-fluid py-5 bg-light min-vh-100">
     <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-dark text-white">
-                    <h5 class="mb-0"><i class="fas fa-file-invoice-dollar me-2"></i> Bulk Term Billing</h5>
+        <div class="col-md-7 col-lg-6">
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="breadcrumb small">
+                    <li class="breadcrumb-item"><a href="{% url 'finance:dashboard' %}" class="text-decoration-none">Finance</a></li>
+                    <li class="breadcrumb-item active">Bulk Billing</li>
+                </ol>
+            </nav>
+
+            <div class="card shadow-lg border-0 rounded-4">
+                <div class="card-header bg-dark text-white p-4 border-0 rounded-top-4">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-white bg-opacity-25 rounded-circle p-3 me-3">
+                            <i class="fas fa-file-invoice-dollar fa-lg"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-0 fw-bold text-white">Bulk Term Billing</h5>
+                            <small class="text-white-50">Generate invoices for an entire class at once</small>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body p-4">
-                    <p class="text-muted">This action will generate invoices for all students in the selected class based on the defined Fee Structure.</p>
+                
+                <div class="card-body p-4 p-lg-5">
+                    <p class="text-muted mb-4">Select a classroom to automatically generate invoices. The system will match students to their specific <strong>Day</strong> or <strong>Boarding</strong> fee structures.</p>
                     
-                    <form method="POST">
+                    <form method="POST" id="billingForm">
                         {% csrf_token %}
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold">Select Classroom</label>
-                                <select name="classroom" class="form-select" required>
-                                    <option value="">---------</option>
+                        <div class="row g-4">
+                            <div class="col-12">
+                                <label class="form-label fw-bold text-dark small">Target Classroom</label>
+                                <select name="classroom" class="form-select form-select-lg rounded-3 border-2" required>
+                                    <option value="" selected disabled>Select a class...</option>
                                     {% for class in classrooms %}
                                         <option value="{{ class.id }}">{{ class.name }} ({{ class.short_name }})</option>
                                     {% endfor %}
                                 </select>
                             </div>
-                            <div class="col-md-3">
-                                <label class="form-label fw-bold">Term</label>
-                                <select name="term" class="form-select" required>
-                                    <option value="1">Term 1</option>
-                                    <option value="2">Term 2</option>
-                                    <option value="3">Term 3</option>
+
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold text-dark small">Academic Term</label>
+                                <select name="term" class="form-select rounded-3 border-2" required>
+                                    <option value="1" {% if current_term == '1' %}selected{% endif %}>Term 1</option>
+                                    <option value="2" {% if current_term == '2' %}selected{% endif %}>Term 2</option>
+                                    <option value="3" {% if current_term == '3' %}selected{% endif %}>Term 3</option>
                                 </select>
                             </div>
-                            <div class="col-md-3">
-                                <label class="form-label fw-bold">Year</label>
-                                <input type="number" name="year" class="form-control" value="2026" required>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold text-dark small">Academic Year</label>
+                                <input type="number" name="year" class="form-control rounded-3 border-2" value="2026" required>
                             </div>
                         </div>
 
-                        <div class="alert alert-warning mt-4 small">
-                            <i class="fas fa-exclamation-circle me-1"></i> 
-                            <strong>Note:</strong> Invoices will only be created for students who do not already have an invoice for this term/year.
+                        <div class="alert alert-info mt-4 border-0 rounded-3 small shadow-sm">
+                            <div class="d-flex">
+                                <i class="fas fa-info-circle me-3 mt-1 text-primary"></i>
+                                <div>
+                                    <strong>Safe Processing:</strong> This tool will skip students who already have an invoice for this period to prevent double-billing.
+                                </div>
+                            </div>
                         </div>
 
-                        <div class="d-flex justify-content-between mt-4">
-                            <a href="{% url 'finance:dashboard' %}" class="btn btn-outline-secondary">Cancel</a>
-                            <button type="submit" class="btn btn-primary px-4">Generate Invoices</button>
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-5">
+                            <a href="{% url 'finance:dashboard' %}" class="btn btn-light px-4 py-2 rounded-pill fw-bold me-md-2">Cancel</a>
+                            <button type="submit" class="btn btn-primary px-5 py-2 rounded-pill fw-bold shadow" id="submitBtn">
+                                <span class="btn-text">Generate Invoices</span>
+                                <span class="spinner-border spinner-border-sm d-none" role="status"></span>
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -53,4 +77,16 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.getElementById('billingForm').onsubmit = function() {
+        const btn = document.getElementById('submitBtn');
+        const text = btn.querySelector('.btn-text');
+        const spinner = btn.querySelector('.spinner-border');
+        
+        btn.disabled = true;
+        text.innerText = "Processing...";
+        spinner.classList.remove('d-none');
+    };
+</script>
 {% endblock %}

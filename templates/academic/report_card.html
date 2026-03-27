@@ -4,200 +4,160 @@
 {% block title %}Official Report | {{ student.get_full_name }}{% endblock %}
 
 {% block content %}
-<div class="container py-4 d-flex justify-content-center bg-light d-print-block">
-    <div class="report-container shadow-lg border-0" id="reportCard">
+<div class="report-wrapper py-5 d-flex justify-content-center bg-secondary-subtle">
+    <div class="report-card shadow-2xl border-0 p-5 position-relative bg-white" id="printableReport">
         
-        <div class="watermark">
-            {% if school.motto %}{{ school.motto|upper }}{% else %}OFFICIAL DOCUMENT{% endif %}
-        </div>
+        <div class="watermark text-uppercase">Official Academic Record</div>
 
-        <div class="row align-items-center mb-4 border-bottom border-3 border-dark pb-3 position-relative">
+        <div class="row align-items-center mb-4 border-bottom border-4 border-dark pb-4">
             <div class="col-3">
                 {% if school.logo %}
-                    <img src="{{ school.logo.url }}" alt="School Logo" class="school-logo-print">
+                    <img src="{{ school.logo.url }}" alt="School Logo" class="school-logo-main">
                 {% else %}
-                    <div class="placeholder-box">LOGO</div>
+                    <div class="logo-placeholder">MAC</div>
                 {% endif %}
             </div>
             
             <div class="col-6 text-center">
-                <h1 class="school-name-h1">{{ school.name|upper }}</h1>
-                <p class="school-motto-text mb-1 italic">"{{ school.motto|default:'Education for a Brighter Future' }}"</p>
-                <div class="contact-info-strip">
-                    {{ school.address|default:"P.O BOX XXX, Mukono, Uganda" }}<br>
-                    Tel: {{ school.phone|default:"+256 7XX XXX XXX" }} | Email: {{ school.email }}
-                </div>
-                <div class="report-title-pill mt-2">STUDENT PROGRESS REPORT</div>
+                <h1 class="school-title mb-0">{{ school.name|upper }}</h1>
+                <p class="school-meta mb-1">{{ school.address|default:"KAMPALA, UGANDA" }}</p>
+                <p class="school-contact mb-2 text-muted small">{{ school.phone }} | {{ school.email }}</p>
+                <div class="report-label">STUDENT ACADEMIC PERFORMANCE REPORT</div>
+                <h5 class="mt-2 fw-black text-primary">{{ term|upper }} — {{ year }}</h5>
             </div>
 
             <div class="col-3 text-end">
                 {% if student.photo %}
-                    <img src="{{ student.photo.url }}" alt="Student Photo" class="student-photo-print">
+                    <img src="{{ student.photo.url }}" alt="Student" class="student-photo shadow border border-2 border-dark">
                 {% else %}
-                    <div class="placeholder-box ms-auto">PHOTO</div>
+                    <div class="photo-placeholder ms-auto">NO PHOTO</div>
                 {% endif %}
             </div>
         </div>
 
-        <div class="term-banner d-flex justify-content-between px-3 py-2 mb-4">
-            <span class="fw-bold">TERM: {{ term|upper }}</span>
-            <span class="fw-bold">ACADEMIC YEAR: {{ year }}</span>
-            <span class="fw-bold">STATUS: {% if average >= 50 %}PROMOTED{% else %}UNGRADED{% endif %}</span>
-        </div>
-
-        <div class="row g-0 mb-4 border border-2 border-dark rounded overflow-hidden">
-            <div class="col-7 border-end border-2 p-3">
-                <table class="table table-borderless table-sm mb-0 info-table">
-                    <tr><td width="35%" class="text-muted small fw-bold">NAME:</td><td class="fw-bold text-uppercase">{{ student.get_full_name }}</td></tr>
-                    <tr><td class="text-muted small fw-bold">ADMISSION:</td><td class="fw-bold font-monospace text-primary">{{ student.admission_number }}</td></tr>
-                    <tr><td class="text-muted small fw-bold">GENDER:</td><td class="fw-bold">{{ student.gender|default:"N/A"|upper }}</td></tr>
+        <div class="row g-0 mb-4 border border-2 border-dark rounded-4 overflow-hidden student-bio-box">
+            <div class="col-md-7 border-end border-2 border-dark p-3">
+                <table class="table table-borderless table-sm mb-0">
+                    <tr><td class="text-muted fw-bold small">STUDENT NAME:</td><td class="fw-black text-dark">{{ student.get_full_name|upper }}</td></tr>
+                    <tr><td class="text-muted fw-bold small">ADMISSION NO:</td><td class="fw-bold font-monospace text-primary">{{ student.admission_number }}</td></tr>
                 </table>
             </div>
-            <div class="col-5 p-3 bg-light">
-                <table class="table table-borderless table-sm mb-0 info-table">
-                    <tr><td width="40%" class="text-muted small fw-bold">CLASS:</td><td class="fw-bold">{{ student.classroom }}</td></tr>
-                    <tr><td class="text-muted small fw-bold">RANK:</td><td class="fw-bold text-danger">{{ rank }} / {{ total_students }}</td></tr>
-                    <tr><td class="text-muted small fw-bold">AVERAGE:</td><td class="fw-bold">{{ average|floatformat:1 }}%</td></tr>
+            <div class="col-md-5 bg-light p-3">
+                <table class="table table-borderless table-sm mb-0">
+                    <tr><td class="text-muted fw-bold small">CLASS/STREAM:</td><td class="fw-black text-dark">{{ student.classroom }}</td></tr>
+                    <tr><td class="text-muted fw-bold small">CLASS RANK:</td><td class="fw-black text-danger">{{ rank }} / {{ total_students }}</td></tr>
                 </table>
             </div>
         </div>
 
-        <div class="table-responsive mb-4">
-            <table class="table table-bordered border-dark academic-table-print">
-                <thead>
+        <div class="table-responsive">
+            <table class="table table-bordered border-dark academic-main-table">
+                <thead class="bg-dark text-white text-center">
                     <tr>
-                        <th style="width: 40%;">SUBJECT</th>
+                        <th class="py-3 text-start ps-3">SUBJECT</th>
                         <th>MID (30)</th>
                         <th>END (70)</th>
-                        <th>TOTAL</th>
+                        <th>TOTAL (%)</th>
                         <th>GRADE</th>
-                        <th>REMARKS</th>
+                        <th class="text-start">REMARKS</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody class="text-center align-middle">
                     {% for item in marks %}
                     <tr>
-                        <td class="text-start ps-3 fw-bold">{{ item.subject.name|upper }}</td>
-                        <td>{{ item.mid_score|floatformat:0 }}</td>
-                        <td>{{ item.end_score|floatformat:0 }}</td>
-                        <td class="fw-bold">{{ item.total_score|floatformat:0 }}</td>
-                        <td class="fw-900">{{ item.grade }}</td>
-                        <td class="text-start ps-2 small italic text-muted">{{ item.remarks|default:"Good progress." }}</td>
+                        <td class="text-start fw-black py-3 ps-3">{{ item.subject.name|upper }}</td>
+                        <td class="text-muted">{{ item.mid_term_mark|default:"-" }}</td>
+                        <td class="text-muted">{{ item.end_term_mark|default:"-" }}</td>
+                        <td class="fw-black fs-5 bg-yellow-soft">{{ item.total_score|floatformat:0 }}</td>
+                        <td><span class="badge-grade">{{ item.grade }}</span></td>
+                        <td class="text-start small italic text-muted pe-3">{{ item.grade_remark }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
+                <tfoot class="bg-dark text-white border-top-0">
+                    <tr>
+                        <td colspan="3" class="text-end fw-bold py-3">AGGREGATE / AVERAGE:</td>
+                        <td class="py-3 fs-4 fw-black text-center">{{ average|floatformat:1 }}%</td>
+                        <td colspan="2" class="text-center py-3">
+                            <span class="promotion-status">
+                                {% if average >= 50 %}PROMOTED{% else %}NOT PROMOTED{% endif %}
+                            </span>
+                        </td>
+                    </tr>
+                </tfoot>
             </table>
         </div>
 
-        <div class="row mb-5">
-            <div class="col-7">
-                <div class="comment-box p-3 mb-3 h-100">
-                    <h6 class="fw-bold border-bottom pb-1 small">HEADTEACHER'S COMMENT</h6>
-                    <p class="italic small mt-2">
-                        "{{ student.first_name }} has shown great potential this term. Focus more on Mathematics to improve the overall aggregate. Discipline is commendable."
-                    </p>
-                </div>
-            </div>
-            <div class="col-5">
-                <div class="grading-key p-3 border border-dark rounded bg-light h-100">
-                    <h6 class="fw-bold border-bottom pb-1 small text-center">GRADING KEY</h6>
-                    <div class="d-flex flex-wrap justify-content-between mt-2 small">
-                        <span>A: 80 - 100</span> <span>B: 70 - 79</span>
-                        <span>C: 60 - 69</span> <span>D: 50 - 59</span>
-                        <span class="text-danger fw-bold w-100 text-center mt-1">F: Below 50 (Fail)</span>
-                    </div>
-                </div>
+        <div class="grading-legend mt-4 p-3 border border-dark border-2 rounded-3 bg-white">
+            <h6 class="fw-black text-uppercase mb-2 small border-bottom pb-1">Ugandan National Grading Standard</h6>
+            <div class="row text-center g-1">
+                <div class="col border-end"><strong>D1:</strong> 80-100</div>
+                <div class="col border-end"><strong>D2:</strong> 75-79</div>
+                <div class="col border-end"><strong>C3:</strong> 70-74</div>
+                <div class="col border-end"><strong>C4-C6:</strong> 55-69</div>
+                <div class="col border-end"><strong>P7-P8:</strong> 45-54</div>
+                <div class="col text-danger fw-bold"><strong>F9:</strong> 0-44</div>
             </div>
         </div>
 
-        <div class="row text-center mt-5">
+        <div class="row mt-5 pt-4 text-center signature-section">
             <div class="col-4">
-                <div class="sig-line"></div>
-                <span class="smallest-text fw-bold">CLASS TEACHER</span>
+                <div class="sig-line mx-auto"></div>
+                <p class="mt-2 fw-bold small text-uppercase mb-0">Class Teacher</p>
             </div>
             <div class="col-4">
-                <div class="official-stamp">
-                    <div class="stamp-inner">SCHOOL STAMP</div>
+                <div class="school-stamp mx-auto">
+                    <span class="small text-muted fw-bold">OFFICIAL<br>STAMP</span>
                 </div>
             </div>
             <div class="col-4">
-                <div class="sig-line"></div>
-                <span class="smallest-text fw-bold">HEAD TEACHER</span>
+                <div class="sig-line mx-auto"></div>
+                <p class="mt-2 fw-bold small text-uppercase mb-0">Headteacher</p>
             </div>
         </div>
 
-        <div class="footer-note mt-5">
-            Generated by Saozirobwe Management System on {% now "Y-m-d H:i" %}
+        <div class="report-footer text-center mt-5 text-uppercase fw-bold border-top pt-3">
+            System Design by MAC Technologies | schooladmin.tech
         </div>
     </div>
 
-    <div class="fixed-bottom text-center pb-4 d-print-none">
-        <button onclick="window.print()" class="btn btn-primary btn-lg rounded-pill px-5 shadow">
-            <i class="fas fa-print me-2"></i> Print Official Report
+    <div class="fixed-bottom text-center mb-5 d-print-none">
+        <button onclick="window.print()" class="btn btn-dark btn-lg shadow-lg px-5 rounded-pill">
+            <i class="fas fa-print me-2"></i> Print Official Copy
         </button>
     </div>
 </div>
 
 <style>
-    /* A4 Print Specification */
-    .report-container {
-        width: 210mm;
-        min-height: 297mm;
-        background: white;
-        padding: 15mm;
-        margin: auto;
-        position: relative;
-        font-family: 'Times New Roman', serif;
-        color: #000;
-        border: 1px solid #ddd;
-    }
-
-    .school-name-h1 { font-size: 2.2rem; font-weight: 900; letter-spacing: -1px; margin-bottom: 0; color: #1a1a1a; }
-    .school-motto-text { font-size: 0.85rem; color: #555; font-style: italic; }
-    .contact-info-strip { font-size: 0.75rem; font-weight: bold; line-height: 1.2; }
+    /* Professional Layout */
+    .report-card { width: 210mm; min-height: 297mm; border: 1px solid #ddd; }
+    .fw-black { font-weight: 800; }
     
-    .report-title-pill {
-        background: #000; color: #fff;
-        display: inline-block; padding: 4px 20px;
-        font-size: 0.8rem; font-weight: 900; letter-spacing: 2px;
-        border-radius: 4px;
-    }
+    /* Typography */
+    .school-title { font-weight: 900; letter-spacing: -0.5px; font-size: 2.5rem; color: #1a1a1a; }
+    .school-meta { font-weight: 700; letter-spacing: 2px; color: #444; }
+    .report-label { background: #000; color: #fff; padding: 5px 20px; font-weight: 800; display: inline-block; border-radius: 4px; letter-spacing: 1px; }
 
-    .school-logo-print { max-height: 90px; width: auto; }
-    .student-photo-print { width: 90px; height: 110px; border: 2px solid #000; object-fit: cover; }
-    .placeholder-box { width: 90px; height: 110px; border: 1px dashed #ccc; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; color: #999; }
+    /* Tables & Marks */
+    .academic-main-table th { font-weight: 800; letter-spacing: 1px; font-size: 0.75rem; }
+    .bg-yellow-soft { background-color: #fff9e6 !important; }
+    .badge-grade { font-size: 1.2rem; font-weight: 900; color: #000; }
+    .promotion-status { border: 2px solid #fff; padding: 2px 15px; border-radius: 20px; font-size: 0.8rem; }
 
-    .term-banner { background: #f8fafc; border: 2px solid #000; font-size: 0.85rem; border-radius: 4px; }
+    /* Photos & Assets */
+    .school-logo-main { max-height: 110px; width: auto; object-fit: contain; }
+    .student-photo { width: 110px; height: 130px; object-fit: cover; }
+    .sig-line { width: 150px; border-bottom: 2.5px solid #000; }
+    .school-stamp { width: 100px; height: 100px; border: 3px double #ccc; border-radius: 50%; display: flex; align-items: center; justify-content: center; transform: rotate(-10deg); }
 
-    .info-table td { padding: 4px 0 !important; font-size: 0.9rem; }
-    .academic-table-print { width: 100%; border-collapse: collapse; text-align: center; }
-    .academic-table-print th { background: #f1f5f9; font-weight: 900; font-size: 0.75rem; padding: 10px; border: 2px solid #000 !important; }
-    .academic-table-print td { border: 1px solid #000 !important; padding: 8px; font-weight: 600; }
-
-    .comment-box { border: 2px solid #000; border-radius: 4px; min-height: 100px; }
-    .sig-line { border-bottom: 2px solid #000; width: 160px; margin: 40px auto 5px; }
-    .official-stamp { 
-        width: 100px; height: 100px; border: 3px double #ddd; 
-        border-radius: 50%; margin: 0 auto; 
-        display: flex; align-items: center; justify-content: center; 
-    }
-    .stamp-inner { color: #eee; font-size: 0.6rem; font-weight: 900; transform: rotate(-15deg); }
-
-    .watermark {
-        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg);
-        font-size: 6rem; font-weight: 900; color: rgba(0,0,0,0.03);
-        white-space: nowrap; pointer-events: none; z-index: 0;
-    }
-
-    .smallest-text { font-size: 0.7rem; }
-    .fw-900 { font-weight: 900; }
-    .footer-note { font-size: 0.6rem; text-align: center; opacity: 0.5; font-family: sans-serif; }
+    /* Watermark */
+    .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: 8rem; font-weight: 900; color: rgba(0,0,0,0.03); z-index: 0; pointer-events: none; width: 100%; text-align: center; }
 
     @media print {
         @page { size: A4; margin: 0; }
-        body { background: white; padding: 0; }
-        .container { width: 100%; max-width: 100%; padding: 0; margin: 0; }
-        .report-container { border: none; box-shadow: none; width: 210mm; }
+        body { background: #fff; }
+        .report-wrapper { padding: 0 !important; }
+        .report-card { border: none !important; box-shadow: none !important; width: 100%; }
         .d-print-none { display: none !important; }
     }
 </style>

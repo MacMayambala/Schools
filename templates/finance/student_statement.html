@@ -1,106 +1,113 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container mt-4 mb-5">
     <div class="d-flex justify-content-between align-items-center mb-4 d-print-none">
-        <a href="{% url 'finance:daily_report' %}" class="btn btn-outline-secondary">
-            <i class="fas fa-arrow-left me-2"></i>Back to Reports
+        <a href="javascript:history.back()" class="btn btn-outline-secondary rounded-pill px-4">
+            <i class="fas fa-arrow-left me-2"></i>Back
         </a>
-        <button type="button" onclick="window.print()" class="btn btn-dark px-4">
-            <i class="fas fa-print me-2"></i>Print Statement
+        <button type="button" onclick="window.print()" class="btn btn-success rounded-pill px-4 shadow-sm">
+            <i class="fas fa-print me-2"></i>Print Official Statement
         </button>
     </div>
 
-    <div class="card border-0 shadow-lg p-5 report-paper bg-white position-relative">
+    <div class="card border-0 shadow-lg p-md-5 p-3 report-paper bg-white position-relative overflow-hidden">
         
-        <div class="row mb-5 border-bottom border-2 pb-4 align-items-center">
-            <div class="col-2 text-center">
+        <div class="watermark d-none d-md-block">OFFICIAL</div>
+
+        <div class="row mb-5 border-bottom border-3 pb-4 align-items-center">
+            <div class="col-md-2 text-center text-md-start">
                 {% if request.school.logo %}
-                    <img src="{{ request.school.logo.url }}" alt="School Logo" class="img-fluid" style="max-height: 90px;">
+                    <img src="{{ request.school.logo.url }}" alt="Logo" class="img-fluid" style="max-height: 100px;">
                 {% else %}
-                    <div class="bg-success text-white d-flex align-items-center justify-content-center rounded mx-auto" style="width: 70px; height: 70px;">
+                    <div class="bg-success text-white d-inline-flex align-items-center justify-content-center rounded-circle" style="width: 80px; height: 80px;">
                         <i class="fas fa-university fa-2x"></i>
                     </div>
                 {% endif %}
             </div>
-            <div class="col-6">
-                <h2 class="fw-bold text-dark mb-0">{{ request.school.name|upper }}</h2>
-                <p class="text-success fw-bold mb-0 small">OFFICIAL STUDENT ACCOUNT STATEMENT</p>
-                <p class="text-muted extra-small mb-0">{{ request.school.address|default:"Kampala, Uganda" }}</p>
+            <div class="col-md-7 text-center text-md-start">
+                <h1 class="fw-black text-dark mb-0 letter-spacing-tight">{{ request.school.name|upper }}</h1>
+                <p class="text-success fw-bold mb-1"><i class="fas fa-certificate me-2"></i>STUDENT ACCOUNT STATEMENT</p>
+                <p class="text-muted small mb-0">
+                    <i class="fas fa-map-marker-alt me-1"></i> {{ request.school.address|default:"Kampala, Uganda" }} | 
+                    <i class="fas fa-phone-alt me-1"></i> {{ request.school.phone|default:"+256 XXX XXX" }}
+                </p>
             </div>
-            <div class="col-4 text-end">
-                <div class="p-2 border rounded bg-light">
-                    <p class="extra-small text-uppercase fw-bold text-muted mb-1">Date Generated</p>
-                    <p class="fw-bold mb-0">{{ today|date:"d M Y" }}</p>
+            <div class="col-md-3 text-end d-none d-md-block">
+                <div class="p-3 border rounded-3 bg-light shadow-sm">
+                    <p class="extra-small text-uppercase fw-bold text-muted mb-1">Statement Date</p>
+                    <h5 class="fw-bold mb-0 text-dark">{{ today|date:"d M, Y" }}</h5>
                 </div>
             </div>
         </div>
 
-        <div class="row mb-4 align-items-start">
-            <div class="col-md-2 text-center">
-                {% if student.photo %}
-                    <img src="{{ student.photo.url }}" alt="{{ student.get_full_name }}" 
-                         class="img-thumbnail shadow-sm rounded mb-2" 
-                         style="width: 120px; height: 120px; object-fit: cover;">
-                {% else %}
-                    <div class="bg-light border d-flex align-items-center justify-content-center rounded mb-2 mx-auto" 
-                         style="width: 120px; height: 120px;">
-                        <i class="fas fa-user fa-3x text-secondary opacity-25"></i>
+        <div class="row mb-4 g-4">
+            <div class="col-md-6">
+                <div class="d-flex align-items-center p-3 rounded-4 bg-light border border-start-0 border-success border-4">
+                    {% if student.photo %}
+                        <img src="{{ student.photo.url }}" class="rounded-3 shadow-sm me-3 border border-white" style="width: 90px; height: 90px; object-fit: cover;">
+                    {% else %}
+                        <div class="bg-secondary bg-opacity-10 rounded-3 me-3 d-flex align-items-center justify-content-center text-secondary" style="width: 90px; height: 90px;">
+                            <i class="fas fa-user-graduate fa-2x"></i>
+                        </div>
+                    {% endif %}
+                    <div>
+                        <h5 class="fw-bold mb-0">{{ student.get_full_name }}</h5>
+                        <p class="mb-0 text-primary fw-bold small">ID: {{ student.admission_number }}</p>
+                        <p class="mb-0 text-muted small">Class: {{ student.classroom.name }}</p>
                     </div>
-                {% endif %}
-                <div class="extra-small text-uppercase fw-bold text-muted">Student Photo</div>
+                </div>
             </div>
-
-            <div class="col-md-5">
-                <h6 class="text-uppercase text-muted small fw-bold border-bottom pb-1">Student Details</h6>
-                <table class="table table-sm table-borderless mt-2">
-                    <tr><td class="ps-0 text-muted small" style="width: 30%;">Name:</td><td class="fw-bold">{{ student.get_full_name }}</td></tr>
-                    <tr><td class="ps-0 text-muted small">Adm No:</td><td class="fw-bold text-primary">{{ student.admission_number }}</td></tr>
-                    <tr><td class="ps-0 text-muted small">Class:</td><td class="fw-bold">{{ student.classroom.name }}</td></tr>
-                </table>
-            </div>
-
-            <div class="col-md-5">
-                <h6 class="text-uppercase text-muted small fw-bold border-bottom pb-1">Guardian Contact</h6>
-                <table class="table table-sm table-borderless mt-2">
-                    <tr><td class="ps-0 text-muted small" style="width: 35%;">Guardian:</td><td class="fw-bold">{{ student.guardian_name }}</td></tr>
-                    <tr><td class="ps-0 text-muted small">Phone:</td><td class="fw-bold text-success">{{ student.guardian_phone }}</td></tr>
-                    <tr><td class="ps-0 text-muted small">Relation:</td><td class="fw-bold small">{{ student.get_guardian_relation_display }}</td></tr>
-                </table>
+            <div class="col-md-6">
+                <div class="h-100 p-3 rounded-4 border">
+                    <h6 class="text-uppercase text-muted extra-small fw-black mb-2">Guardian / Payee Info</h6>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-muted small">Guardian:</span>
+                        <span class="fw-bold small">{{ student.guardian_name }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-muted small">Contact:</span>
+                        <span class="fw-bold small text-success">{{ student.guardian_phone }}</span>
+                    </div>
+                </div>
             </div>
         </div>
+
         <div class="table-responsive">
-            <table class="table table-bordered align-middle ledger-table">
-                <thead class="table-dark">
-                    <tr class="small text-uppercase">
-                        <th class="py-3">Date</th>
-                        <th>Description</th>
-                        <th class="text-end">Debit (Fees)</th>
-                        <th class="text-end">Credit (Paid)</th>
-                        <th class="text-end bg-secondary">Balance</th>
+            <table class="table table-hover align-middle ledger-table">
+                <thead class="bg-dark text-white text-uppercase extra-small">
+                    <tr>
+                        <th class="ps-3 py-3">Date</th>
+                        <th>Transaction Details</th>
+                        <th class="text-end">Debit (UGX)</th>
+                        <th class="text-end">Credit (UGX)</th>
+                        <th class="text-end pe-3">Balance</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody class="border-top-0">
                     {% for entry in ledger %}
                     <tr>
-                        <td class="small">{{ entry.date|date:"d/m/Y" }}</td>
-                        <td>{{ entry.description }}</td>
-                        <td class="text-end text-danger">
+                        <td class="ps-3 text-muted small">{{ entry.date|date:"d/m/Y" }}</td>
+                        <td>
+                            <div class="fw-bold text-dark">{{ entry.description }}</div>
+                            <div class="extra-small text-muted text-uppercase">Ref: {{ entry.reference }}</div>
+                        </td>
+                        <td class="text-end text-danger fw-semibold">
                             {% if entry.debit > 0 %}{{ entry.debit|floatformat:0 }}{% else %}-{% endif %}
                         </td>
-                        <td class="text-end text-success">
+                        <td class="text-end text-success fw-semibold">
                             {% if entry.credit > 0 %}{{ entry.credit|floatformat:0 }}{% else %}-{% endif %}
                         </td>
-                        <td class="text-end fw-bold {% if entry.running_balance > 0 %}text-danger{% else %}text-success{% endif %}">
-                            UGX {{ entry.running_balance|floatformat:0 }}
+                        <td class="text-end pe-3 fw-black {% if entry.running_balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                            {{ entry.running_balance|floatformat:0 }}
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
-                <tfoot>
-                    <tr class="bg-light fs-5">
-                        <td colspan="4" class="text-end fw-black py-3">Closing Balance:</td>
-                        <td class="text-end fw-black py-3 border-start-0 {% if final_balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                <tfoot class="border-top border-2">
+                    <tr class="fs-5">
+                        <td colspan="4" class="text-end fw-black py-4">Total Outstanding Balance:</td>
+                        <td class="text-end pe-3 fw-black py-4 {% if final_balance > 0 %}text-danger{% else %}text-success{% endif %}">
                             UGX {{ final_balance|floatformat:0 }}
                         </td>
                     </tr>
@@ -108,51 +115,73 @@
             </table>
         </div>
 
-        <div class="mt-4 p-3 rounded-3 {% if final_balance <= 0 %}bg-success-subtle border-success{% else %}bg-warning-subtle border-warning{% endif %} border border-2 text-center">
+        <div class="mt-2 p-4 rounded-4 text-center border-2 border {% if final_balance <= 0 %}bg-success-subtle border-success text-success{% else %}bg-danger-subtle border-danger text-danger{% endif %}">
             {% if final_balance <= 0 %}
-                <h5 class="fw-bold text-success mb-0"><i class="fas fa-check-circle me-2"></i>ACCOUNT CLEARED</h5>
-                <p class="small mb-0">No outstanding balance for this period. Thank you for your support.</p>
+                <h4 class="fw-black mb-1"><i class="fas fa-check-double me-2"></i>ACCOUNT FULLY CLEARED</h4>
+                <p class="mb-0 small">No pending arrears. We appreciate your timely payments.</p>
             {% else %}
-                <h5 class="fw-bold text-dark mb-0"><i class="fas fa-exclamation-triangle me-2"></i>OUTSTANDING DEBT</h5>
-                <p class="small mb-0">Please clear the balance of <strong>UGX {{ final_balance|floatformat:0 }}</strong> as soon as possible.</p>
+                <h4 class="fw-black mb-1"><i class="fas fa-hand-holding-usd me-2"></i>PAYMENT REMINDER</h4>
+                <p class="mb-0 small">Please arrange to settle the balance of <strong>UGX {{ final_balance|floatformat:0 }}</strong>.</p>
             {% endif %}
         </div>
 
-        <div class="row mt-5 pt-4 text-center">
+        <div class="row mt-5 pt-5 text-center">
             <div class="col-4">
-                <div class="border-top border-dark mx-auto w-75 mt-4"></div>
-                <p class="small fw-bold">Parent's Acknowledgement</p>
+                <div class="signature-line mx-auto mb-2"></div>
+                <p class="extra-small fw-black text-uppercase">Bursar's Signature</p>
             </div>
             <div class="col-4">
-                <div class="border-top border-dark mx-auto w-75 mt-4"></div>
-                <p class="small fw-bold">Bursar's Stamp</p>
+                <div class="stamp-box mx-auto mb-2 d-flex align-items-center justify-content-center text-muted small italic">
+                    School Stamp Here
+                </div>
             </div>
-            <div class="col-4 text-muted small">
-                <p class="mb-0">Powered by</p>
-                <p class="fw-bold text-success">Saozirobwe System</p>
+            <div class="col-4">
+                <p class="mb-0 extra-small text-muted">Developed by</p>
+                <p class="fw-black text-dark mb-0 small">MAC TECHNOLOGIES</p>
+                <p class="extra-small text-success">v2.0</p>
             </div>
         </div>
     </div>
 </div>
 
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+
     .report-paper {
-        border-radius: 0;
-        min-height: 29.7cm;
         font-family: 'Inter', sans-serif;
+        min-height: 29.7cm;
     }
-    .extra-small { font-size: 0.7rem; }
     .fw-black { font-weight: 900; }
-    .ledger-table th { letter-spacing: 0.5px; }
+    .extra-small { font-size: 0.65rem; letter-spacing: 0.05rem; }
+    .letter-spacing-tight { letter-spacing: -1px; }
     
+    .ledger-table thead th { border: none; }
+    .ledger-table tbody tr { border-bottom: 1px solid #f0f0f0; }
+    
+    .signature-line { border-top: 2px solid #333; width: 80%; }
+    .stamp-box { border: 2px dashed #ccc; width: 100px; height: 100px; border-radius: 10px; }
+    
+    .watermark {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(-45deg);
+        font-size: 12rem;
+        font-weight: 900;
+        color: rgba(0,0,0,0.02);
+        pointer-events: none;
+        z-index: 0;
+    }
+
     @media print {
+        body { background: white !important; }
         .d-print-none { display: none !important; }
-        body { background: white !important; padding: 0 !important; }
-        .container { max-width: 100% !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
-        .report-paper { box-shadow: none !important; padding: 15px !important; }
+        .container { max-width: 100% !important; width: 100% !important; margin: 0 !important; }
+        .report-paper { box-shadow: none !important; padding: 0 !important; }
+        .card { border: none !important; }
         .table-dark { background-color: #212529 !important; color: white !important; -webkit-print-color-adjust: exact; }
         .bg-success-subtle { background-color: #d1e7dd !important; -webkit-print-color-adjust: exact; }
-        .bg-warning-subtle { background-color: #fff3cd !important; -webkit-print-color-adjust: exact; }
+        .bg-danger-subtle { background-color: #f8d7da !important; -webkit-print-color-adjust: exact; }
     }
 </style>
 {% endblock %}

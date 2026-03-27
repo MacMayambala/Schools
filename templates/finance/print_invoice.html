@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<style>
+    @media print {
+        .no-print, .navbar, .sidebar, .btn { display: none !important; }
+        .container { width: 100% !important; max-width: 100% !important; padding: 0 !important; }
+        .card { border: none !important; shadow: none !important; }
+    }
+    .receipt-header { border-bottom: 3px solid #000; }
+    .watermark { opacity: 0.1; position: absolute; top: 30%; left: 25%; transform: rotate(-45deg); font-size: 5rem; z-index: 0; }
+</style>
+
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 no-print">
+        <a href="{% url 'finance:dashboard' %}" class="btn btn-outline-secondary rounded-pill">
+            <i class="fas fa-arrow-left me-2"></i>Back
+        </a>
+        <button onclick="window.print()" class="btn btn-dark rounded-pill px-4 shadow">
+            <i class="fas fa-print me-2"></i>Print Official Receipt
+        </button>
+    </div>
+
+    <div class="card shadow-sm border-0 p-5 position-relative overflow-hidden" id="printable-area">
+        <div class="watermark fw-bold text-uppercase">Saozirobwe System</div>
+        
+        <div class="row receipt-header pb-4 mb-5 align-items-center">
+            <div class="col-7">
+                <h1 class="fw-900 text-uppercase mb-1">{{ school.name }}</h1>
+                <p class="mb-0 text-muted">
+                    {{ school.address|default:"School Address, Uganda" }}<br>
+                    Tel: {{ school.phone|default:"+256..." }} | Email: {{ school.email }}
+                </p>
+            </div>
+            <div class="col-5 text-end">
+                <div class="bg-dark text-white p-3 rounded-3 d-inline-block">
+                    <h5 class="mb-0 fw-bold">OFFICIAL INVOICE</h5>
+                    <small>{{ invoice.invoice_number }}</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-5">
+            <div class="col-6">
+                <h6 class="text-muted text-uppercase small fw-bold">Bill To:</h6>
+                <h5 class="fw-bold mb-1">{{ invoice.student.get_full_name }}</h5>
+                <p class="mb-0">Class: {{ invoice.student.classroom.name }} ({{ invoice.student.section }})</p>
+                <p>ID: {{ invoice.student.admission_number }}</p>
+            </div>
+            <div class="col-6 text-end">
+                <h6 class="text-muted text-uppercase small fw-bold">Billing Period:</h6>
+                <p class="mb-1"><strong>Term {{ invoice.term }}, {{ invoice.year }}</strong></p>
+                <p class="mb-0 text-muted">Date: {{ invoice.created_at|date:"D, d M Y" }}</p>
+            </div>
+        </div>
+
+        <table class="table table-bordered mb-4">
+            <thead class="bg-light">
+                <tr>
+                    <th class="py-3">Description of Fees</th>
+                    <th class="text-end py-3">Amount (UGX)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="py-3">Standard Termly Fees (Tuition & Requirements)</td>
+                    <td class="text-end py-3 fw-bold">{{ invoice.total_amount|intcomma }}</td>
+                </tr>
+            </tbody>
+            <tfoot>
+                <tr class="table-dark">
+                    <td class="fw-bold">TOTAL PAYABLE</td>
+                    <td class="text-end fw-bold">UGX {{ invoice.total_amount|intcomma }}</td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <div class="mb-5">
+            <h6 class="fw-bold text-uppercase small border-bottom pb-2">Payment History</h6>
+            {% for payment in payments %}
+            <div class="d-flex justify-content-between py-2 border-bottom small italic">
+                <span>Receipt #{{ payment.receipt_number }} ({{ payment.date_paid|date:"d/m/y" }})</span>
+                <span>- {{ payment.amount_paid|intcomma }}</span>
+            </div>
+            {% empty %}
+            <p class="small text-muted py-2">No payments recorded yet.</p>
+            {% endfor %}
+        </div>
+
+        <div class="row justify-content-end mb-5">
+            <div class="col-md-5">
+                <div class="p-3 bg-light rounded-3">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Total Paid:</span>
+                        <span class="text-success fw-bold">{{ invoice.paid_amount|intcomma }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between border-top pt-2">
+                        <span class="fw-bold">BALANCE DUE:</span>
+                        <span class="text-danger fw-900 fs-5">UGX {{ invoice.balance|intcomma }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-5 pt-5 text-center">
+            <div class="col-4">
+                <div class="border-top pt-2 small text-muted">Bursar / Cashier</div>
+            </div>
+            <div class="col-4 offset-4">
+                <div class="border-top pt-2 small text-muted">Official School Stamp</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

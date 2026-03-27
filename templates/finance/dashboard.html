@@ -7,180 +7,198 @@
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-1">
                     <li class="breadcrumb-item small"><a href="/" class="text-decoration-none text-muted">Portal</a></li>
-                    <li class="breadcrumb-item small active" aria-current="page">Finance</li>
+                    <li class="breadcrumb-item small active text-primary fw-bold" aria-current="page">Finance</li>
                 </ol>
             </nav>
-            <h2 class="fw-bold mb-0 text-dark" style="letter-spacing: -1px;">Financial Overview</h2>
-            <p class="text-muted small mb-0">Real-time fee collection & revenue tracking for <strong>{{ request.school.name }}</strong></p>
+            <h2 class="fw-bold mb-0 text-dark tracking-tight">Financial Overview</h2>
+            <p class="text-muted small mb-0">Real-time fee collection & revenue tracking for <span class="fw-bold text-dark">{{ request.school.name }}</span></p>
         </div>
         <div class="d-flex gap-2">
-            <a href="{% url 'finance:account_list' %}" class="btn btn-white border shadow-sm btn-sm px-3 fw-semibold">
-                <i class="fas fa-list-ul me-2 text-primary"></i> Chart of Accounts
+            <a href="{% url 'finance:account_list' %}" class="btn btn-white border shadow-sm btn-sm px-3 fw-bold rounded-3">
+                <i class="fas fa-university me-2 text-primary"></i> Chart of Accounts
             </a>
-            <a href="{% url 'finance:bulk_bill' %}" class="btn btn-primary btn-sm px-4 fw-bold shadow-sm">
-                <i class="fas fa-file-invoice-dollar me-2"></i> Generate Bulk Bills
+            <a href="{% url 'finance:bulk_bill' %}" class="btn btn-primary btn-sm px-4 fw-bold shadow-sm rounded-3">
+                <i class="fas fa-file-invoice-dollar me-2 text-accent"></i> Generate Bulk Bills
             </a>
         </div>
     </div>
 
-    <div class="row g-3 mb-4">
+    <div class="row g-4 mb-4">
         <div class="col-md-4">
-            <div class="card border-0 shadow-sm finance-card bg-white h-100">
+            <div class="card border-0 shadow-sm finance-card h-100">
                 <div class="card-body p-4">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="finance-icon bg-soft-primary text-primary me-3">
-                            <i class="fas fa-hand-holding-usd"></i>
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div class="finance-icon bg-soft-primary text-primary">
+                            <i class="fas fa-calculator"></i>
                         </div>
-                        <span class="text-muted small fw-bold text-uppercase ls-1">Expected Revenue</span>
+                        <span class="text-muted extra-small fw-bold text-uppercase ls-1">Expected Revenue</span>
                     </div>
-                    <h3 class="fw-bold mb-1">UGX {{ total_expected|default:"0" }}</h3>
-                    <div class="progress mt-3" style="height: 6px;">
+                    <h3 class="fw-bold mb-1 tracking-tight"><small class="text-muted fw-normal" style="font-size: 0.6em;">UGX</small> {{ total_expected|default:"0" }}</h3>
+                    <div class="progress mt-3" style="height: 6px; background: #f1f5f9;">
                         <div class="progress-bar bg-primary" style="width: 100%"></div>
                     </div>
+                    <p class="extra-small text-muted mt-2 mb-0">Total billed for current academic term</p>
                 </div>
             </div>
         </div>
         
         <div class="col-md-4">
-            <div class="card border-0 shadow-sm finance-card bg-white h-100">
+            <div class="card border-0 shadow-sm finance-card h-100">
                 <div class="card-body p-4">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="finance-icon bg-soft-success text-success me-3">
-                            <i class="fas fa-check-double"></i>
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div class="finance-icon bg-soft-success text-success">
+                            <i class="fas fa-wallet"></i>
                         </div>
-                        <span class="text-muted small fw-bold text-uppercase ls-1">Total Collected</span>
+                        <span class="text-muted extra-small fw-bold text-uppercase ls-1">Total Collected</span>
                     </div>
-                    <h3 class="fw-bold mb-1 text-success">UGX {{ total_collected|default:"0" }}</h3>
-                    <div class="progress mt-3" style="height: 6px; background-color: #e8f5e9;">
-                        <div class="progress-bar bg-success" style="width: 65%"></div>
-                    </div>
+                    <h3 class="fw-bold mb-1 text-success tracking-tight"><small class="fw-normal" style="font-size: 0.6em;">UGX</small> {{ total_collected|default:"0" }}</h3>
+                    <div class="progress mt-3" style="height: 6px; background: #ecfdf5;">
+                        <div class="progress-bar bg-success" style="width: 75%"></div> </div>
+                    <p class="extra-small text-muted mt-2 mb-0 fw-bold text-success">75% Collection Rate achieved</p>
                 </div>
             </div>
         </div>
 
         <div class="col-md-4">
-            <div class="card border-0 shadow-sm finance-card bg-white h-100">
+            <div class="card border-0 shadow-sm finance-card h-100 border-start border-danger border-4">
                 <div class="card-body p-4">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="finance-icon bg-soft-danger text-danger me-3">
-                            <i class="fas fa-exclamation-triangle"></i>
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div class="finance-icon bg-soft-danger text-danger">
+                            <i class="fas fa-hand-holding-dollar"></i>
                         </div>
-                        <span class="text-muted small fw-bold text-uppercase ls-1">Total Outstanding</span>
+                        <span class="text-muted extra-small fw-bold text-uppercase ls-1">Outstanding Arrears</span>
                     </div>
-                    <h3 class="fw-bold mb-1 text-danger">UGX {{ balance|default:"0" }}</h3>
-                    <div class="d-flex justify-content-between mt-3">
-                        <span class="extra-small text-muted">Arrears & Pending</span>
-                        <a href="{% url 'finance:defaulters_report' %}" class="extra-small fw-bold text-danger text-decoration-none">View Defaulters →</a>
+                    <h3 class="fw-bold mb-1 text-danger tracking-tight"><small class="fw-normal" style="font-size: 0.6em;">UGX</small> {{ balance|default:"0" }}</h3>
+                    <div class="d-flex justify-content-between align-items-center mt-3 pt-1">
+                        <span class="extra-small text-muted">Pending Recovery</span>
+                        <a href="{% url 'finance:defaulters_report' %}" class="btn btn-soft-danger btn-sm extra-small fw-bold text-uppercase px-2 py-1">
+                            Defaulter List <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="row g-4">
-        <div class="col-lg-12">
-            <div class="card border-0 shadow-sm overflow-hidden" style="border-radius: 16px;">
-                <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
-                    <h5 class="fw-bold mb-0 text-dark">Recent Transactions</h5>
-                    <div class="dropdown">
-                        <button class="btn btn-light btn-sm rounded-pill px-3 border" data-bs-toggle="dropdown">
-                            <i class="fas fa-filter me-2"></i> All Invoices
-                        </button>
-                    </div>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0 custom-finance-table">
-                        <thead class="bg-light">
-                            <tr class="text-muted small text-uppercase fw-bold">
-                                <th class="ps-4 py-3">Student / Reference</th>
-                                <th>Term Period</th>
-                                <th>Billed Amount</th>
-                                <th>Amount Paid</th>
-                                <th>Status</th>
-                                <th class="text-end pe-4">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for inv in recent_invoices %}
-                            <tr>
-                                <td class="ps-4">
-                                    <div class="d-flex align-items-center">
-                                        <div class="avatar-sm me-3 bg-light text-primary fw-bold">
-                                            {{ inv.student.first_name|first }}{{ inv.student.last_name|first }}
-                                        </div>
-                                        <div>
-                                            <div class="fw-bold text-dark">{{ inv.student.get_full_name }}</div>
-                                            <div class="text-muted extra-small">Ref: #INV-{{ inv.id }}</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td><span class="badge bg-light text-dark border fw-medium px-2 py-1">Term {{ inv.term }} - {{ inv.year }}</span></td>
-                                <td class="fw-semibold">UGX {{ inv.total_amount|floatformat:0 }}</td>
-                                <td class="text-success fw-semibold">UGX {{ inv.paid_amount|floatformat:0 }}</td>
-                                <td>
-                                    {% if inv.balance <= 0 %}
-                                        <span class="badge-pill-success">Full Payment</span>
-                                    {% elif inv.paid_amount > 0 %}
-                                        <span class="badge-pill-warning">Partial</span>
-                                    {% else %}
-                                        <span class="badge-pill-danger">Unpaid</span>
-                                    {% endif %}
-                                </td>
-                                <td class="text-end pe-4">
-                                    <div class="btn-group shadow-none">
-                                        <a href="#" class="btn btn-sm btn-white border px-3">
-                                            <i class="fas fa-print"></i>
-                                        </a>
-                                        <a href="{% url 'finance:student_statement' inv.student.id %}" class="btn btn-sm btn-white border px-3">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="6" class="text-center py-5">
-                                    <i class="fas fa-file-invoice fa-3x text-light mb-3"></i>
-                                    <p class="text-muted mb-0">No invoices found for the current term.</p>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="fw-bold mb-0 text-dark">Recent Invoices & Payments</h5>
+                <p class="extra-small text-muted mb-0">Monitor individual student balances and payment status</p>
             </div>
+            <div class="d-flex gap-2">
+                <a href="{% url 'finance:daily_report' %}" class="btn btn-light btn-sm rounded-3 border px-3">
+                    <i class="fas fa-print me-2 text-muted"></i> Daily Report
+                </a>
+                <a href="{% url 'finance:export_excel' %}" class="btn btn-soft-success btn-sm rounded-3 px-3">
+                    <i class="fas fa-file-excel me-2"></i> Export Ledger
+                </a>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 custom-finance-table">
+                <thead class="bg-light-subtle">
+                    <tr class="text-muted extra-small text-uppercase fw-bold ls-1">
+                        <th class="ps-4 py-3">Student / Reference</th>
+                        <th>Period</th>
+                        <th>Billed</th>
+                        <th>Paid</th>
+                        <th>Status</th>
+                        <th class="text-end pe-4">Manage</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for inv in recent_invoices %}
+                    <tr>
+                        <td class="ps-4">
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-finance me-3">
+                                    {{ inv.student.first_name|first }}{{ inv.student.last_name|first }}
+                                </div>
+                                <div>
+                                    <div class="fw-bold text-dark mb-0">{{ inv.student.get_full_name }}</div>
+                                    <div class="text-muted" style="font-size: 0.65rem; font-weight: 600;">INV #{{ inv.id|stringformat:"05d" }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="fw-semibold small text-dark">Term {{ inv.term }}</div>
+                            <div class="extra-small text-muted">{{ inv.year }} Session</div>
+                        </td>
+                        <td class="fw-bold small text-dark">UGX {{ inv.total_amount|floatformat:0 }}</td>
+                        <td class="text-success fw-bold small">UGX {{ inv.paid_amount|floatformat:0 }}</td>
+                        <td>
+                            {% if inv.balance <= 0 %}
+                                <span class="badge-pill-success"><i class="fas fa-check-circle me-1"></i> CLEARED</span>
+                            {% elif inv.paid_amount > 0 %}
+                                <span class="badge-pill-warning"><i class="fas fa-clock me-1"></i> PARTIAL</span>
+                            {% else %}
+                                <span class="badge-pill-danger"><i class="fas fa-exclamation-circle me-1"></i> UNPAID</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            <div class="btn-group">
+                                <a href="{% url 'finance:student_statement' inv.student.id %}" class="btn btn-white btn-sm border-end px-2" title="View Statement">
+                                    <i class="fas fa-eye text-primary"></i>
+                                </a>
+                                <a href="{% url 'finance:record_payment' inv.id %}" class="btn btn-white btn-sm px-2" title="Record Payment">
+                                    <i class="fas fa-plus-circle text-success"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5">
+                            <div class="py-4">
+                                <i class="fas fa-receipt fa-4x text-light mb-3"></i>
+                                <p class="text-muted mb-0">No active billing records found.</p>
+                                <a href="{% url 'finance:bulk_bill' %}" class="btn btn-primary btn-sm mt-3 px-4 rounded-pill">Start Bulk Billing</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
 
 <style>
-    /* Professional Finance UI Overrides */
+    .tracking-tight { letter-spacing: -0.02em; }
     .ls-1 { letter-spacing: 0.5px; }
-    .extra-small { font-size: 0.72rem; }
+    .extra-small { font-size: 0.7rem; }
     
-    /* Soft Icon Backgrounds */
-    .finance-icon { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; }
+    .finance-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
     .bg-soft-primary { background-color: #eef2ff; color: #4f46e5; }
     .bg-soft-success { background-color: #ecfdf5; color: #10b981; }
-    .bg-soft-danger { background-color: #fff1f2; color: #f43f5e; }
-    .bg-soft-warning { background-color: #fffbeb; color: #f59e0b; }
+    .bg-soft-danger { background-color: #fff1f2; color: #e11d48; }
 
-    /* Custom Table Styling */
-    .custom-finance-table thead th { border-top: none; font-size: 0.65rem; color: #64748b; }
-    .custom-finance-table tbody tr { border-bottom: 1px solid #f1f5f9; transition: 0.2s; }
-    .custom-finance-table tbody tr:hover { background-color: #f8fafc; }
+    /* Custom Table Design */
+    .custom-finance-table thead th { border-top: none; padding: 15px 10px; border-bottom: 2px solid #f8fafc; }
+    .custom-finance-table tbody tr { border-bottom: 1px solid #f1f5f9; }
+    .custom-finance-table tbody tr:hover { background-color: #f8fafc; cursor: pointer; }
 
-    /* Custom Badges (Pills) */
-    .badge-pill-success { background: #dcfce7; color: #166534; padding: 4px 12px; border-radius: 50px; font-size: 0.75rem; font-weight: 700; }
-    .badge-pill-warning { background: #fef9c3; color: #854d0e; padding: 4px 12px; border-radius: 50px; font-size: 0.75rem; font-weight: 700; }
-    .badge-pill-danger { background: #fee2e2; color: #991b1b; padding: 4px 12px; border-radius: 50px; font-size: 0.75rem; font-weight: 700; }
+    /* Custom Status Badges */
+    .badge-pill-success { background: #dcfce7; color: #15803d; padding: 5px 12px; border-radius: 50px; font-size: 0.65rem; font-weight: 800; }
+    .badge-pill-warning { background: #fef9c3; color: #a16207; padding: 5px 12px; border-radius: 50px; font-size: 0.65rem; font-weight: 800; }
+    .badge-pill-danger { background: #fee2e2; color: #b91c1c; padding: 5px 12px; border-radius: 50px; font-size: 0.65rem; font-weight: 800; }
 
-    .avatar-sm { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; }
+    .avatar-finance {
+        width: 38px; height: 38px; border-radius: 10px; background: #f1f5f9; color: var(--primary);
+        display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.8rem; border: 1px solid #e2e8f0;
+    }
 
-    .finance-card { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); border: 1px solid #f1f5f9 !important; border-radius: 18px; }
-    .finance-card:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.05) !important; }
+    .finance-card { border: 1px solid #f1f5f9 !important; border-radius: 20px; transition: 0.3s ease; }
+    .finance-card:hover { transform: translateY(-4px); box-shadow: 0 12px 20px rgba(0,0,0,0.04) !important; }
+
+    .btn-soft-danger { background: #fff1f2; color: #e11d48; border: none; }
+    .btn-soft-danger:hover { background: #ffe4e6; color: #be123c; }
     
-    .btn-white { background: white; color: #475569; border-color: #e2e8f0; }
-    .btn-white:hover { background: #f8fafc; color: #1e293b; }
+    .btn-soft-success { background: #ecfdf5; color: #059669; border: none; }
+    .btn-soft-success:hover { background: #d1fae5; }
+
+    .btn-white { background: white; color: #64748b; border: 1px solid #e2e8f0; }
+    .btn-white:hover { background: #f8fafc; color: var(--primary); }
 </style>
 {% endblock %}

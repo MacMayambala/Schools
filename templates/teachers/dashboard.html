@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="directory-page px-md-5 py-4 bg-light min-vh-100">
+    <div class="row align-items-end mb-5 g-4 animate-fade-in">
+        <div class="col-lg-7">
+            <h6 class="text-success fw-bold text-uppercase ls-2 mb-1" style="font-size: 0.7rem;">Human Resources</h6>
+            <h1 class="fw-black text-dark tracking-tight mb-0">Faculty Directory</h1>
+            <p class="text-muted small">Overseeing <strong>{{ total_count|default:"1,000+" }}</strong> academic staff members.</p>
+        </div>
+        <div class="col-lg-5">
+            <form method="GET" action="" class="search-container shadow-sm">
+                <i class="fas fa-search ms-3 text-muted"></i>
+                <input type="text" name="q" value="{{ query }}" class="form-control border-0 bg-transparent py-3" placeholder="Search by name, ID, or department...">
+                <button type="submit" class="btn btn-dark rounded-pill px-4 me-2 fw-bold">Find</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        {% for teacher in page_obj %}
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="card border-0 shadow-sm rounded-5 teacher-card h-100 transition-hover">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <span class="status-pill {% if teacher.is_active %}active{% else %}on-leave{% endif %}">
+                            <i class="fas fa-circle small me-1"></i> {% if teacher.is_active %}On Duty{% else %}Away{% endif %}
+                        </span>
+                        <div class="dropdown">
+                            <button class="btn btn-link text-muted p-0" data-bs-toggle="dropdown"><i class="fas fa-ellipsis-h"></i></button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4">
+                                <li><a class="dropdown-item fw-bold py-2" href="{% url 'academic:teacher_performance' teacher.id %}"><i class="fas fa-chart-line me-2 text-primary"></i>Performance</a></li>
+                                <li><a class="dropdown-item fw-bold py-2" href="#"><i class="fas fa-edit me-2 text-success"></i>Edit Profile</a></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="text-center mb-4">
+                        <div class="avatar-ring mx-auto mb-3">
+                            <img src="{{ teacher.get_photo_url }}" alt="{{ teacher.user.get_full_name }}" class="avatar-img shadow-sm">
+                        </div>
+                        <h5 class="fw-black text-dark mb-1">{{ teacher.user.get_full_name }}</h5>
+                        <p class="text-muted extra-small fw-bold text-uppercase ls-1">{{ teacher.staff_id }}</p>
+                    </div>
+
+                    <div class="row g-2 text-center bg-light rounded-4 py-3 mb-4">
+                        <div class="col-6 border-end">
+                            <label class="extra-small text-muted d-block fw-bold text-uppercase ls-1">Classes</label>
+                            <span class="fw-black text-dark">{{ teacher.classrooms.count }}</span>
+                        </div>
+                        <div class="col-6">
+                            <label class="extra-small text-muted d-block fw-bold text-uppercase ls-1">Subject</label>
+                            <span class="fw-black text-dark">{{ teacher.subjects.count }}</span>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'academic:teacher_performance' teacher.id %}" class="btn btn-dark rounded-pill fw-black py-2 text-uppercase ls-1" style="font-size: 0.7rem;">
+                            View Analytics
+                        </a>
+                        <div class="d-flex gap-2">
+                            <a href="tel:{{ teacher.phone }}" class="btn btn-outline-light border text-dark w-100 rounded-pill py-2"><i class="fas fa-phone-alt"></i></a>
+                            <a href="mailto:{{ teacher.user.email }}" class="btn btn-outline-light border text-dark w-100 rounded-pill py-2"><i class="fas fa-envelope"></i></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 py-5 text-center">
+            <i class="fas fa-user-friends fa-4x text-muted opacity-25 mb-3"></i>
+            <h4 class="fw-black text-muted">No Staff Members Found</h4>
+            <p class="text-muted">Try a different search term or check your database.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    /* Professional Card Styling */
+    .fw-black { font-weight: 800; }
+    .ls-2 { letter-spacing: 2px; }
+    .ls-1 { letter-spacing: 1px; }
+    .extra-small { font-size: 0.65rem; }
+
+    .teacher-card { background: white; border: 1px solid #f1f5f9 !important; }
+    .transition-hover:hover { transform: translateY(-10px); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1) !important; border-color: #16508e !important; }
+
+    /* Search Bar */
+    .search-container { background: white; border-radius: 50px; display: flex; align-items: center; padding: 5px; }
+    .search-container input:focus { box-shadow: none !important; }
+
+    /* Avatar Ring */
+    .avatar-ring { width: 90px; height: 90px; padding: 5px; border-radius: 35%; background: linear-gradient(45deg, #16508e, #10b981); transition: 0.5s ease; }
+    .teacher-card:hover .avatar-ring { border-radius: 50%; transform: rotate(5deg); }
+    .avatar-img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; border: 3px solid white; }
+
+    /* Status Pills */
+    .status-pill { font-size: 0.6rem; font-weight: 900; text-transform: uppercase; padding: 5px 12px; border-radius: 20px; letter-spacing: 0.5px; }
+    .status-pill.active { background: #e6fffa; color: #047857; }
+    .status-pill.on-leave { background: #fff5f5; color: #c53030; }
+
+    .btn-outline-light:hover { background: #f8f9fa; border-color: #dee2e6; }
+
+    .animate-fade-in { animation: fadeIn 0.6s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+{% endblock %}
