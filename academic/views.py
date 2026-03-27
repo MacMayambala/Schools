@@ -283,10 +283,20 @@ def teacher_directory(request):
     # 1. Get the search term and clean it
     query = request.GET.get('q', '').strip()
     
-    # 2. Fetch all teachers (optimized with select_related for the User name)
-    teacher_list = Teacher.objects.all().select_related('user').prefetch_related('subjects', 'classrooms')
+    # --- NEW TENANT FILTERING ---
+    # We identify the school from the logged-in user's profile
+    # If a user isn't logged in or has no school, we handle the error
+    try:
+        user_school = request.user.teacher_profile.school 
+    except AttributeError:
+        # Fallback or redirect if user isn't associated with a school
+        return render(request, 'errors/403.html', {"message": "No school assigned to your account."})
 
-    # 3. Apply Search Filter if query exists
+    # 2. Fetch ONLY teachers belonging to the user's school
+    teacher_list = Teacher.objects.filter(school=user_school).select_related('user').prefetch_related('subjects', 'classrooms')
+    # ----------------------------
+
+    # 3. Apply Search Filter (only within this school's results)
     if query:
         teacher_list = teacher_list.filter(
             Q(user__first_name__icontains=query) | 
@@ -302,6 +312,7 @@ def teacher_directory(request):
     context = {
         'page_obj': page_obj,
         'query': query,
-        'total_count': paginator.count,
+        'total_count': teacher_list.count(), # Count the filtered list, not the total
+        'school': user_school,
     }
     return render(request, 'teachers/directory.html', context)
