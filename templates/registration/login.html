@@ -10,8 +10,16 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
    
-    <link rel="shortcut icon" type="image/png" href="{% static 'images/favicon.png' %}">
-    <link rel="apple-touch-icon" href="{% static 'images/favicon.png' %}">
+    {% if "togs" in request.get_host %}
+        <link rel="shortcut icon" type="image/png" href="{% static 'images/togsfavicon.png' %}">
+        <link rel="apple-touch-icon" href="{% static 'images/togsfavicon.png' %}">
+    {% elif "olam" in request.get_host %}
+        <link rel="shortcut icon" type="image/png" href="{% static 'images/olamfavicon.png' %}">
+        <link rel="apple-touch-icon" href="{% static 'images/olamfavicon.png' %}">
+    {% else %}
+        <link rel="shortcut icon" type="image/png" href="{% static 'images/favicon.png' %}">
+        <link rel="apple-touch-icon" href="{% static 'images/favicon.png' %}">
+    {% endif %}
     <style>
         :root {
             --ola-green: #1a5c37; 
@@ -135,31 +143,56 @@
 </head>
 <body>
 
-<div class="container-fluid h-100 p-0">
-    <div class="row g-0 h-100">
-        
-        <div class="col-md-6 d-none d-md-flex branding-pane">
-            <div class="logo-box">
-                {% if request.school.logo %}
-                    <img src="{{ request.school.logo.url }}" alt="School Logo">
-                {% else %}
-                    <img src="{% static 'images/favicon.png' %}" alt="Logo">
-                {% endif %}
-            </div>
-            <h1 class="display-5 fw-bold mb-0" style="letter-spacing: -1px;">{{ request.school.name|upper|default:"Our Lady Of Africa Mukono" }}</h1>
-            <p class="fs-5 mt-3 text-warning fw-light" style="letter-spacing: 3px; opacity: 0.9;">
-                {{ request.school.motto|default:"EVER FORWARD" }}
-            </p>
-            
+        <div class="container-fluid h-100 p-0">
+            <div class="row g-0 h-100">
+                
+                <div class="col-md-6 d-none d-md-flex branding-pane">
+                    <div class="logo-box">
+                        {% if "togs" in request.get_host %}
+                            <img src="{% static 'images/togsfavicon.png' %}" alt="Togs Logo">
+                        {% elif "olam" in request.get_host %}
+                            <img src="{% static 'images/olamfavicon.png' %}" alt="Olam Logo">
+                        {% else %}
+                            <img src="{% static 'images/macfavicon.png' %}" alt="Default Logo">
+                        {% endif %}
+                    </div>
+                    <h1 class="display-5 fw-bold mb-0" style="letter-spacing: -1px;">
+            {% if request.school %}
+                {{ request.school.name|upper }}
+            {% elif "togs" in request.get_host %}
+                THRONES OF GRACE NURSERY AND PRIMARY SCHOOL
+            {% elif "olam" in request.get_host %}
+                OUR LADY OF AFRICA MUKONO
+            {% else %}
+                MAC TECHNOLOGIES PORTAL
+            {% endif %}
+        </h1>
+
+        <p class="fs-5 mt-3 text-warning fw-light" style="letter-spacing: 3px; opacity: 0.9;">
+            {% if request.school and request.school.motto %}
+                {{ request.school.motto|upper }}
+            {% elif "togs" in request.get_host %}
+                KNOWLEDGE IS POWER
+            {% elif "olam" in request.get_host %}
+                EVER FORWARD
+            {% else %}
+                 Your Vision, Our Code
+            {% endif %}
+        </p>
+                    
             <div class="mt-5 badge rounded-pill px-4 py-2" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); backdrop-filter: blur(5px);">
                 <i class="fas fa-shield-check me-2 text-warning"></i> Secure Staff Access Portal
             </div>
         </div>
 
         <div class="col-md-6 login-column">
-            
-            
-                <img src="{% static 'images/favicon.png' %}" class="watermark" alt="">
+             {% if "togs" in request.get_host %}
+                <img src="{% static 'images/togsfavicon.png' %}" class="watermark" alt="">
+            {% elif "olam" in request.get_host %}
+                <img src="{% static 'images/olamfavicon.png' %}" class="watermark" alt="">
+            {% else %}
+                <img src="{% static 'images/macfavicon.png' %}" class="watermark" alt="">
+            {% endif %}
                 
             
 
