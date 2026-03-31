@@ -1,0 +1,69 @@
+{% load crispy_forms_tags %}
+
+
+...
+<div class="modal fade" id="classModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="form_type" value="classroom">
+                <div class="modal-header border-0 p-4 pb-0">
+                    <h5 class="fw-bold"><i class="fas fa-school me-2 text-primary"></i>Add New Classroom</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    {{ class_form|crispy }}
+                </div>
+                <div class="modal-footer border-0 p-4 pt-0">
+                    <button type="submit" class="btn btn-primary w-100 py-3 fw-bold rounded-3 shadow-sm">Save Classroom</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="streamModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="form_type" value="stream">
+                <div class="modal-header border-0 p-4 pb-0">
+                    <h5 class="fw-bold"><i class="fas fa-stream me-2 text-info"></i>Add New Stream</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    {{ stream_form|crispy }}
+                </div>
+                <div class="modal-footer border-0 p-4 pt-0">
+                    <button type="submit" class="btn btn-primary w-100 py-3 fw-bold rounded-3 shadow-sm">Save Stream</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="feeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="form_type" value="fee_structure">
+                <div class="modal-header border-0 p-4 pb-0">
+                    <h5 class="fw-bold"><i class="fas fa-money-check-alt me-2 text-success"></i>Setup Fee Structure</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-info border-0 rounded-3 small">
+                        <i class="fas fa-info-circle me-2"></i> Define the base tuition here. You can add specific requirements (Uniform, etc.) after saving.
+                    </div>
+                    {{ fee_form|crispy }}
+                </div>
+                <div class="modal-footer border-0 p-4 pt-0">
+                    <button type="submit" class="btn btn-success w-100 py-3 fw-bold rounded-3 shadow-sm">Initialize Structure</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

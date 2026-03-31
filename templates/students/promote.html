@@ -5,7 +5,7 @@
     <div class="card shadow-sm border-0 overflow-hidden">
         <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
             <h5 class="mb-0"><i class="fas fa-graduation-cap me-2 text-warning"></i> Individual Student Promotion</h5>
-            <span class="badge bg-secondary">Saozirobwe Academic Year 2026</span>
+            <span class="badge bg-secondary">{{ request.school.name }} - 2026</span>
         </div>
         
         <div class="card-body bg-light-subtle">
@@ -16,9 +16,9 @@
                     <div class="col-md-5">
                         <label class="form-label small fw-bold text-muted">SOURCE CLASS (FROM)</label>
                         <select name="source_class" id="source_class_select" class="form-select border-primary-subtle" required onchange="filterStudentsByClass()">
-                            <option value="">-- Choose Current Class --</option>
+                            <option value="" data-level="0">-- Choose Current Class --</option>
                             {% for c in classrooms %}
-                            <option value="{{ c.id }}">{{ c.name }} ({{ c.short_name }})</option>
+                            <option value="{{ c.id }}" data-level="{{ c.level }}">{{ c.name }} ({{ c.short_name }})</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -31,10 +31,10 @@
                     
                     <div class="col-md-5">
                         <label class="form-label small fw-bold text-muted">TARGET CLASS (TO)</label>
-                        <select name="target_class" class="form-select border-success-subtle" required>
-                            <option value="">-- Choose Next Class --</option>
+                        <select name="target_class" id="target_class_select" class="form-select border-success-subtle" required>
+                            <option value="" data-level="0">-- Choose Next Class --</option>
                             {% for c in classrooms %}
-                            <option value="{{ c.id }}">{{ c.name }} ({{ c.short_name }})</option>
+                            <option value="{{ c.id }}" data-level="{{ c.level }}">{{ c.name }} ({{ c.short_name }})</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -106,60 +106,70 @@
 
 <script>
     const sourceSelect = document.getElementById('source_class_select');
+    const targetSelect = document.getElementById('target_class_select');
     const rows = document.querySelectorAll('.student-row');
     const placeholder = document.getElementById('placeholder-row');
     const selectAll = document.getElementById('select-all');
     const submitBtn = document.getElementById('submit-btn');
-    const counter = document.getElementById('selected-count');
 
-    // 1. Filter students locally based on Source Class selection
     function filterStudentsByClass() {
         const classId = sourceSelect.value;
+        const selectedOption = sourceSelect.options[sourceSelect.selectedIndex];
+        const currentLevel = parseInt(selectedOption.getAttribute('data-level'));
         let found = 0;
 
+        // 1. Show/Hide Student Rows
         rows.forEach(row => {
             if (row.getAttribute('data-class-id') === classId) {
                 row.classList.remove('d-none');
                 found++;
             } else {
                 row.classList.add('d-none');
-                row.querySelector('.student-check').checked = false; // Uncheck hidden ones
+                row.querySelector('.student-check').checked = false;
             }
         });
+
+        // 2. Auto-suggest Target Class (Next Level)
+        if (currentLevel > 0) {
+            const nextLevel = currentLevel + 1;
+            for (let i = 0; i < targetSelect.options.length; i++) {
+                if (parseInt(targetSelect.options[i].getAttribute('data-level')) === nextLevel) {
+                    targetSelect.selectedIndex = i;
+                    break;
+                }
+            }
+        }
 
         placeholder.style.display = (found > 0) ? 'none' : 'table-row';
         updateUI();
     }
 
-    // 2. Select All Logic (Only for visible rows)
     selectAll.onclick = function() {
         const visibleChecks = document.querySelectorAll('.student-row:not(.d-none) .student-check');
         visibleChecks.forEach(cb => cb.checked = this.checked);
         updateUI();
     }
 
-    // 3. Update UI (Counter and Submit Button)
     function updateUI() {
         const checkedCount = document.querySelectorAll('.student-check:checked').length;
         document.getElementById('selected-counter').innerText = `${checkedCount} student(s) selected`;
         submitBtn.disabled = checkedCount === 0;
     }
 
-    // Add event listener to all checkboxes
     document.querySelectorAll('.student-check').forEach(cb => {
         cb.addEventListener('change', updateUI);
     });
 
-    // 4. Quick Search Name within the filtered class
     function searchList() {
         const input = document.getElementById('studentSearch').value.toUpperCase();
         const classId = sourceSelect.value;
         
         rows.forEach(row => {
             const name = row.innerText.toUpperCase();
-            if (row.getAttribute('data-class-id') === classId && name.includes(input)) {
+            const matchesClass = row.getAttribute('data-class-id') === classId;
+            if (matchesClass && name.includes(input)) {
                 row.classList.remove('d-none');
-            } else if (row.getAttribute('data-class-id') === classId) {
+            } else if (matchesClass) {
                 row.classList.add('d-none');
             }
         });
@@ -170,6 +180,6 @@
     .form-select:focus { border-color: #0d6efd; box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.1); }
     .table-hover tbody tr:hover { background-color: #f8f9ff; transition: 0.2s; }
     .btn-success { background-color: #198754; border: none; }
-    .sticky-top { top: -1px; z-index: 10; }
+    .sticky-top { top: -1px; z-index: 10; border-bottom: 1px solid #dee2e6 !important; }
 </style>
 {% endblock %}

@@ -130,3 +130,16 @@ class Teacher(models.Model):
             return self.profile_photo.url
         # Path to a default image in your static folder
         return "/static/images/default-avatar.png"
+    
+
+
+class ClassRequirement(models.Model):
+    school = models.ForeignKey('core.School', on_delete=models.CASCADE)
+    classroom = models.ForeignKey('students.Classroom', on_delete=models.CASCADE)
+    term = models.CharField(max_length=20) 
+    year = models.IntegerField()
+    # Change help_status to help_text below:
+    items = models.TextField(help_text="List items separated by commas or new lines")
+
+    def __str__(self):
+        return f"Requirements for {self.classroom.name} - Term {self.term}"

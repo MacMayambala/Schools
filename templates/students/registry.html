@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid py-2">
+    <div class="d-flex justify-content-between align-items-end mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item small"><a href="/" class="text-decoration-none text-muted">Dashboard</a></li>
+                    <li class="breadcrumb-item small active text-primary fw-bold">Registry</li>
+                </ol>
+            </nav>
+            <h2 class="fw-bold mb-0 text-dark tracking-tight">Student Registry</h2>
+            <p class="text-muted small mb-0 mt-1">
+                <i class="fas fa-university text-primary me-1"></i> 
+                Managing Records for <strong>{{ request.school.name }}</strong>
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'students:bulk_import' %}" class="btn btn-white border shadow-sm btn-sm px-3 fw-bold rounded-3">
+                <i class="fas fa-file-excel me-2 text-success"></i> Bulk Import
+            </a>
+            <a href="{% url 'students:student_add' %}" class="btn btn-primary btn-sm px-4 fw-bold shadow-sm rounded-3">
+                <i class="fas fa-plus me-2 text-accent"></i> Add Student
+            </a>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4 rounded-4 bg-white border">
+        <div class="card-body p-2">
+            <form method="GET" class="row g-2 align-items-center">
+                <div class="col-md-7">
+                    <div class="input-group">
+                        <span class="input-group-text bg-transparent border-0 ps-3"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" name="q" class="form-control border-0 bg-transparent py-2 shadow-none" 
+                               placeholder="Search name, LIN, or Admission No..." value="{{ query|default:'' }}">
+                    </div>
+                </div>
+                <div class="col-md-3 border-start">
+                    <select name="class" class="form-select border-0 bg-transparent py-2 fw-semibold text-muted shadow-none">
+                        <option value="">All Classes</option>
+                        {% for cls in classrooms %}
+                            <option value="{{ cls.id }}" {% if selected_class == cls.id|stringformat:"i" %}selected{% endif %}>
+                                {{ cls.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-dark w-100 fw-bold rounded-3 py-2">Apply Filter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <form action="{% url 'students:bulk_action' %}" method="POST" id="bulk-action-form">
+        {% csrf_token %}
+        
+        <div id="bulk-action-bar" class="bulk-floating-bar shadow-lg d-none">
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="text-white small">
+                    <span class="fw-bold"><span id="selected-count" class="badge bg-primary text-white rounded-pill me-2 px-2">0</span> Students Selected</span>
+                </div>
+                <div class="d-flex gap-2 align-items-center">
+                    <select name="action" id="action-select" class="form-select form-select-sm border-0 shadow-sm fw-bold rounded-pill" style="width: 200px;" required>
+                        <option value="">Choose Action...</option>
+                        <option value="promote">Promote Level</option>
+                        <option value="generate_invoices">Generate Invoices</option>
+                        <option value="delete">Archive Selected</option>
+                    </select>
+                    <button type="submit" class="btn btn-primary btn-sm fw-bold px-4 rounded-pill">Execute</button>
+                    <button type="button" class="btn btn-link text-white-50 text-decoration-none btn-sm fw-bold" onclick="deselectAll()">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden border">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 custom-table">
+                    <thead class="bg-light-subtle">
+                        <tr class="text-muted extra-small text-uppercase fw-bold ls-1">
+                            <th class="ps-4" style="width: 40px;"><input type="checkbox" class="form-check-input" id="select-all"></th>
+                            <th class="py-3">Student Identity</th>
+                            <th>Class Info</th>
+                            <th>Financial Status</th>
+                            <th class="text-end pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in students %}
+                        <tr class="student-row">
+                            <td class="ps-4"><input type="checkbox" name="student_ids" value="{{ student.id }}" class="form-check-input student-checkbox"></td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-box me-3">
+                                        {% if student.photo %}<img src="{{ student.photo.url }}">{% else %}<span>{{ student.first_name|first }}</span>{% endif %}
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold text-dark mb-0 small">{{ student.get_full_name }}</div>
+                                        <div class="text-muted extra-small font-monospace">{{ student.admission_number }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td><span class="badge rounded-pill bg-soft-primary text-primary px-3 py-2 fw-bold extra-small">{{ student.classroom.name }}</span></td>
+                            <td>
+                                {% with inv=student.invoices.first %}
+                                    {% if inv and inv.balance <= 0 %}<span class="badge-pill-success">Cleared</span>
+                                    {% elif inv %}<span class="text-danger fw-bold small">UGX {{ inv.balance|floatformat:0 }}</span>
+                                    {% else %}<span class="text-muted extra-small">Pending</span>{% endif %}
+                                {% endwith %}
+                            </td>
+                            <td class="text-end pe-4">
+                                <div class="btn-group">
+                                    <a href="{% url 'students:student_edit' student.id %}" class="btn btn-light btn-sm rounded-pill px-3"><i class="fas fa-edit"></i></a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </form>
+</div>
+
+{% include 'students/includes/modals.html' %}
+
+<style>
+    .bulk-floating-bar {
+        position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+        min-width: 600px; background: #0f172a; border-radius: 100px;
+        z-index: 1050; padding: 10px 25px; border: 1px solid rgba(255,255,255,0.1);
+    }
+    .extra-small { font-size: 0.72rem; }
+    .bg-soft-primary { background-color: #eef2ff; color: #4f46e5; }
+    .avatar-box { width: 40px; height: 40px; border-radius: 10px; background: #f8fafc; display: flex; align-items: center; justify-content: center; font-weight: 800; overflow: hidden; border: 1px solid #edf2f7; }
+    .avatar-box img { width: 100%; height: 100%; object-fit: cover; }
+    .student-row.selected { background-color: #f0fdf4 !important; }
+</style>
+
+<script>
+    const selectAll = document.getElementById('select-all');
+    const checkboxes = document.querySelectorAll('.student-checkbox');
+    const actionBar = document.getElementById('bulk-action-bar');
+    const countSpan = document.getElementById('selected-count');
+
+    function updateUI() {
+        const checked = document.querySelectorAll('.student-checkbox:checked');
+        countSpan.innerText = checked.length;
+        checked.length > 0 ? actionBar.classList.remove('d-none') : actionBar.classList.add('d-none');
+        checkboxes.forEach(cb => {
+            const row = cb.closest('tr');
+            cb.checked ? row.classList.add('selected') : row.classList.remove('selected');
+        });
+    }
+
+    selectAll.addEventListener('change', e => {
+        checkboxes.forEach(cb => cb.checked = e.target.checked);
+        updateUI();
+    });
+
+    checkboxes.forEach(cb => cb.addEventListener('change', updateUI));
+
+    function deselectAll() {
+        checkboxes.forEach(cb => cb.checked = false);
+        selectAll.checked = false;
+        updateUI();
+    }
+</script>
+{% endblock %}

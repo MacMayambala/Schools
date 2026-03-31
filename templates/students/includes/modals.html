@@ -1,0 +1,107 @@
+<div class="modal fade" id="billingModal" data-bs-backdrop="static" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-0 p-4 pb-0">
+                <h5 class="fw-bold text-dark"><i class="fas fa-file-invoice-dollar me-2 text-primary"></i>Bulk Invoicing</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="text-muted small">Generate invoices for <span id="modal-bill-count" class="fw-bold text-primary">0</span> selected students.</p>
+                
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small text-secondary">Academic Term</label>
+                        <select id="modal-term" class="form-select rounded-3 border-2">
+                            <option value="1">Term 1</option>
+                            <option value="2">Term 2</option>
+                            <option value="3">Term 3</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small text-secondary">Year</label>
+                        <input type="number" id="modal-year" class="form-control rounded-3 border-2" value="2026">
+                    </div>
+                </div>
+                
+                <div class="alert alert-info mt-3 mb-0 border-0 small py-2">
+                    <i class="fas fa-info-circle me-1"></i> Matches fees based on student section (Day/Boarding).
+                </div>
+            </div>
+            <div class="modal-footer border-0 p-4 pt-0">
+                <button type="button" class="btn btn-light rounded-pill px-4 fw-bold" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="confirmBillingBtn" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm">Generate Invoices</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="promoteModal" data-bs-backdrop="static" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-0 p-4 pb-0">
+                <h5 class="fw-bold text-dark"><i class="fas fa-level-up-alt me-2 text-success"></i>Level Promotion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="mb-0 text-muted">You are promoting <span id="modal-promote-count" class="fw-bold text-success">0</span> students to their <strong>next academic level</strong> (e.g., Level 1 → Level 2).</p>
+                <div class="alert alert-warning mt-3 mb-0 border-0 small py-2">
+                    <i class="fas fa-exclamation-triangle me-1"></i> This action is immediate and moves them to the next class level defined in setup.
+                </div>
+            </div>
+            <div class="modal-footer border-0 p-4 pt-0">
+                <button type="button" class="btn btn-light rounded-pill px-4 fw-bold" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="confirmPromoteBtn" class="btn btn-success rounded-pill px-4 fw-bold shadow-sm">Execute Promotion</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const bulkForm = document.getElementById('bulk-action-form');
+        const actionSelect = document.getElementById('action-select');
+        
+        const bModal = new bootstrap.Modal(document.getElementById('billingModal'));
+        const pModal = new bootstrap.Modal(document.getElementById('promoteModal'));
+
+        // Intercept Form Submission
+        bulkForm.addEventListener('submit', function(e) {
+            const action = actionSelect.value;
+            const selectedCount = document.querySelectorAll('.student-checkbox:checked').length;
+
+            if (action === 'generate_invoices') {
+                e.preventDefault();
+                document.getElementById('modal-bill-count').innerText = selectedCount;
+                bModal.show();
+            } else if (action === 'promote') {
+                e.preventDefault();
+                document.getElementById('modal-promote-count').innerText = selectedCount;
+                pModal.show();
+            }
+        });
+
+        // Confirm Billing
+        document.getElementById('confirmBillingBtn').onclick = function() {
+            const term = document.getElementById('modal-term').value;
+            const year = document.getElementById('modal-year').value;
+
+            appendHiddenInput('term', term);
+            appendHiddenInput('year', year);
+            bulkForm.submit();
+        };
+
+        // Confirm Promotion
+        document.getElementById('confirmPromoteBtn').onclick = function() {
+            // No extra inputs needed for auto-level promotion
+            bulkForm.submit();
+        };
+
+        function appendHiddenInput(name, value) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = name;
+            input.value = value;
+            bulkForm.appendChild(input);
+        }
+    });
+</script>

@@ -10,7 +10,6 @@ from django.contrib.auth.mixins import LoginRequiredMixin # 👈 Add this import
 # students/views.py
 from django.views.generic import ListView
 from .models import Student
-
 from django.views.generic import ListView
 from django.db.models import Q
 from .models import Student, Classroom
@@ -19,28 +18,30 @@ class StudentListView(ListView):
     model = Student
     template_name = 'students/student_list.html'
     context_object_name = 'students'
-    paginate_by = 20  # Professional touch: limits rows per page
+    paginate_by = 50  # Increased for better administrative overview
 
     def get_queryset(self):
-        # 1. Start with the base queryset for this school
-        # Optimization: select_related joins 'classroom' in the SQL query
-        # prefetch_related gets 'invoices' in a separate batch to avoid 100+ DB hits
+        # 1. Base Queryset with Multi-Tenant isolation
+        # Optimization: select_related performs a SQL JOIN for foreign keys
         queryset = Student.objects.filter(school=self.request.school)\
-                                  .select_related('classroom')\
-                                  .prefetch_related('invoices')\
-                                  .order_by('-date_enrolled')
+            .select_related('classroom', 'stream')\
+            .prefetch_related('invoices')\
+            .order_by('-date_enrolled')
 
-        # 2. Apply Search Filter (q)
+        # 2. Get Filter Params from URL
         query = self.request.GET.get('q')
+        class_id = self.request.GET.get('class')
+
+        # 3. Apply Search Logic
         if query:
             queryset = queryset.filter(
                 Q(first_name__icontains=query) | 
                 Q(last_name__icontains=query) | 
-                Q(admission_number__icontains=query)
+                Q(admission_number__icontains=query) |
+                Q(guardian_phone__icontains=query) # Added phone search for easier lookups
             )
 
-        # 3. Apply Classroom Filter (class)
-        class_id = self.request.GET.get('class')
+        # 4. Apply Classroom Filter
         if class_id:
             queryset = queryset.filter(classroom_id=class_id)
 
@@ -48,13 +49,19 @@ class StudentListView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Pass classrooms to the template for the dropdown filter
+        
+        # Pull filters for the dropdowns
         context['classrooms'] = Classroom.objects.filter(school=self.request.school)
         
-        # Keep the search/filter values in the context so the inputs stay filled
+        # Send current filter values back to template to keep inputs populated
         context['query'] = self.request.GET.get('q', '')
         context['selected_class'] = self.request.GET.get('class', '')
+        
         return context
+    
+
+
+
 import pandas as pd
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
@@ -134,27 +141,47 @@ def bulk_import_students(request):
 
     return render(request, 'students/bulk_import.html')
 
-# 4. PROMOTE STUDENTS
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from .models import Student, Classroom
+from django.db import transaction
+
 def promote_students_view(request):
-    classrooms = Classroom.objects.filter(school=request.school)
+    # Fetch all students and classes for the school
+    students = Student.objects.filter(school=request.school, is_active=True).select_related('classroom')
+    classrooms = Classroom.objects.filter(school=request.school).order_by('level')
     
     if request.method == "POST":
-        target_class_id = request.POST.get('target_class')
         student_ids = request.POST.getlist('student_ids')
+        target_class_id = request.POST.get('target_class')
         
+        if not student_ids:
+            messages.error(request, "No students were selected for promotion.")
+            return redirect('students:promote_students')
+            
+        if not target_class_id:
+            messages.error(request, "Please select a target class.")
+            return redirect('students:promote_students')
+
         target_class = get_object_or_404(Classroom, id=target_class_id, school=request.school)
-        
-        updated_count = Student.objects.filter(
-            id__in=student_ids, 
-            school=request.school
-        ).update(classroom=target_class)
-        
-        messages.success(request, f"Successfully promoted {updated_count} students to {target_class.name}.")
-        return redirect('students:student_list')
 
-    return render(request, 'students/promote.html', {'classrooms': classrooms})
+        try:
+            with transaction.atomic():
+                # Perform the update
+                updated_count = Student.objects.filter(
+                    id__in=student_ids, 
+                    school=request.school
+                ).update(classroom=target_class)
+                
+                messages.success(request, f"Successfully promoted {updated_count} students to {target_class.name}.")
+                return redirect('students:student_list') # Redirect back to registry
+        except Exception as e:
+            messages.error(request, f"An error occurred: {str(e)}")
 
-
+    return render(request, 'students/promote.html', {
+        'students': students,
+        'classrooms': classrooms
+    })
 
 import openpyxl
 from django.http import HttpResponse
@@ -252,3 +279,80 @@ def student_bulk_action(request):
             messages.info(request, "Invoice generation logic triggered for selected students.")
 
     return redirect('students:student_list')
+
+
+
+from django.shortcuts import redirect
+from django.contrib import messages
+from .models import Student
+from finance.models import Invoice, FeeStructure
+from django.db import transaction
+@transaction.atomic
+def student_bulk_action(request):
+    if request.method == "POST":
+        student_ids = request.POST.getlist('student_ids')
+        action = request.POST.get('action')
+        
+        queryset = Student.objects.filter(id__in=student_ids, school=request.school)
+
+        if action == "promote":
+            promoted_count = 0
+            skipped_count = 0
+            
+            for student in queryset:
+                current_level = student.classroom.level
+                next_level = current_level + 1
+                
+                # Find the class in THIS school that matches the next level
+                target_class = Classroom.objects.filter(
+                    school=request.school, 
+                    level=next_level
+                ).first()
+
+                if target_class:
+                    student.classroom = target_class
+                    student.save() # Triggers any specific logic you have in save()
+                    promoted_count += 1
+                else:
+                    # This happens if they are in the highest class (e.g., P.7)
+                    skipped_count += 1
+
+            if promoted_count > 0:
+                messages.success(request, f"Successfully promoted {promoted_count} students to the next level.")
+            if skipped_count > 0:
+                messages.warning(request, f"{skipped_count} students could not be promoted (No higher class level found).")
+
+        elif action == "generate_invoices":
+            # ... (your invoicing logic)
+            pass
+
+    return redirect('students:student_list')
+
+@transaction.atomic
+def handle_bulk_invoicing(request, students):
+    """Integrates with the finance logic we built earlier"""
+    count = 0
+    # Assuming we are billing for current active term/year
+    # In a real scenario, you might want a modal to pick the term first
+    term, year = "1", 2026 
+    
+    for student in students:
+        structure = FeeStructure.objects.filter(
+            classroom=student.classroom, 
+            section=student.section,
+            term=term,
+            year=year
+        ).first()
+
+        if structure:
+            _, created = Invoice.objects.get_or_create(
+                student=student,
+                term=term,
+                year=year,
+                school=request.school,
+                defaults={'total_amount': structure.total_fees}
+            )
+            if created: count += 1
+
+    messages.success(request, f"Generated {count} invoices for selected students.")
+    return redirect('students:registry')

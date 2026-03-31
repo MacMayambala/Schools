@@ -49,13 +49,13 @@ class GlobalLoginRequiredMiddleware:
 
         # 2. Define URLs that MUST be accessible without logging in
         # Add your password reset or landing page names here
-        exempt_url_names = ['login', 'register', 'password_reset', 'home']
+        exempt_url_names = ['login', 'register', 'password_reset', 'password_reset_done', 'password_reset_confirm', 'password_reset_complete']
 
         # 3. Check authentication logic
         if not request.user.is_authenticated:
             if url_name not in exempt_url_names and not request.path.startswith(settings.STATIC_URL):
                 # Redirect to login, and keep the 'next' path so they return where they were
-                login_url = reverse('login')
+                login_url = reverse('core:login')
                 return redirect(f"{login_url}?next={request.path}")
 
         return self.get_response(request)

@@ -1,164 +1,179 @@
 {% extends 'base.html' %}
 {% load humanize %}
 
-{% block title %}Official Report | {{ student.get_full_name }}{% endblock %}
+{% block title %}Report | {{ student.get_full_name }}{% endblock %}
 
 {% block content %}
-<div class="report-wrapper py-5 d-flex justify-content-center bg-secondary-subtle">
-    <div class="report-card shadow-2xl border-0 p-5 position-relative bg-white" id="printableReport">
+<div class="report-wrapper bg-light py-4 py-lg-5">
+    <div class="report-card position-relative bg-white shadow-lg mx-auto" id="printableReport">
         
-        <div class="watermark text-uppercase">Official Academic Record</div>
-
-        <div class="row align-items-center mb-4 border-bottom border-4 border-dark pb-4">
-            <div class="col-3">
-                {% if school.logo %}
-                    <img src="{{ school.logo.url }}" alt="School Logo" class="school-logo-main">
-                {% else %}
-                    <div class="logo-placeholder">MAC</div>
-                {% endif %}
-            </div>
-            
-            <div class="col-6 text-center">
-                <h1 class="school-title mb-0">{{ school.name|upper }}</h1>
-                <p class="school-meta mb-1">{{ school.address|default:"KAMPALA, UGANDA" }}</p>
-                <p class="school-contact mb-2 text-muted small">{{ school.phone }} | {{ school.email }}</p>
-                <div class="report-label">STUDENT ACADEMIC PERFORMANCE REPORT</div>
-                <h5 class="mt-2 fw-black text-primary">{{ term|upper }} — {{ year }}</h5>
-            </div>
-
-            <div class="col-3 text-end">
-                {% if student.photo %}
-                    <img src="{{ student.photo.url }}" alt="Student" class="student-photo shadow border border-2 border-dark">
-                {% else %}
-                    <div class="photo-placeholder ms-auto">NO PHOTO</div>
-                {% endif %}
-            </div>
+        <div class="watermark text-uppercase">
+            {{ school.motto|default:"Your Vision, Our Code" }}
         </div>
 
-        <div class="row g-0 mb-4 border border-2 border-dark rounded-4 overflow-hidden student-bio-box">
-            <div class="col-md-7 border-end border-2 border-dark p-3">
-                <table class="table table-borderless table-sm mb-0">
-                    <tr><td class="text-muted fw-bold small">STUDENT NAME:</td><td class="fw-black text-dark">{{ student.get_full_name|upper }}</td></tr>
-                    <tr><td class="text-muted fw-bold small">ADMISSION NO:</td><td class="fw-bold font-monospace text-primary">{{ student.admission_number }}</td></tr>
-                </table>
-            </div>
-            <div class="col-md-5 bg-light p-3">
-                <table class="table table-borderless table-sm mb-0">
-                    <tr><td class="text-muted fw-bold small">CLASS/STREAM:</td><td class="fw-black text-dark">{{ student.classroom }}</td></tr>
-                    <tr><td class="text-muted fw-bold small">CLASS RANK:</td><td class="fw-black text-danger">{{ rank }} / {{ total_students }}</td></tr>
-                </table>
-            </div>
-        </div>
+        <div class="report-inner-padding">
+            <div class="row align-items-center mb-4 border-bottom border-3 border-dark pb-3">
+                <div class="col-2 text-start">
+                    {% if school.logo %}
+                        <img src="{{ school.logo.url }}" alt="Logo" class="school-logo-main">
+                    {% else %}
+                        <div class="logo-placeholder">MAC</div>
+                    {% endif %}
+                </div>
+                
+                <div class="col-8 text-center">
+                    <h2 class="school-title mb-1">{{ school.name|upper }}</h2>
+                    <p class="small fw-bold mb-1 text-dark">{{ school.address|default:"KAMPALA, UGANDA" }}</p>
+                    <div class="report-label">ACADEMIC PERFORMANCE REPORT</div>
+                    <div class="mt-2 fw-bold text-primary small">
+                        {{ term|upper }} — {{ year }}
+                    </div>
+                </div>
 
-        <div class="table-responsive">
-            <table class="table table-bordered border-dark academic-main-table">
+                <div class="col-2 text-end">
+                    {% if student.photo %}
+                        <img src="{{ student.photo.url }}" alt="Student" class="student-photo border border-2 border-dark">
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="row g-0 mb-4 border border-2 border-dark rounded overflow-hidden">
+                <div class="col-7 border-end border-2 border-dark p-2">
+                    <div class="d-flex justify-content-between px-2">
+                        <span class="text-muted extra-small fw-bold">NAME:</span>
+                        <span class="fw-black text-dark small">{{ student.get_full_name|upper }}</span>
+                    </div>
+                </div>
+                <div class="col-5 bg-light p-2">
+                    <div class="d-flex justify-content-between px-2">
+                        <span class="text-muted extra-small fw-bold">CLASS:</span>
+                        <span class="fw-black text-dark small">{{ student.classroom }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <table class="table table-bordered border-dark table-sm mb-4">
                 <thead class="bg-dark text-white text-center">
                     <tr>
-                        <th class="py-3 text-start ps-3">SUBJECT</th>
-                        <th>MID (30)</th>
-                        <th>END (70)</th>
-                        <th>TOTAL (%)</th>
-                        <th>GRADE</th>
+                        <th class="text-start ps-3">SUBJECT</th>
+                        <th>MID</th>
+                        <th>END</th>
+                        <th>TOT%</th>
+                        <th>GRD</th>
                         <th class="text-start">REMARKS</th>
                     </tr>
                 </thead>
                 <tbody class="text-center align-middle">
                     {% for item in marks %}
-                    <tr>
-                        <td class="text-start fw-black py-3 ps-3">{{ item.subject.name|upper }}</td>
-                        <td class="text-muted">{{ item.mid_term_mark|default:"-" }}</td>
-                        <td class="text-muted">{{ item.end_term_mark|default:"-" }}</td>
-                        <td class="fw-black fs-5 bg-yellow-soft">{{ item.total_score|floatformat:0 }}</td>
-                        <td><span class="badge-grade">{{ item.grade }}</span></td>
-                        <td class="text-start small italic text-muted pe-3">{{ item.grade_remark }}</td>
+                    <tr style="height: 32px;">
+                        <td class="text-start fw-bold ps-3 small">{{ item.subject.name|upper }}</td>
+                        <td>{{ item.mid_term_mark|default:"0" }}</td>
+                        <td>{{ item.end_term_mark|default:"0" }}</td>
+                        <td class="fw-black bg-yellow-soft">{{ item.total_score|floatformat:0 }}</td>
+                        <td class="fw-bold">{{ item.grade }}</td>
+                        <td class="text-start extra-small text-muted">{{ item.grade_remark|default:"—" }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
-                <tfoot class="bg-dark text-white border-top-0">
+                <tfoot class="bg-light fw-bold">
                     <tr>
-                        <td colspan="3" class="text-end fw-bold py-3">AGGREGATE / AVERAGE:</td>
-                        <td class="py-3 fs-4 fw-black text-center">{{ average|floatformat:1 }}%</td>
-                        <td colspan="2" class="text-center py-3">
-                            <span class="promotion-status">
-                                {% if average >= 50 %}PROMOTED{% else %}NOT PROMOTED{% endif %}
-                            </span>
-                        </td>
+                        <td colspan="3" class="text-end pe-3">AVERAGE:</td>
+                        <td class="text-center">{{ average|floatformat:1 }}%</td>
+                        <td colspan="2" class="ps-3 text-danger">RANK: {{ rank }} / {{ total_students }}</td>
                     </tr>
                 </tfoot>
             </table>
-        </div>
 
-        <div class="grading-legend mt-4 p-3 border border-dark border-2 rounded-3 bg-white">
-            <h6 class="fw-black text-uppercase mb-2 small border-bottom pb-1">Ugandan National Grading Standard</h6>
-            <div class="row text-center g-1">
-                <div class="col border-end"><strong>D1:</strong> 80-100</div>
-                <div class="col border-end"><strong>D2:</strong> 75-79</div>
-                <div class="col border-end"><strong>C3:</strong> 70-74</div>
-                <div class="col border-end"><strong>C4-C6:</strong> 55-69</div>
-                <div class="col border-end"><strong>P7-P8:</strong> 45-54</div>
-                <div class="col text-danger fw-bold"><strong>F9:</strong> 0-44</div>
-            </div>
-        </div>
-
-        <div class="row mt-5 pt-4 text-center signature-section">
-            <div class="col-4">
-                <div class="sig-line mx-auto"></div>
-                <p class="mt-2 fw-bold small text-uppercase mb-0">Class Teacher</p>
-            </div>
-            <div class="col-4">
-                <div class="school-stamp mx-auto">
-                    <span class="small text-muted fw-bold">OFFICIAL<br>STAMP</span>
+            <div class="row g-3 mb-4">
+                <div class="col-7">
+                    <div class="border border-2 border-dark rounded p-3 h-100 bg-white">
+                        <h6 class="extra-small fw-black text-uppercase border-bottom pb-2 mb-2">
+                            <i class="fas fa-list-check me-1"></i> REQUIREMENTS FOR TERM {{ target_term }}
+                        </h6>
+                        <p class="extra-small mb-0 text-dark">
+                            {% if requirements %}
+                                {{ requirements.items }}
+                            {% else %}
+                                Standard school requirements apply. Contact class teacher.
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+                <div class="col-5">
+                    <div class="border border-2 border-dark rounded p-3 h-100 text-center d-flex flex-column justify-content-center bg-light">
+                        <span class="extra-small fw-bold text-muted">FINAL DIVISION</span>
+                        <h3 class="fw-black text-dark mb-0 mt-1">{{ division|upper }}</h3>
+                    </div>
                 </div>
             </div>
-            <div class="col-4">
-                <div class="sig-line mx-auto"></div>
-                <p class="mt-2 fw-bold small text-uppercase mb-0">Headteacher</p>
-            </div>
-        </div>
 
-        <div class="report-footer text-center mt-5 text-uppercase fw-bold border-top pt-3">
-            System Design by MAC Technologies | schooladmin.tech
+            <div class="border border-2 border-dark rounded p-3 mb-5">
+                <div class="extra-small fw-bold border-bottom pb-2 mb-2">OFFICIAL COMMENTS</div>
+                <p class="extra-small mb-1"><strong>Class Teacher:</strong> <em>"{{ teacher_comment }}"</em></p>
+                <p class="extra-small mb-0"><strong>Headteacher:</strong> <em>"{{ headteacher_comment|default:'Good progress made.' }}"</em></p>
+            </div>
+
+            <div class="row text-center mt-5">
+                <div class="col-4">
+                    <div class="sig-line mx-auto"></div>
+                    <p class="extra-small fw-bold mt-2">CLASS TEACHER</p>
+                </div>
+                <div class="col-4">
+                    <div class="school-stamp mx-auto">STAMP</div>
+                </div>
+                <div class="col-4">
+                    <div class="sig-line mx-auto"></div>
+                    <p class="extra-small fw-bold mt-2">HEADTEACHER</p>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div class="fixed-bottom text-center mb-5 d-print-none">
-        <button onclick="window.print()" class="btn btn-dark btn-lg shadow-lg px-5 rounded-pill">
-            <i class="fas fa-print me-2"></i> Print Official Copy
+    <div class="fixed-bottom text-center mb-4 d-print-none">
+        <button onclick="window.print()" class="btn btn-dark btn-lg px-5 rounded-pill shadow-lg fw-bold">
+            <i class="fas fa-print me-2"></i> Print Official PDF
         </button>
     </div>
 </div>
 
 <style>
-    /* Professional Layout */
-    .report-card { width: 210mm; min-height: 297mm; border: 1px solid #ddd; }
-    .fw-black { font-weight: 800; }
-    
-    /* Typography */
-    .school-title { font-weight: 900; letter-spacing: -0.5px; font-size: 2.5rem; color: #1a1a1a; }
-    .school-meta { font-weight: 700; letter-spacing: 2px; color: #444; }
-    .report-label { background: #000; color: #fff; padding: 5px 20px; font-weight: 800; display: inline-block; border-radius: 4px; letter-spacing: 1px; }
-
-    /* Tables & Marks */
-    .academic-main-table th { font-weight: 800; letter-spacing: 1px; font-size: 0.75rem; }
-    .bg-yellow-soft { background-color: #fff9e6 !important; }
-    .badge-grade { font-size: 1.2rem; font-weight: 900; color: #000; }
-    .promotion-status { border: 2px solid #fff; padding: 2px 15px; border-radius: 20px; font-size: 0.8rem; }
-
-    /* Photos & Assets */
-    .school-logo-main { max-height: 110px; width: auto; object-fit: contain; }
-    .student-photo { width: 110px; height: 130px; object-fit: cover; }
-    .sig-line { width: 150px; border-bottom: 2.5px solid #000; }
-    .school-stamp { width: 100px; height: 100px; border: 3px double #ccc; border-radius: 50%; display: flex; align-items: center; justify-content: center; transform: rotate(-10deg); }
-
-    /* Watermark */
-    .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: 8rem; font-weight: 900; color: rgba(0,0,0,0.03); z-index: 0; pointer-events: none; width: 100%; text-align: center; }
-
-    @media print {
-        @page { size: A4; margin: 0; }
-        body { background: #fff; }
-        .report-wrapper { padding: 0 !important; }
-        .report-card { border: none !important; box-shadow: none !important; width: 100%; }
-        .d-print-none { display: none !important; }
+/* ====================== PRINT ENGINE ====================== */
+@media print {
+    /* Force Browser to ignore site navigation */
+    nav, .navbar, .sidebar, aside, footer, header, .d-print-none, .btn {
+        display: none !important;
     }
+    
+    body, html {
+        margin: 0 !important; padding: 0 !important;
+        background: white !important;
+        width: 210mm; height: 297mm;
+    }
+
+    .report-wrapper { padding: 0 !important; margin: 0 !important; background: white !important; }
+    
+    .report-card {
+        box-shadow: none !important; border: none !important;
+        width: 210mm !important; height: 297mm !important;
+        margin: 0 !important;
+    }
+
+    /* Print colors fix */
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+}
+
+/* ====================== A4 UI DESIGN ====================== */
+.report-card { width: 210mm; min-height: 297mm; }
+.report-inner-padding { padding: 12mm 15mm; position: relative; z-index: 1; }
+.watermark { position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%) rotate(-35deg); font-size: 5rem; font-weight: 900; color: rgba(0,0,0,0.04); z-index: 0; pointer-events: none; width: 100%; text-align: center; }
+.fw-black { font-weight: 900; }
+.extra-small { font-size: 0.68rem; line-height: 1.3; }
+.school-title { font-weight: 900; font-size: 1.8rem; }
+.report-label { background: #000; color: #fff; padding: 3px 15px; font-weight: 800; border-radius: 3px; display: inline-block; font-size: 0.8rem; }
+.bg-yellow-soft { background-color: #fff9e6 !important; }
+.school-logo-main { max-height: 75px; }
+.student-photo { width: 90px; height: 110px; object-fit: cover; }
+.sig-line { width: 140px; border-bottom: 2px solid #000; margin: 0 auto; }
+.school-stamp { width: 85px; height: 85px; border: 2px dashed #666; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 0.6rem; color: #ccc; }
 </style>
 {% endblock %}

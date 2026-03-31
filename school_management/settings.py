@@ -19,7 +19,6 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 STATIC_URL = 'static/'
 
 # This tells Django to look in your root 'static' folder
@@ -42,10 +41,9 @@ SECRET_KEY = 'django-insecure-ntzesv86q%w)4dfr(nezu!(&22lth5l!+oeb)g95kxj6&q8qtq
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-LOGOUT_REDIRECT_URL = 'login'
+LOGOUT_REDIRECT_URL = 'core:login'
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
 
 # Application definition
 
@@ -74,9 +72,9 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 
 # settings.py
-LOGIN_URL = 'login'
+LOGIN_URL = 'core:login'
 LOGIN_REDIRECT_URL = 'core:index'
-LOGOUT_REDIRECT_URL = 'login'
+LOGOUT_REDIRECT_URL = 'core:login'
 
 
 MIDDLEWARE = [
@@ -164,4 +162,18 @@ STATIC_URL = 'static/'
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
+# --- Email Configuration ---
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False
+EMAIL_HOST_USER = 'markmayambala1@gmail.com'
+EMAIL_HOST_PASSWORD = 'nwyh yoab bpbp rrmg'
+
+# CRITICAL: Gmail will often reject emails if these aren't set
+DEFAULT_FROM_EMAIL = 'markmayambala1@gmail.com'
+SERVER_EMAIL = 'markmayambala1@gmail.com'
+
+# --- Other Settings ---
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

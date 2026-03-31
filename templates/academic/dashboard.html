@@ -1,62 +1,50 @@
 {% extends 'base.html' %}
-
 {% block title %}Academic Center | {{ request.school.name }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-5 px-3 px-lg-5" style="background: #f8fafc; min-height: 100vh;">
+<div class="container-fluid py-4 px-4 px-lg-5">
 
     <!-- Header -->
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-5 gap-4">
         <div>
             <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-3 small">
+                <ol class="breadcrumb mb-2 small">
                     <li class="breadcrumb-item"><a href="{% url 'core:index' %}" class="text-muted text-decoration-none">Dashboard</a></li>
-                    <li class="breadcrumb-item active fw-semibold text-success">Academics</li>
+                    <li class="breadcrumb-item active fw-semibold" style="color: var(--primary);">Academics</li>
                 </ol>
             </nav>
-            <h1 class="display-5 fw-bold tracking-tighter text-dark mb-1">Academic Control Center</h1>
-            
-            <div class="d-flex align-items-center gap-3">
-                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-2 rounded-3 fw-semibold">
-                    <i class="fas fa-calendar-alt me-2"></i>
-                    {{ term|default:"Term 1" }} {{ year|default:"2026" }}
-                </span>
-                <span class="d-flex align-items-center gap-2 text-muted small fw-medium">
-                    <span class="rounded-circle bg-success d-inline-block" style="width: 8px; height: 8px; animation: pulse 2s infinite;"></span>
-                    Live Session
-                </span>
-            </div>
+            <h1 class="display-5 fw-bold tracking-tight text-dark mb-1">Academic Control Center</h1>
+            <p class="text-muted mb-0">Manage subjects, classes, and academic records</p>
         </div>
 
         <div class="d-flex gap-3 flex-wrap">
-            <button onclick="window.print()" class="btn btn-outline-secondary rounded-3 px-4 py-2 fw-semibold shadow-sm">
+            <button onclick="window.print()" class="btn btn-white border shadow-sm px-4">
                 <i class="fas fa-print me-2"></i> Print Reports
             </button>
             
-            <a href="{% url 'academic:manage_subjects' %}" 
-               class="btn btn-outline-dark rounded-3 px-4 py-2 fw-semibold shadow-sm">
+            <a href="{% url 'academic:manage_subjects' %}" class="btn btn-white border shadow-sm px-4">
                 <i class="fas fa-book-open me-2"></i> Manage Subjects
             </a>
 
-            <button type="button" class="btn btn-success rounded-3 px-5 py-2 fw-semibold shadow-sm" 
+            <button type="button" class="btn btn-primary shadow-sm px-4" 
                     data-bs-toggle="modal" data-bs-target="#createSubjectModal">
                 <i class="fas fa-plus me-2"></i> New Subject
             </button>
         </div>
     </div>
 
-    <!-- Statistics Cards -->
+    <!-- Stats -->
     <div class="row g-4 mb-5">
         <div class="col-xl-4 col-lg-6">
             <div class="card border-0 shadow-sm rounded-4 h-100 stat-card">
                 <div class="card-body p-4">
-                    <div class="d-flex justify-content-between">
+                    <div class="d-flex justify-content-between align-items-start">
                         <div>
                             <h6 class="text-uppercase text-muted fw-semibold small mb-3">Total Students</h6>
                             <h2 class="fw-bold text-dark mb-0">{{ student_count|default:"0" }}</h2>
-                            <p class="text-muted small mt-2 mb-0">Enrolled this term</p>
+                            <p class="text-muted small mt-1">Enrolled this term</p>
                         </div>
-                        <div class="stat-icon bg-success bg-opacity-10 text-success rounded-3">
+                        <div class="stat-icon bg-soft-primary text-primary rounded-3">
                             <i class="fas fa-user-graduate fa-2x"></i>
                         </div>
                     </div>
@@ -67,35 +55,33 @@
         <div class="col-xl-4 col-lg-6">
             <div class="card border-0 shadow-sm rounded-4 h-100 stat-card">
                 <div class="card-body p-4">
-                    <div class="d-flex justify-content-between">
+                    <div class="d-flex justify-content-between align-items-start">
                         <div>
                             <h6 class="text-uppercase text-muted fw-semibold small mb-3">Grading Progress</h6>
-                            <div class="d-flex align-items-baseline gap-2">
-                                <h2 class="fw-bold text-dark mb-0">{{ reports_generated|default:"0" }}%</h2>
-                                <span class="text-muted small">completed</span>
-                            </div>
+                            <h2 class="fw-bold text-dark mb-0">{{ reports_generated|default:"0" }}%</h2>
+                            <p class="text-muted small mt-1">Reports completed</p>
                         </div>
-                        <div class="stat-icon bg-primary bg-opacity-10 text-primary rounded-3">
+                        <div class="stat-icon bg-soft-primary text-primary rounded-3">
                             <i class="fas fa-chart-line fa-2x"></i>
                         </div>
                     </div>
-                    <div class="progress mt-4" style="height: 8px; border-radius: 999px;">
-                        <div class="progress-bar bg-success rounded-pill" style="width: {{ reports_generated|default:0 }}%"></div>
+                    <div class="progress mt-4" style="height: 9px; border-radius: 999px;">
+                        <div class="progress-bar bg-primary rounded-pill" style="width: {{ reports_generated|default:0 }}%"></div>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="col-xl-4 col-lg-6">
-            <div class="card border-0 shadow-sm rounded-4 h-100 stat-card border-start border-5 border-danger">
+            <div class="card border-0 shadow-sm rounded-4 h-100 stat-card">
                 <div class="card-body p-4">
-                    <div class="d-flex justify-content-between">
+                    <div class="d-flex justify-content-between align-items-start">
                         <div>
                             <h6 class="text-uppercase text-muted fw-semibold small mb-3">Pending Marks</h6>
                             <h2 class="fw-bold text-danger mb-0">{{ pending_marks|default:"0" }}</h2>
-                            <p class="text-danger small fw-medium mt-2 mb-0">Needs immediate attention</p>
+                            <p class="text-danger small fw-medium mt-1">Requires attention</p>
                         </div>
-                        <div class="stat-icon bg-danger bg-opacity-10 text-danger rounded-3 pulse-red">
+                        <div class="stat-icon bg-soft-danger text-danger rounded-3">
                             <i class="fas fa-clock fa-2x"></i>
                         </div>
                     </div>
@@ -105,23 +91,24 @@
     </div>
 
     <!-- Classroom Portals -->
-    <div class="card border-0 shadow rounded-4 overflow-hidden">
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
         <div class="card-header bg-white border-0 py-4 px-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
             <div>
                 <h4 class="fw-bold text-dark mb-1">Classroom Portals</h4>
-                <p class="text-muted small mb-0">Click on a subject to enter marks for that class</p>
+                <p class="text-muted mb-0">Enter marks by class and subject</p>
             </div>
-            <div class="search-box position-relative" style="max-width: 340px;">
+            <div class="position-relative" style="max-width: 380px;">
                 <i class="fas fa-search position-absolute top-50 start-0 translate-middle-y ms-4 text-muted"></i>
-                <input type="text" id="classroomSearch" class="form-control form-control-lg ps-5 rounded-3 border-0 bg-light shadow-sm"
-                       placeholder="Search classes...">
+                <input type="text" id="classroomSearch" 
+                       class="form-control form-control-lg ps-5 rounded-3 border-0 bg-light shadow-sm"
+                       placeholder="Search class or subject...">
             </div>
         </div>
 
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0" id="classroomTable">
                 <thead class="table-light">
-                    <tr class="text-uppercase extra-small fw-semibold text-muted">
+                    <tr class="text-uppercase extra-small fw-bold text-muted ls-1">
                         <th class="ps-4 py-4">Class</th>
                         <th>Strength</th>
                         <th>Subject Entry Portals</th>
@@ -132,12 +119,12 @@
                     <tr class="classroom-row">
                         <td class="ps-4 py-4">
                             <div class="d-flex align-items-center">
-                                <div class="avatar-box bg-gradient text-white me-3">
+                                <div class="avatar-box me-3">
                                     {{ classroom.name|slice:":1"|upper }}
                                 </div>
                                 <div>
-                                    <div class="fw-bold text-dark">{{ classroom.name }}</div>
-                                    <span class="text-muted small">Section • Main</span>
+                                    <div class="fw-semibold text-dark">{{ classroom.name }}</div>
+                                    <small class="text-muted">Section • Main Campus</small>
                                 </div>
                             </div>
                         </td>
@@ -154,17 +141,17 @@
                                     {{ subject.name }}
                                 </a>
                                 {% empty %}
-                                <span class="text-muted small fst-italic">No subjects assigned yet</span>
+                                <span class="text-muted small fst-italic">No subjects assigned</span>
                                 {% endfor %}
                             </div>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="3" class="text-center py-5 text-muted">
-                            <i class="fas fa-school fa-3x opacity-25 mb-3"></i>
-                            <h5>No classrooms found</h5>
-                            <p class="small">Please configure your academic structure</p>
+                        <td colspan="3" class="text-center py-5">
+                            <i class="fas fa-school fa-4x text-muted opacity-25 mb-3"></i>
+                            <h5 class="text-muted">No Classrooms Configured</h5>
+                            <p class="text-muted small">Start by adding classes and assigning subjects</p>
                         </td>
                     </tr>
                     {% endfor %}
@@ -173,15 +160,13 @@
         </div>
     </div>
 
-    <!-- Footer -->
-    
 </div>
 
 <!-- Create Subject Modal -->
 <div class="modal fade" id="createSubjectModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content rounded-4 border-0 shadow">
-            <div class="modal-header border-0">
+            <div class="modal-header border-0 pb-2">
                 <h5 class="modal-title fw-bold">Create New Subject</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
@@ -196,7 +181,7 @@
                         <label class="form-label fw-medium">Class Level</label>
                         <select name="level" class="form-select form-select-lg rounded-3" required>
                             <option value="">Select Class Level</option>
-                            <!-- Populate dynamically from view if needed -->
+                            <!-- Add options dynamically from view -->
                         </select>
                     </div>
                     <div class="mb-3">
@@ -208,41 +193,28 @@
             <div class="modal-footer border-0">
                 <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" onclick="document.getElementById('createSubjectForm').submit()" 
-                        class="btn btn-success px-5 fw-semibold">Create Subject</button>
+                        class="btn btn-primary px-5 fw-semibold">Create Subject</button>
             </div>
         </div>
     </div>
 </div>
 
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&display=swap');
-
-    :root {
-        --success: #10b981;
-    }
-
-    body {
-        font-family: 'Inter', system_ui, sans-serif;
-        background: #f8fafc;
-    }
-
-    .fw-bold { font-weight: 700; }
-    .tracking-tighter { letter-spacing: -0.04em; }
-
     .stat-card {
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
     .stat-card:hover {
-        transform: translateY(-6px);
+        transform: translateY(-8px);
         box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1) !important;
     }
 
     .stat-icon {
-        width: 64px;
-        height: 64px;
+        width: 68px;
+        height: 68px;
         display: flex;
         align-items: center;
         justify-content: center;
+        font-size: 1.8rem;
     }
 
     .avatar-box {
@@ -252,65 +224,45 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.4rem;
+        font-size: 1.5rem;
         font-weight: 700;
-        background: linear-gradient(135deg, #10b981, #059669);
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        color: white;
     }
 
-    .bg-gradient { background: linear-gradient(135deg, #10b981, #059669); }
-
-    /* Subject Pills */
     .subject-pill {
         background: white;
-        border: 1px solid #e2e8f0;
-        color: #1e2937;
-        padding: 10px 18px;
+        border: 1px solid var(--border-color);
+        color: var(--text-main);
+        padding: 10px 20px;
         border-radius: 9999px;
         font-weight: 600;
-        font-size: 0.9rem;
+        font-size: 0.93rem;
         transition: all 0.25s ease;
         text-decoration: none;
         box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
     .subject-pill:hover {
-        background: #10b981;
+        background: var(--primary);
         color: white;
-        border-color: #10b981;
+        border-color: var(--primary);
         transform: translateY(-3px);
-        box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3);
     }
 
-    /* Search */
-    .search-box input:focus {
-        background: white !important;
-        border-color: var(--success) !important;
-        box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
-    }
-
-    /* Pulse Animation */
-    @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.4; }
-    }
-
-    .pulse-red {
-        animation: pulse-red 2s infinite;
-    }
-    @keyframes pulse-red {
-        0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-        70% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
-    }
+    .bg-soft-primary { background: var(--primary-soft); }
+    .bg-soft-danger { background: rgba(239, 68, 68, 0.1); }
 
     .extra-small { font-size: 0.75rem; }
+    .ls-1 { letter-spacing: 0.5px; }
 </style>
 
 <script>
-    // Live Search
+    // Live Search for Classrooms
     document.getElementById('classroomSearch').addEventListener('keyup', function() {
-        const val = this.value.toLowerCase().trim();
+        const filter = this.value.toLowerCase().trim();
         document.querySelectorAll('.classroom-row').forEach(row => {
-            const className = row.querySelector('.fw-bold').textContent.toLowerCase();
-            row.style.display = className.includes(val) ? '' : 'none';
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(filter) ? '' : 'none';
         });
     });
 </script>

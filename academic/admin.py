@@ -82,3 +82,39 @@ class TeacherAdmin(admin.ModelAdmin):
     def assigned_classes(self, obj):
         return ", ".join([c.name for c in obj.classrooms.all()])
     assigned_classes.short_description = 'Classes'
+
+
+
+from django.contrib import admin
+from .models import ClassRequirement
+
+@admin.register(ClassRequirement)
+class ClassRequirementAdmin(admin.ModelAdmin):
+    # Columns to show in the list view
+    list_display = ('classroom', 'term', 'year', 'school')
+    
+    # Sidebar filters for quick navigation
+    list_filter = ('year', 'term', 'school', 'classroom')
+    
+    # Search box for classroom names
+    search_fields = ('classroom__name', 'items')
+    
+    # Organizing the form layout
+    fieldsets = (
+        ('Context', {
+            'fields': ('school', 'classroom')
+        }),
+        ('Timing', {
+            'fields': ('term', 'year')
+        }),
+        ('Details', {
+            'fields': ('items',),
+            'description': 'Enter the requirements for the upcoming term.'
+        }),
+    )
+
+    def save_model(self, request, obj, form, change):
+        # Automatically assign the school from the user's session if needed
+        if not obj.school_id and hasattr(request, 'school'):
+            obj.school = request.school
+        super().save_model(request, obj, form, change)

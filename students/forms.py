@@ -2,28 +2,51 @@
 from django import forms
 from .models import Student, Classroom
 
+from django import forms
+from .models import Student, Classroom, Stream
+
 class StudentForm(forms.ModelForm):
     class Meta:
         model = Student
-        # List ALL the fields you want to show in the form
+        # 1. Added 'stream' and 'section' to the fields list
         fields = [
             'photo', 'first_name', 'last_name', 'classroom', 
-            'gender', 'date_of_birth', 'guardian_name', 
-            'guardian_relation', 'guardian_phone', 
+            'stream', 'section', 'gender', 'date_of_birth', 
+            'guardian_name', 'guardian_relation', 'guardian_phone', 
             'guardian_email', 'guardian_address'
         ]
+        
+        # 2. Refined widgets for a premium UI feel
         widgets = {
-            'date_of_birth': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-            'guardian_address': forms.Textarea(attrs={'rows': 2}),
+            'date_of_birth': forms.DateInput(attrs={
+                'type': 'date', 
+                'class': 'form-control'
+            }),
+            'guardian_address': forms.Textarea(attrs={
+                'rows': 2, 
+                'placeholder': 'Enter residential address...'
+            }),
+            'guardian_email': forms.EmailInput(attrs={
+                'placeholder': 'example@gmail.com'
+            }),
+            'guardian_phone': forms.TextInput(attrs={
+                'placeholder': 'e.g. 0700 000 000'
+            }),
         }
 
     def __init__(self, *args, **kwargs):
-        # This part ensures the student can only be put in a classroom 
-        # that belongs to the logged-in school
+        # 3. Pull the 'school' (tenant) from the view
         school = kwargs.pop('school', None)
         super().__init__(*args, **kwargs)
+        
         if school:
+            # 4. Filter querysets so SAO doesn't see OLAM's classes or streams
             self.fields['classroom'].queryset = Classroom.objects.filter(school=school)
+            self.fields['stream'].queryset = Stream.objects.filter(school=school)
+            
+        # 5. Clean look: Add 'Select' placeholders to dropdowns
+        self.fields['classroom'].empty_label = "--- Select Class ---"
+        self.fields['stream'].empty_label = "--- Select Stream (Optional) ---"
 
 
 from django import forms
@@ -72,9 +95,10 @@ from students.models import Classroom
 class FeeStructureForm(forms.ModelForm):
     class Meta:
         model = FeeStructure
+        # 1. REMOVED 'other_requirements_total' from this list
         fields = [
             'classroom', 'term', 'year', 'section', 
-            'tuition_amount', 'other_requirements_total'
+            'tuition_amount'
         ]
         widgets = {
             'classroom': forms.Select(attrs={'class': 'form-select rounded-3'}),
@@ -82,11 +106,10 @@ class FeeStructureForm(forms.ModelForm):
             'year': forms.NumberInput(attrs={'class': 'form-control rounded-3'}),
             'section': forms.Select(attrs={'class': 'form-select rounded-3'}),
             'tuition_amount': forms.NumberInput(attrs={'class': 'form-control rounded-3', 'placeholder': '0.00'}),
-            'other_requirements_total': forms.NumberInput(attrs={'class': 'form-control rounded-3', 'placeholder': '0.00'}),
+            # 2. REMOVED the widget entry for other_requirements_total
         }
 
     def __init__(self, *args, **kwargs):
-        # Extract school to filter the classroom dropdown
         school = kwargs.pop('school', None)
         super().__init__(*args, **kwargs)
         if school:

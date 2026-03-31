@@ -3,6 +3,8 @@ from django.shortcuts import render
 # Create your views here.
 from django.shortcuts import render, redirect
 from django.contrib import messages
+
+from school_management import settings
 from .models import Invoice, FeeStructure
 from .services import generate_bulk_invoices
 from students.models import Classroom
@@ -31,15 +33,20 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from .models import FeeStructure, Invoice
 from students.models import Student, Classroom
+#from .models import Classroom, FeeStructure, Student, Invoice  # Add your specific models here
 
+from django.db import transaction
+from django.contrib import messages
+from django.shortcuts import render, redirect
+
+@transaction.atomic
 def run_bulk_billing(request):
     if request.method == "POST":
         classroom_id = request.POST.get('classroom')
         term = request.POST.get('term')
         year = request.POST.get('year')
         
-        # 1. Fetch ALL structures for this class (Day AND Boarding)
-        # We use a dictionary for fast lookup: {'Day': 600000, 'Boarding': 950000}
+        # 1. Fetch structures
         structures = FeeStructure.objects.filter(
             classroom_id=classroom_id, 
             term=term, 
@@ -47,29 +54,37 @@ def run_bulk_billing(request):
             school=request.school
         )
 
+        # DEBUG: Check if we actually found any fees
+        print(f"DEBUG: Found {structures.count()} fee structures for Class ID {classroom_id}")
+
+        # Create a normalized map (lowercase keys to avoid "Day" vs "day" issues)
+        fee_map = {fs.section.strip().lower(): fs.total_fees for fs in structures}
+        print(f"DEBUG: Fee Map created: {fee_map}")
+
         if not structures.exists():
-            messages.error(request, "No Fee Structures found for this class. Please set Day/Boarding rates first.")
-            return redirect('finance:settings_hub')
+            messages.error(request, "No Fee Structures found. Create them in the Setup Hub first.")
+            return redirect('finance:bulk_billing')
 
-        # Map the totals by section
-        fee_map = {fs.section: fs.total_fees for fs in structures}
-
-        # 2. Get students in this class
+        # 2. Get students
         students = Student.objects.filter(
             classroom_id=classroom_id, 
             school=request.school, 
             is_active=True
         )
+        print(f"DEBUG: Found {students.count()} active students in this class.")
         
         count = 0
         skipped = 0
 
         for student in students:
-            # 3. Get the correct amount based on student's section
-            amount_to_charge = fee_map.get(student.section)
+            # Normalize the student's section for matching
+            student_section = student.section.strip().lower() if student.section else "none"
+            amount_to_charge = fee_map.get(student_section)
 
             if amount_to_charge:
-                _, created = Invoice.objects.get_or_create(
+                # Use update_or_create if you want to force an update, 
+                # or get_or_create to skip if already billed.
+                obj, created = Invoice.objects.get_or_create(
                     student=student,
                     term=term,
                     year=year,
@@ -79,46 +94,140 @@ def run_bulk_billing(request):
                 if created:
                     count += 1
             else:
-                # This happens if a student is Boarding but you only set a Day fee
+                print(f"DEBUG: Skipping {student.first_name} - No fee found for section '{student_section}'")
                 skipped += 1
         
         if count > 0:
-            messages.success(request, f"Generated {count} invoices. {skipped} students skipped (missing section fee).")
+            messages.success(request, f"Generated {count} invoices. {skipped} students skipped.")
         else:
-            messages.warning(request, "No new invoices were created. They might already exist.")
+            messages.warning(request, f"Zero invoices created. {skipped} students had no matching fee structure.")
             
         return redirect('finance:dashboard')
 
     classrooms = Classroom.objects.filter(school=request.school)
     return render(request, 'finance/bulk_bill.html', {'classrooms': classrooms})
 
+
+
 from django.shortcuts import render, redirect, get_object_or_404
 from .models import Invoice, Payment
 from .forms import PaymentForm
 
-def record_payment(request, invoice_id):
-    invoice = get_object_or_404(Invoice, id=invoice_id, school=request.school)
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from .models import Invoice, Payment
+from .forms import PaymentForm
+from .utils import send_payment_receipt_email  # Ensure this matches your file structure
+
+# def record_payment(request, invoice_id):
+#     # Fetch the invoice ensuring it belongs to the current school/tenant
+#     invoice = get_object_or_404(Invoice, id=invoice_id, school=request.school)
     
-    if request.method == 'POST':
-        form = PaymentForm(request.POST)
-        if form.is_valid():
-            payment = form.save(commit=False)
-            payment.invoice = invoice
-            payment.school = request.school
-            payment.save()
-            messages.success(request, f"Payment of {payment.amount_paid} recorded for {invoice.student}")
-            return redirect('finance:receipt_detail', payment_id=payment.id)
-    else:
-        # Suggest the remaining balance as the default payment amount
-        form = PaymentForm(initial={'amount_paid': invoice.balance})
+#     if request.method == 'POST':
+#         form = PaymentForm(request.POST)
+#         if form.is_valid():
+#             # 1. Prepare payment instance without saving to DB yet
+#             payment = form.save(commit=False)
+            
+#             # 2. Assign relationships and Audit data
+#             payment.invoice = invoice
+#             payment.school = request.school
+#             payment.recorded_by = request.user  # Captures the staff member 'serving' the user
+            
+#             # 3. Save to DB (triggers receipt_number generation & invoice total updates)
+#             payment.save()
+            
+#             # 4. Trigger the branded email receipt
+#             success = send_payment_receipt_email(request, payment)
+            
+#             # 5. Provide feedback to the staff member
+#             if success:
+#                 messages.success(request, f"Payment of {payment.amount_paid} recorded and receipt sent to parent.")
+#             else:
+#                 messages.warning(request, f"Payment of {payment.amount_paid} recorded, but receipt email failed to send.")
+            
+#             return redirect('finance:receipt_detail', payment_id=payment.id)
+            
+#     else:
+#         # Default the payment amount to the remaining invoice balance
+#         form = PaymentForm(initial={'amount_paid': invoice.balance})
         
-    return render(request, 'finance/record_payment.html', {'form': form, 'invoice': invoice})
+#     return render(request, 'finance/record_payment.html', {
+#         'form': form, 
+#         'invoice': invoice
+#     })
 
 def receipt_detail(request, payment_id):
     payment = get_object_or_404(Payment, id=payment_id, school=request.school)
     return render(request, 'finance/receipt.html', {'payment': payment})
 
 
+
+import logging
+from django.contrib.sites.shortcuts import get_current_site
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+from django.utils import timezone
+from django.conf import settings
+
+# Get an instance of a logger
+logger = logging.getLogger(__name__)
+
+def send_payment_receipt_email(request, payment):
+    try:
+        current_site = get_current_site(request)
+        school = request.school 
+        
+        # 1. VALIDATE RECIPIENTS (The #1 reason emails fail)
+        recipients = []
+        
+        # Check parent email
+        if payment.invoice.student.parent_email:
+            recipients.append(payment.invoice.student.parent_email)
+        
+        # Check school email
+        if school.email:
+            recipients.append(school.email)
+
+        if not recipients:
+            logger.warning(f"No recipients found for Payment {payment.receipt_number}. Email skipped.")
+            return False
+
+        # 2. PREPARE CONTENT
+        subject = f"Receipt {payment.receipt_number} from {school.name}"
+        context = {
+            'payment': payment,
+            'school': school,
+            'protocol': 'https' if request.is_secure() else 'http',
+            'domain': current_site.domain,
+            'now': timezone.now(),
+        }
+        
+        html_content = render_to_string('finance/emails/receipt_email.html', context)
+        text_content = strip_tags(html_content)
+        
+        # 3. CONSTRUCT EMAIL
+        # Format the 'From' address properly: "School Name <system@mail.com>"
+        from_email = f"{school.name} <{settings.DEFAULT_FROM_EMAIL}>"
+        
+        email = EmailMultiAlternatives(
+            subject, 
+            text_content, 
+            from_email, 
+            recipients
+        )
+        email.attach_alternative(html_content, "text/html")
+        
+        # 4. SEND
+        email.send(fail_silently=False)
+        logger.info(f"Email sent successfully for {payment.receipt_number} to {recipients}")
+        return True
+
+    except Exception as e:
+        # This will show up in your terminal/logs
+        logger.error(f"Failed to send receipt email for {payment.receipt_number}: {str(e)}")
+        return False
 
 from django.db.models import F, Sum
 from django.shortcuts import render
@@ -152,38 +261,32 @@ def defaulters_report(request):
     return render(request, 'finance/defaulters_list.html', context)
 
 
-# finance/views.py
-from decimal import Decimal  # Add this import at the top
-
-from django.shortcuts import get_object_or_404, render, redirect
-from django.contrib import messages
-from django.db import transaction  # Crucial for financial safety
-from decimal import Decimal
-from .models import Invoice, Payment, Account
-
 from decimal import Decimal
 from django.db import transaction
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from .models import Invoice, Payment, Account
+from .utils import send_payment_receipt_email  # Import your email utility
+
 def record_payment(request, invoice_id):
     invoice = get_object_or_404(Invoice, id=invoice_id, school=request.school)
     
     if request.method == "POST":
         try:
             with transaction.atomic():
-                # 1. Map incoming POST data to local variables
+                # 1. Map incoming POST data
                 amount_val = Decimal(request.POST.get('amount'))
                 target_account = get_object_or_404(Account, id=request.POST.get('account'), school=request.school)
 
-                # 2. Create the payment using the CORRECT field names
-                Payment.objects.create(
+                # 2. Create the payment record
+                payment = Payment.objects.create(
                     school=request.school,
                     invoice=invoice,
-                    amount_paid=amount_val,         # Maps 'amount' -> 'amount_paid'
-                    payment_method=request.POST.get('method'), # Maps 'method' -> 'payment_method'
-                    transaction_id=request.POST.get('reference'), # Maps 'reference' -> 'transaction_id'
+                    amount_paid=amount_val,
+                    payment_method=request.POST.get('method'),
+                    transaction_id=request.POST.get('reference'),
                     depositor=request.POST.get('depositor'),
+                    phone_number=request.POST.get('phone_number'), # Added phone
                     recorded_by=request.user,
                     status='Completed'
                 )
@@ -193,19 +296,35 @@ def record_payment(request, invoice_id):
                 target_account.save()
 
                 # 4. Update the Invoice Balance
-                # Note: Ensure your Invoice model uses 'paid_amount' or update to 'amount_paid'
+                # Ensure your model field name is correct (paid_amount vs amount_paid)
                 invoice.paid_amount += amount_val 
                 invoice.save()
 
-            messages.success(request, f"Successfully recorded UGX {amount_val:,.0f} for {invoice.student.first_name}.")
+            # 5. TRIGGER EMAIL (Outside the atomic block is safer for performance)
+            email_success = send_payment_receipt_email(request, payment)
+
+            if email_success:
+                messages.success(request, f"Successfully recorded UGX {amount_val:,.0f}. Receipt sent to parent.")
+            else:
+                messages.success(request, f"Payment recorded, but receipt email skipped (check parent email address).")
+            
             return redirect('finance:dashboard')
 
         except Exception as e:
             messages.error(request, f"Error processing payment: {str(e)}")
             return redirect('finance:record_payment', invoice_id=invoice.id)
 
+    # Filter for Asset accounts (Cash, Bank, Mobile Money)
     accounts = Account.objects.filter(school=request.school, account_type__iexact='Asset').order_by('name')
-    return render(request, 'finance/record_payment.html', {'invoice': invoice, 'accounts': accounts})
+    
+    context = {
+        'invoice': invoice, 
+        'accounts': accounts,
+        'remaining_balance': invoice.balance # Useful for the frontend template
+    }
+    return render(request, 'finance/record_payment.html', context)
+
+
 
 from django.shortcuts import render, redirect
 from django.contrib import messages
@@ -327,7 +446,7 @@ from .models import Invoice, Payment
 
 from django.shortcuts import render, get_object_or_404
 from django.utils import timezone
-from .models import Student, Invoice, Payment
+
 
 from django.shortcuts import render, get_object_or_404
 from django.utils import timezone
@@ -391,47 +510,69 @@ def student_statement(request, student_id):
     })
 from django.shortcuts import render, redirect
 from django.contrib import messages
-from students.models import Classroom
-from students.forms import ClassroomForm
+from students.models import Classroom, Stream
+from students.forms import ClassroomForm, StreamForm
 from .models import FeeStructure
 from .forms import FeeStructureForm
 
 def school_settings_hub(request):
-    # 1. Fetch data for the lists (Tenancy filter is critical)
-    classrooms = Classroom.objects.filter(school=request.school)
-    fee_structures = FeeStructure.objects.filter(school=request.school).order_by('-year', 'term')
+    school = request.school
+    
+    # 1. Fetch data for the dashboard
+    classrooms = Classroom.objects.filter(school=school).order_by('level')
+    streams = Stream.objects.filter(school=school)
+    fee_structures = FeeStructure.objects.filter(school=school).select_related('classroom').order_by('-year', 'term')
 
-    # 2. Handle POST requests
+    # 2. Initialize forms (Default to empty)
+    class_form = ClassroomForm(school=school)
+    stream_form = StreamForm(school=school)
+    fee_form = FeeStructureForm(school=school)
+
+    # 3. Handle POST requests
     if request.method == "POST":
         form_type = request.POST.get('form_type')
 
         if form_type == "classroom":
-            form = ClassroomForm(request.POST, school=request.school)
-            if form.is_valid():
-                obj = form.save(commit=False)
-                obj.school = request.school
+            class_form = ClassroomForm(request.POST, school=school)
+            if class_form.is_valid():
+                obj = class_form.save(commit=False)
+                obj.school = school
                 obj.save()
                 messages.success(request, f"Class {obj.name} added successfully!")
                 return redirect('finance:settings_hub')
 
+        elif form_type == "stream":
+            stream_form = StreamForm(request.POST, school=school)
+            if stream_form.is_valid():
+                obj = stream_form.save(commit=False)
+                obj.school = school
+                obj.save()
+                messages.success(request, f"Stream {obj.name} added!")
+                return redirect('finance:settings_hub')
+
         elif form_type == "fee_structure":
-            form = FeeStructureForm(request.POST, school=request.school)
-            if form.is_valid():
-                obj = form.save(commit=False)
-                obj.school = request.school
+            fee_form = FeeStructureForm(request.POST, school=school)
+            if fee_form.is_valid():
+                obj = fee_form.save(commit=False)
+                obj.school = school
                 obj.save()
                 messages.success(request, "Fee structure updated!")
                 return redirect('finance:settings_hub')
+        
+        # If any form is invalid, the code continues to the render() 
+        # carrying the 'form' instances (with their error messages).
 
-    # 3. Initialize empty forms for GET request
     context = {
-        'class_form': ClassroomForm(school=request.school),
-        'fee_form': FeeStructureForm(school=request.school),
+        'class_form': class_form,
+        'stream_form': stream_form,
+        'fee_form': fee_form,
         'classrooms': classrooms,
+        'streams': streams,
         'fee_structures': fee_structures,
-        'fee.school': request.school
     }
     return render(request, 'finance/settings_hub.html', context)
+
+
 
 
 
