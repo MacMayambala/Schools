@@ -18,5 +18,6 @@ urlpatterns = [
     path('invoice/<int:invoice_id>/print/', views.print_invoice, name='print_invoice'),
     path('momo-webhook/', views.momo_webhook, name='momo_webhook'),
     path('payment/<int:payment_id>/status/', views.check_payment_status, name='check_status'),
+    path('bulk-sms-reminders/', views.bulk_sms_reminder_view, name='bulk_sms_reminders'),
 
 ]

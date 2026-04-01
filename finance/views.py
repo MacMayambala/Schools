@@ -689,3 +689,39 @@ def school_settings_hub(request):
         'fee_form': FeeStructureForm(school=school),
     }
     return render(request, 'finance/settings_hub.html', context)
+
+
+
+
+from django.shortcuts import redirect
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from .utils import send_bulk_fee_reminders
+
+@login_required
+def bulk_sms_reminder_view(request):
+    """
+    View to trigger bulk SMS reminders for all students with arrears.
+    """
+    # Optional: Get classroom_id from GET parameters if filtering by class
+    classroom_id = request.GET.get('classroom_id')
+    
+    # Call the utility function
+    sent, failed, status_msg = send_bulk_fee_reminders(request, classroom_id)
+    
+    if sent > 0:
+        messages.success(request, f"Successfully sent {sent} fee reminders.")
+    
+    if failed > 0:
+        # If some failed (usually due to balance or invalid phone numbers)
+        messages.warning(request, f"Failed to send {failed} messages. Status: {status_msg}")
+    
+    if sent == 0 and failed == 0:
+        messages.info(request, "No students with outstanding balances were found.")
+
+    # Redirect back to the finance dashboard or student list
+    return redirect(request.META.get('HTTP_REFERER', 'finance:dashboard'))
+
+
+
+

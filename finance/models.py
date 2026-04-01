@@ -190,3 +190,36 @@ class Account(models.Model): # Or TenantModel
 
 
 
+# finance/models.py or core/models.py
+from django.db import models
+
+class SMSConfig(models.Model):
+    school = models.OneToOneField('core.School', on_delete=models.CASCADE, related_name='sms_config')
+    balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    cost_per_sms = models.DecimalField(max_digits=10, decimal_places=2, default=100.00)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.school.name} - Balance: {self.balance}"
+
+    @property
+    def remaining_messages(self):
+        """Calculates how many SMS units are left based on 100/= cost"""
+        if self.balance > 0:
+            return int(self.balance // self.cost_per_sms)
+        return 0
+    
+
+
+# finance/models.py
+
+class SMSTransaction(models.Model):
+    school = models.ForeignKey('core.School', on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    transaction_type = models.CharField(max_length=10, choices=[('TOPUP', 'Top Up'), ('DEBIT', 'SMS Sent')])
+    description = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    performed_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True)
+
+    def __str__(self):
+        return f"{self.school.name} - {self.amount} ({self.transaction_type})"

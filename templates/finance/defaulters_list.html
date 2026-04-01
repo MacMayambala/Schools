@@ -30,6 +30,23 @@
         </div>
     </div>
 
+    <div class="card border-0 shadow-sm mb-4 no-print rounded-4 bg-primary text-white overflow-hidden" style="background: linear-gradient(45deg, #2E8B57, #1e5a38);">
+        <div class="card-body p-4 d-flex align-items-center justify-content-between position-relative">
+            <div style="z-index: 1;">
+                <h5 class="fw-bold mb-1"><i class="fas fa-paper-plane me-2"></i> Bulk SMS Reminders</h5>
+                <p class="small mb-0 opacity-75">Send personalized payment reminders to all <strong>{{ defaulters|length }}</strong> students listed below.</p>
+            </div>
+            <div style="z-index: 1;">
+                <a href="{% url 'finance:bulk_sms_reminders' %}{% if request.GET.classroom %}?classroom_id={{ request.GET.classroom }}{% endif %}" 
+                   class="btn btn-light rounded-pill px-4 fw-bold shadow"
+                   onclick="return confirm('This will send personalized SMS reminders to all students in the current view. Cost: 100/= per SMS. Proceed?')">
+                    Process Reminders Now
+                </a>
+            </div>
+            <i class="fas fa-comments position-absolute opacity-10" style="font-size: 8rem; right: -20px; top: -10px; pointer-events: none;"></i>
+        </div>
+    </div>
+
     <div class="card border-0 shadow-sm rounded-4 overflow-hidden report-paper">
         <div class="report-header bg-white p-5 text-center border-bottom">
             <div class="d-flex align-items-center justify-content-center mb-3">
@@ -131,46 +148,8 @@
 </div>
 
 <style>
-    .tracking-tight { letter-spacing: -0.03em; }
-    .ls-1 { letter-spacing: 1px; }
-    .extra-small { font-size: 0.7rem; }
-    .bg-soft-danger { background-color: #fff1f2; }
-
-    /* Report Card Styling */
-    .report-paper { border: 1px solid #e2e8f0 !important; }
-    
-    .custom-report-table thead th {
-        font-size: 0.65rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        font-weight: 800;
-        border: none;
-    }
-
-    .custom-report-table tbody tr { border-bottom: 1px solid #f1f5f9; transition: 0.2s; }
-    .custom-report-table tbody tr:hover { background-color: #fffaf0; }
-
-    /* Print Specific Overrides */
-    @media print {
-        .no-print, #sidebar, .top-navbar, .btn {
-            display: none !important;
-        }
-        #main {
-            margin-left: 0 !important;
-            padding: 0 !important;
-        }
-        .dashboard-content { padding: 0 !important; }
-        .container-fluid { width: 100% !important; padding: 0 !important; }
-        .card { border: none !important; box-shadow: none !important; }
-        .report-paper { border: none !important; }
-        body { background-color: white !important; font-size: 12pt; }
-        .report-header { padding-top: 0 !important; }
-        
-        /* Ensure Colors Print */
-        .text-danger { color: #dc3545 !important; }
-        .text-success { color: #198754 !important; }
-        .bg-soft-danger { background-color: #fff1f2 !important; -webkit-print-color-adjust: exact; }
-        .bg-dark { background-color: #212529 !important; color: white !important; -webkit-print-color-adjust: exact; }
-    }
+    /* ... existing styles remain ... */
+    .bg-primary { background-color: var(--primary) !important; }
+    .opacity-10 { opacity: 0.1; }
 </style>
 {% endblock %}

@@ -111,3 +111,52 @@ class PaymentAdmin(admin.ModelAdmin):
     list_filter = ('payment_method', 'status', 'date_paid', 'school')
     search_fields = ('receipt_number', 'invoice__invoice_number', 'invoice__student__first_name', 'transaction_id')
     readonly_fields = ('receipt_number', 'date_paid')
+
+
+from django.contrib import admin
+from .models import SMSConfig, SMSTransaction
+
+# finance/admin.py
+
+@admin.register(SMSConfig)
+class SMSConfigAdmin(admin.ModelAdmin):
+    # What columns to show in the list view
+    list_display = ('school', 'balance', 'cost_per_sms', 'last_updated')
+    search_fields = ('school__name',)
+    
+    # Notice the (self, obj) here - 'obj' is the specific SMSConfig record
+    def last_updated(self, obj):
+        # Change 'updated_at' to whatever date field you have in your SMSConfig model
+        # If you don't have an updated_at field yet, use 'obj.id' just to test
+        return obj.updated_at if hasattr(obj, 'updated_at') else "No record"
+    
+    last_updated.short_description = "Last Top-up"
+
+# finance/admin.py
+from django.contrib import admin
+from .models import SMSTransaction
+
+@admin.register(SMSTransaction)
+class SMSTransactionAdmin(admin.ModelAdmin):
+    list_display = ('school', 'transaction_type', 'amount', 'created_at', 'performed_by')
+    list_filter = ('transaction_type', 'created_at')
+    search_fields = ('school__name', 'description')
+    ordering = ('-created_at',)
+
+    def get_readonly_fields(self, request, obj=None):
+        """
+        If we are editing an existing transaction (obj is not None), 
+        make everything read-only to protect the audit trail.
+        If we are creating a new one, let us fill in the details.
+        """
+        if obj: # This is an existing record
+            return ('school', 'amount', 'transaction_type', 'description', 'created_at', 'performed_by')
+        return ('created_at', 'performed_by') # Only system-generated fields are read-only during creation
+
+    def save_model(self, request, obj, form, change):
+        """
+        Automatically set the 'performed_by' field to the logged-in admin.
+        """
+        if not change: # If this is a new record
+            obj.performed_by = request.user
+        super().save_model(request, obj, form, change)
