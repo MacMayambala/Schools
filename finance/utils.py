@@ -4,6 +4,17 @@ import requests
 import uuid
 from django.conf import settings
 
+import os
+from dotenv import load_dotenv
+
+# Load variables from .env
+load_dotenv()
+
+# Access the hidden data
+api_id = os.getenv("SPEEDA_API_ID")
+api_password = os.getenv("SPEEDA_API_PASSWORD")
+sender_id = os.getenv("SPEEDA_SENDER_ID")
+
 def trigger_momo_payment(phone, amount, invoice_id):
     """
     Sends a request to the MoMo Gateway to prompt the parent for a PIN.
@@ -152,14 +163,15 @@ def send_fee_reminder_sms(request, student):
 
     # 5. Call SpeedaMobile API
     url = "http://apidocs.speedamobile.com/api/SendSMS"
+    
     payload = {
-        "api_id": "API67606975827", 
-        "api_password": "Admin@sao256",
+        "api_id": api_id, 
+        "api_password": api_password,
         "sms_type": "P",
         "encoding": "T",
-        "sender_id": "BULKSMS",
+        "sender_id": sender_id,
         "phonenumber": formatted_phone,
-        "textmessage": message_text[:160], # Hard limit to 1 SMS segment
+        "textmessage": message_text[:160],
     }
 
     try:
