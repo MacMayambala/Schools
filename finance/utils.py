@@ -113,7 +113,7 @@ from django.contrib import messages
 from django.utils import timezone
 
 # Adjust these imports based on your actual app names
-from .models import SMSConfig
+from .models import SMSConfig, SMSTransaction
 from students.models import Student
 
 # Initialize Logger
