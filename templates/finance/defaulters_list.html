@@ -1,155 +1,261 @@
 {% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
 
 {% block title %}Defaulters List | {{ request.school.name }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-2">
-    <div class="card border-0 shadow-sm mb-4 no-print rounded-4">
-        <div class="card-body p-4">
-            <form method="GET" class="row g-3 align-items-end">
-                <div class="col-md-4">
-                    <label class="extra-small fw-bold text-uppercase text-muted ls-1 mb-2 d-block">Filter by Classroom</label>
-                    <select name="classroom" class="form-select border-0 bg-light fw-semibold py-2 shadow-none">
-                        <option value="">All Institutional Classes</option>
-                        {% for c in classrooms %}
-                        <option value="{{ c.id }}" {% if request.GET.classroom == c.id|stringformat:"i" %}selected{% endif %}>{{ c.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <button type="submit" class="btn btn-primary w-100 fw-bold py-2 rounded-3 shadow-sm">
-                        <i class="fas fa-filter me-2"></i> Update List
-                    </button>
-                </div>
-                <div class="col-md-3 ms-auto text-end">
-                    <button onclick="window.print()" class="btn btn-dark w-100 fw-bold py-2 rounded-3 shadow">
-                        <i class="fas fa-print me-2 text-accent"></i> Print Official Report
-                    </button>
-                </div>
-            </form>
+<div class="container-fluid py-4">
+
+    <!-- Header -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-5 gap-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-2 small">
+                    <li class="breadcrumb-item"><a href="{% url 'core:index' %}" class="text-muted text-decoration-none">Dashboard</a></li>
+                    <li class="breadcrumb-item active fw-semibold" style="color: var(--primary);">Defaulters</li>
+                </ol>
+            </nav>
+            <h1 class="display-6 fw-bold tracking-tight text-dark mb-1">Outstanding Debtors List</h1>
+            <p class="text-muted mb-0">Students with unpaid fees as of {% now "F Y" %}</p>
+        </div>
+
+        <div class="d-flex gap-3 no-print">
+            <button onclick="window.print()" class="btn btn-outline-primary px-4">
+                <i class="fas fa-print me-2"></i> Print Report
+            </button>
+            
+            <a href="{% url 'finance:bulk_sms_reminders' %}{% if request.GET.classroom %}?classroom={{ request.GET.classroom }}{% endif %}" 
+               class="btn btn-primary rounded-pill px-4 fw-bold" id="sendSmsBtn">
+                <i class="fas fa-paper-plane me-2"></i> Send SMS Reminders
+            </a>
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm mb-4 no-print rounded-4 bg-primary text-white overflow-hidden" style="background: linear-gradient(45deg, #2E8B57, #1e5a38);">
-        <div class="card-body p-4 d-flex align-items-center justify-content-between position-relative">
-            <div style="z-index: 1;">
-                <h5 class="fw-bold mb-1"><i class="fas fa-paper-plane me-2"></i> Bulk SMS Reminders</h5>
-                <p class="small mb-0 opacity-75">Send personalized payment reminders to all <strong>{{ defaulters|length }}</strong> students listed below.</p>
+    <!-- Search + Filter -->
+    <div class="glass-card p-4 mb-4 no-print">
+        <div class="row g-3 align-items-center">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                    <input type="text" id="searchInput" class="form-control form-control-lg" 
+                           placeholder="Search student name or admission number..." onkeyup="filterTable()">
+                </div>
             </div>
-            <div style="z-index: 1;">
-                <a href="{% url 'finance:bulk_sms_reminders' %}{% if request.GET.classroom %}?classroom_id={{ request.GET.classroom }}{% endif %}" 
-                   class="btn btn-light rounded-pill px-4 fw-bold shadow"
-                   onclick="return confirm('This will send personalized SMS reminders to all students in the current view. Cost: 100/= per SMS. Proceed?')">
-                    Process Reminders Now
-                </a>
+            <div class="col-md-3">
+                <select name="classroom" onchange="this.form.submit()" class="form-select form-select-lg">
+                    <option value="">All Classes</option>
+                    {% for c in classrooms %}
+                    <option value="{{ c.id }}" {% if request.GET.classroom == c.id|stringformat:"i" %}selected{% endif %}>
+                        {{ c.name }}
+                    </option>
+                    {% endfor %}
+                </select>
             </div>
-            <i class="fas fa-comments position-absolute opacity-10" style="font-size: 8rem; right: -20px; top: -10px; pointer-events: none;"></i>
+            <div class="col-md-3 text-end">
+                <span class="badge bg-danger-subtle text-danger px-4 py-2 fs-6">
+                    {{ total_defaulters }} Defaulters
+                </span>
+            </div>
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm rounded-4 overflow-hidden report-paper">
-        <div class="report-header bg-white p-5 text-center border-bottom">
-            <div class="d-flex align-items-center justify-content-center mb-3">
-                {% if request.school.logo %}
-                    <img src="{{ request.school.logo.url }}" alt="Logo" style="height: 80px;" class="me-4">
+    <!-- Table -->
+    <div class="glass-card">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="defaultersTable">
+                <thead class="table-light">
+                    <tr class="text-uppercase extra-small fw-bold text-muted ls-1">
+                        <th class="ps-4 py-4">Student</th>
+                        <th>Class</th>
+                        <th>Billed</th>
+                        <th>Paid</th>
+                        <th class="text-end pe-4">Balance Due</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for inv in defaulters %}
+                    <tr class="defaulter-row">
+                        <td class="ps-4">
+                            <a href="{% url 'finance:student_statement' inv.student.id %}" class="text-decoration-none">
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-box me-3">
+                                        {% if inv.student.photo %}
+                                            <img src="{{ inv.student.photo.url }}" alt="{{ inv.student.full_name }}">
+                                        {% else %}
+                                            {{ inv.student.first_name|first }}{{ inv.student.last_name|first }}
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <div class="fw-semibold text-dark">{{ inv.student.get_full_name }}</div>
+                                        <small class="text-muted">{{ inv.student.admission_number }}</small>
+                                    </div>
+                                </div>
+                            </a>
+                        </td>
+                        <td><span class="badge bg-dark border">{{ inv.student.classroom.name }}</span></td>
+                        <td>UGX {{ inv.total_amount|floatformat:0|intcomma }}</td>
+                        <td class="text-success fw-medium">UGX {{ inv.paid_amount|floatformat:0|intcomma }}</td>
+                        <td class="text-end pe-4 fw-bold text-danger">
+                            UGX {{ inv.balance|floatformat:0|intcomma }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5">
+                            <i class="fas fa-check-circle fa-4x text-success opacity-25 mb-3"></i>
+                            <h5 class="text-muted">All Clear!</h5>
+                            <p class="text-muted small">No defaulters found.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Professional Green Pagination - Right Corner -->
+    <div class="d-flex justify-content-end mt-5 no-print">
+        {% if is_paginated %}
+        <nav aria-label="Page navigation">
+            <ul class="pagination pagination-green">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% if request.GET.classroom %}&classroom={{ request.GET.classroom }}{% endif %}">First</a>
+                </li>
                 {% endif %}
-                <div class="text-start">
-                    <h2 class="fw-extrabold mb-0 text-dark tracking-tight">{{ request.school.name|upper }}</h2>
-                    <p class="text-muted small mb-0">{{ request.school.address|default:"School Management System Portal" }}</p>
-                    <p class="text-muted extra-small fw-bold mb-0">Contact: {{ request.school.phone|default:"+256 XXX XXX XXX" }}</p>
-                </div>
-            </div>
-            
-            <div class="py-3 px-4 bg-soft-danger d-inline-block rounded-pill mt-3">
-                <h5 class="text-danger fw-bold mb-0 text-uppercase ls-1">
-                    <i class="fas fa-exclamation-circle me-2"></i> Fee Defaulters List - {% now "F Y" %}
-                </h5>
-            </div>
-            
-            <div class="row mt-4 pt-2">
-                <div class="col-md-4 offset-md-4">
-                    <div class="border-bottom pb-2">
-                        <p class="extra-small text-muted text-uppercase fw-bold mb-1">Total Outstanding Arrears</p>
-                        <h4 class="fw-bold text-danger mb-0">UGX {{ actual_balance|default:"0" }}</h4>
-                    </div>
-                </div>
-            </div>
-        </div>
 
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table align-middle mb-0 custom-report-table">
-                    <thead>
-                        <tr class="bg-dark text-white">
-                            <th class="ps-4 py-3">Adm No.</th>
-                            <th>Student Name</th>
-                            <th>Classroom</th>
-                            <th>Total Billed</th>
-                            <th>Amount Paid</th>
-                            <th class="pe-4 text-end">Balance Due</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for inv in defaulters %}
-                        <tr>
-                            <td class="ps-4 font-monospace small fw-bold text-muted">{{ inv.student.admission_number }}</td>
-                            <td>
-                                <div class="fw-bold text-dark">{{ inv.student.get_full_name }}</div>
-                                <div class="extra-small text-muted">Ref: #INV-{{ inv.id }}</div>
-                            </td>
-                            <td>
-                                <span class="badge bg-light text-dark border fw-bold">{{ inv.student.classroom.name }}</span>
-                            </td>
-                            <td class="fw-semibold">UGX {{ inv.total_amount|floatformat:0 }}</td>
-                            <td class="text-success fw-bold">UGX {{ inv.paid_amount|floatformat:0 }}</td>
-                            <td class="pe-4 text-end">
-                                <span class="text-danger fw-extrabold" style="font-size: 1.05rem;">
-                                    UGX {{ inv.balance|floatformat:0 }}
-                                </span>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="6" class="text-center py-5">
-                                <i class="fas fa-check-circle fa-3x text-light mb-3"></i>
-                                <h5 class="text-muted fw-bold">Excellent! No defaulters found.</h5>
-                                <p class="text-muted small">All accounts for this selection are cleared.</p>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+                <!-- Show first page -->
+                <li class="page-item {% if page_obj.number == 1 %}active{% endif %}">
+                    <a class="page-link" href="?page=1{% if request.GET.classroom %}&classroom={{ request.GET.classroom }}{% endif %}">1</a>
+                </li>
 
-        <div class="card-footer bg-white p-5 border-0">
-            <div class="row align-items-end">
-                <div class="col-6">
-                    <div style="width: 200px; border-bottom: 2px solid #dee2e6;" class="mb-2"></div>
-                    <p class="small fw-bold text-dark mb-0">Bursar / Financial Controller</p>
-                    <p class="extra-small text-muted mb-0 italic">Signature & Date</p>
-                </div>
-                <div class="col-6 text-end">
-                    <div style="width: 200px; border-bottom: 2px solid #dee2e6; margin-left: auto;" class="mb-2"></div>
-                    <p class="small fw-bold text-dark mb-0">Headteacher's Office</p>
-                    <p class="extra-small text-muted mb-0">Official School Stamp</p>
-                </div>
+                <!-- Ellipsis if needed -->
+                {% if page_obj.number > 3 %}
+                <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+
+                <!-- Middle pages -->
+                {% for num in page_obj.paginator.page_range %}
+                    {% if num > page_obj.number|add:"-2" and num < page_obj.number|add:"2" and num != 1 and num != page_obj.paginator.num_pages %}
+                    <li class="page-item {% if num == page_obj.number %}active{% endif %}">
+                        <a class="page-link" href="?page={{ num }}{% if request.GET.classroom %}&classroom={{ request.GET.classroom }}{% endif %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                <!-- Ellipsis before last -->
+                {% if page_obj.number < page_obj.paginator.num_pages|add:"-2" %}
+                <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+
+                <!-- Last page -->
+                {% if page_obj.paginator.num_pages > 1 %}
+                <li class="page-item {% if page_obj.number == page_obj.paginator.num_pages %}active{% endif %}">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.classroom %}&classroom={{ request.GET.classroom }}{% endif %}">{{ page_obj.paginator.num_pages }}</a>
+                </li>
+                {% endif %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.classroom %}&classroom={{ request.GET.classroom }}{% endif %}">Next</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+
+<!-- SMS Confirmation Modal -->
+<div class="modal fade" id="smsConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold">Send SMS Reminders?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            
-            <div class="mt-5 pt-4 border-top text-center">
-                <p class="extra-small text-muted">
-                    Report generated by <strong>{{ user.username }}</strong> on {% now "d/m/Y" %} at {% now "H:i" %} 
-                    <br> 
-                    <span class="fw-bold">Generated via SchoolAdmin - Architecture by MAC Technologies</span>
-                </p>
+            <div class="modal-body">
+                <p>You are about to send payment reminders to <strong id="smsCount">0</strong> students.</p>
+                <p class="text-muted small">Each SMS costs 100 UGX from your balance.</p>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+                <a href="{% url 'finance:bulk_sms_reminders' %}{% if request.GET.classroom %}?classroom={{ request.GET.classroom }}{% endif %}" 
+                   class="btn btn-primary px-5 fw-bold">Yes, Send SMS</a>
             </div>
         </div>
     </div>
 </div>
 
+<script>
+    function filterTable() {
+        const input = document.getElementById('searchInput').value.toLowerCase();
+        document.querySelectorAll('.defaulter-row').forEach(row => {
+            row.style.display = row.textContent.toLowerCase().includes(input) ? '' : 'none';
+        });
+    }
+
+    document.getElementById('sendSmsBtn').addEventListener('click', function(e) {
+        e.preventDefault();
+        const count = {{ total_defaulters|default:0 }};
+        document.getElementById('smsCount').textContent = count;
+        new bootstrap.Modal(document.getElementById('smsConfirmModal')).show();
+    });
+</script>
+
 <style>
-    /* ... existing styles remain ... */
-    .bg-primary { background-color: var(--primary) !important; }
-    .opacity-10 { opacity: 0.1; }
+    .glass-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 24px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+    }
+
+    .avatar-box {
+        width: 52px; height: 52px;
+        border-radius: 16px;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        font-weight: 700;
+        background: var(--primary-soft);
+        color: var(--primary);
+        border: 2px solid var(--border-color);
+    }
+    .avatar-box img { width: 100%; height: 100%; object-fit: cover; }
+
+    .defaulter-row:hover { background-color: var(--primary-soft) !important; }
+
+    /* Green Buttons */
+    .btn-primary, .btn-primary:hover {
+        background-color: var(--primary) !important;
+        border-color: var(--primary) !important;
+    }
+
+    /* Professional Green Pagination */
+    .pagination-green {
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    }
+    .pagination-green .page-link {
+        border: none;
+        padding: 10px 15px;
+        color: var(--text-muted);
+        font-weight: 600;
+        min-width: 38px;
+        text-align: center;
+    }
+    .pagination-green .page-item.active .page-link {
+        background-color: var(--primary);
+        color: white;
+    }
+    .pagination-green .page-link:hover {
+        background-color: var(--primary-soft);
+        color: var(--primary);
+    }
 </style>
 {% endblock %}

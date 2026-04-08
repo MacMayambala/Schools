@@ -356,3 +356,42 @@ def handle_bulk_invoicing(request, students):
 
     messages.success(request, f"Generated {count} invoices for selected students.")
     return redirect('students:registry')
+
+
+
+from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.db.models import Sum
+from .models import Student
+
+from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.db.models import Sum
+from .models import Student
+from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.db.models import Sum, F  # Import F for database expressions
+from .models import Student
+
+@login_required
+def student_profile(request, admission_number):
+    # Ensure tenant-level isolation
+    student = get_object_or_404(
+        Student, 
+        admission_number=admission_number, 
+        school=request.school
+    )
+    
+    # Calculate balance: Sum(total_amount - paid_amount)
+    # This happens directly in the database (SQL)
+    balance_data = student.invoices.aggregate(
+        total_balance=Sum(F('total_amount') - F('paid_amount'))
+    )
+    
+    total_balance = balance_data['total_balance'] or 0
+    
+    context = {
+        'student': student,
+        'total_balance': total_balance,
+    }
+    return render(request, 'students/student_profile.html', context)

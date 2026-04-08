@@ -13,20 +13,20 @@
                     <li class="breadcrumb-item active fw-semibold" style="color: var(--primary);">Academics</li>
                 </ol>
             </nav>
-            <h1 class="display-5 fw-bold tracking-tight text-dark mb-1">Academic Control Center</h1>
+            <h1 class="display-6 fw-bold tracking-tight text-dark mb-1">Academic Control Center</h1>
             <p class="text-muted mb-0">Manage subjects, classes, and academic records</p>
         </div>
 
         <div class="d-flex gap-3 flex-wrap">
-            <button onclick="window.print()" class="btn btn-white border shadow-sm px-4">
+            <button onclick="window.print()" class="btn btn-outline-secondary px-4">
                 <i class="fas fa-print me-2"></i> Print Reports
             </button>
             
-            <a href="{% url 'academic:manage_subjects' %}" class="btn btn-white border shadow-sm px-4">
+            <a href="{% url 'academic:manage_subjects' %}" class="btn btn-outline-secondary px-4">
                 <i class="fas fa-book-open me-2"></i> Manage Subjects
             </a>
 
-            <button type="button" class="btn btn-primary shadow-sm px-4" 
+            <button type="button" class="btn btn-primary shadow-sm px-4 rounded-pill" 
                     data-bs-toggle="modal" data-bs-target="#createSubjectModal">
                 <i class="fas fa-plus me-2"></i> New Subject
             </button>
@@ -36,15 +36,15 @@
     <!-- Stats -->
     <div class="row g-4 mb-5">
         <div class="col-xl-4 col-lg-6">
-            <div class="card border-0 shadow-sm rounded-4 h-100 stat-card">
+            <div class="glass-card stat-card h-100">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <h6 class="text-uppercase text-muted fw-semibold small mb-3">Total Students</h6>
+                            <p class="stat-label">Total Students</p>
                             <h2 class="fw-bold text-dark mb-0">{{ student_count|default:"0" }}</h2>
                             <p class="text-muted small mt-1">Enrolled this term</p>
                         </div>
-                        <div class="stat-icon bg-soft-primary text-primary rounded-3">
+                        <div class="stat-icon bg-primary-soft text-primary">
                             <i class="fas fa-user-graduate fa-2x"></i>
                         </div>
                     </div>
@@ -53,15 +53,15 @@
         </div>
 
         <div class="col-xl-4 col-lg-6">
-            <div class="card border-0 shadow-sm rounded-4 h-100 stat-card">
+            <div class="glass-card stat-card h-100">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <h6 class="text-uppercase text-muted fw-semibold small mb-3">Grading Progress</h6>
+                            <p class="stat-label">Grading Progress</p>
                             <h2 class="fw-bold text-dark mb-0">{{ reports_generated|default:"0" }}%</h2>
                             <p class="text-muted small mt-1">Reports completed</p>
                         </div>
-                        <div class="stat-icon bg-soft-primary text-primary rounded-3">
+                        <div class="stat-icon bg-primary-soft text-primary">
                             <i class="fas fa-chart-line fa-2x"></i>
                         </div>
                     </div>
@@ -73,15 +73,15 @@
         </div>
 
         <div class="col-xl-4 col-lg-6">
-            <div class="card border-0 shadow-sm rounded-4 h-100 stat-card">
+            <div class="glass-card stat-card h-100">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <h6 class="text-uppercase text-muted fw-semibold small mb-3">Pending Marks</h6>
+                            <p class="stat-label">Pending Marks</p>
                             <h2 class="fw-bold text-danger mb-0">{{ pending_marks|default:"0" }}</h2>
                             <p class="text-danger small fw-medium mt-1">Requires attention</p>
                         </div>
-                        <div class="stat-icon bg-soft-danger text-danger rounded-3">
+                        <div class="stat-icon bg-danger-soft text-danger">
                             <i class="fas fa-clock fa-2x"></i>
                         </div>
                     </div>
@@ -91,7 +91,7 @@
     </div>
 
     <!-- Classroom Portals -->
-    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="glass-card">
         <div class="card-header bg-white border-0 py-4 px-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
             <div>
                 <h4 class="fw-bold text-dark mb-1">Classroom Portals</h4>
@@ -181,7 +181,7 @@
                         <label class="form-label fw-medium">Class Level</label>
                         <select name="level" class="form-select form-select-lg rounded-3" required>
                             <option value="">Select Class Level</option>
-                            <!-- Add options dynamically from view -->
+                            <!-- Add options from view if needed -->
                         </select>
                     </div>
                     <div class="mb-3">
@@ -199,13 +199,40 @@
     </div>
 </div>
 
+<script>
+    // Live Search for Classrooms
+    document.getElementById('classroomSearch').addEventListener('keyup', function() {
+        const filter = this.value.toLowerCase().trim();
+        document.querySelectorAll('.classroom-row').forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(filter) ? '' : 'none';
+        });
+    });
+</script>
+
 <style>
+    .glass-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 24px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+        overflow: hidden;
+    }
+
     .stat-card {
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: all 0.3s ease;
     }
     .stat-card:hover {
-        transform: translateY(-8px);
-        box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1) !important;
+        transform: translateY(-6px);
+        box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1) !important;
+    }
+
+    .stat-label {
+        font-size: 0.78rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        color: var(--text-muted);
     }
 
     .stat-icon {
@@ -215,6 +242,7 @@
         align-items: center;
         justify-content: center;
         font-size: 1.8rem;
+        border-radius: 16px;
     }
 
     .avatar-box {
@@ -226,12 +254,12 @@
         justify-content: center;
         font-size: 1.5rem;
         font-weight: 700;
-        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-        color: white;
+        background: var(--primary-soft);
+        color: var(--primary);
     }
 
     .subject-pill {
-        background: white;
+        background: var(--card-bg);
         border: 1px solid var(--border-color);
         color: var(--text-main);
         padding: 10px 20px;
@@ -240,7 +268,6 @@
         font-size: 0.93rem;
         transition: all 0.25s ease;
         text-decoration: none;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
     .subject-pill:hover {
         background: var(--primary);
@@ -251,19 +278,5 @@
 
     .bg-soft-primary { background: var(--primary-soft); }
     .bg-soft-danger { background: rgba(239, 68, 68, 0.1); }
-
-    .extra-small { font-size: 0.75rem; }
-    .ls-1 { letter-spacing: 0.5px; }
 </style>
-
-<script>
-    // Live Search for Classrooms
-    document.getElementById('classroomSearch').addEventListener('keyup', function() {
-        const filter = this.value.toLowerCase().trim();
-        document.querySelectorAll('.classroom-row').forEach(row => {
-            const text = row.textContent.toLowerCase();
-            row.style.display = text.includes(filter) ? '' : 'none';
-        });
-    });
-</script>
 {% endblock %}

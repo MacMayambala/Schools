@@ -194,3 +194,102 @@ class MyPasswordResetConfirmView(auth_views.PasswordResetConfirmView):
 
 class MyPasswordResetCompleteView(auth_views.PasswordResetCompleteView):
     template_name = 'auth/password_reset_complete.html'
+
+
+
+
+import json
+from django.db.models import Sum
+from django.db.models.functions import TruncMonth
+from django.shortcuts import render
+from finance.models import Invoice, Payment, FeeStructure
+
+# def dashboard_view(request):
+#     # 1. Use 'created_at' to match your Model definition
+#     # 2. Filter by 'request.school' to ensure multi-tenant security
+#     monthly_revenue = Invoice.objects.filter(
+#         school=request.school, 
+#         created_at__year=2026
+#     ).annotate(
+#         month=TruncMonth('created_at')
+#     ).values('month').annotate(
+#         total=Sum('paid_amount') # Use 'paid_amount' from your model
+#     ).order_by('month')
+
+#     # Format data for JavaScript (ApexCharts)
+#     labels = [item['month'].strftime("%b") for item in monthly_revenue]
+#     # Ensure we handle None values if a month has no payments
+#     data = [float(item['total'] or 0) for item in monthly_revenue]
+
+#     context = {
+#         'labels': json.dumps(labels),
+#         'revenue_data': json.dumps(data),
+#         # Adding some extra KPIs for a more professional dashboard
+#         'total_revenue': sum(data),
+#         'student_count': request.school.student_set.count() if hasattr(request.school, 'student_set') else 0,
+#     }
+    
+#     return render(request, 'core/index.html', context)
+
+
+import json
+from django.db.models import Sum
+from django.db.models.functions import TruncMonth
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
+from finance.models import Invoice
+from students.models import Student  # Ensure Student is imported
+
+@login_required
+def dashboard_view(request):
+    """
+    Unified Dashboard for Saozirobwe:
+    Combines high-level KPIs with graphical revenue trends.
+    """
+    school = request.school  # Handled by your SchoolMiddleware
+
+    # --- 1. KPI Metrics (The Big Numbers) ---
+    student_count = Student.objects.filter(school=school).count()
+    
+    finance_stats = Invoice.objects.filter(school=school).aggregate(
+        total_expected=Sum('total_amount'),
+        total_paid=Sum('paid_amount')
+    )
+    
+    expected = finance_stats['total_expected'] or 0
+    paid = finance_stats['total_paid'] or 0
+    balance = expected - paid
+
+    # --- 2. Graphical Data (Monthly Revenue Trend) ---
+    # We use created_at to group by month for the current year
+    monthly_revenue = Invoice.objects.filter(
+        school=school, 
+        created_at__year=2026
+    ).annotate(
+        month=TruncMonth('created_at')
+    ).values('month').annotate(
+        total=Sum('paid_amount')
+    ).order_by('month')
+
+    # Prep for ApexCharts
+    labels = [item['month'].strftime("%b") for item in monthly_revenue]
+    chart_data = [float(item['total'] or 0) for item in monthly_revenue]
+
+    # --- 3. Recent Activity (The Feed) ---
+    recent_invoices = Invoice.objects.filter(school=school).order_by('-id')[:5]
+
+    context = {
+        # KPI Cards
+        'student_count': student_count,
+        'total_fees': paid,
+        'balance': balance,
+        
+        # Chart Data
+        'labels': json.dumps(labels),
+        'revenue_data': json.dumps(chart_data),
+        
+        # Tables
+        'recent_invoices': recent_invoices,
+    }
+    
+    return render(request, 'core/index.html', context)

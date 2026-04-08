@@ -4,176 +4,597 @@
 {% block title %}Report | {{ student.get_full_name }}{% endblock %}
 
 {% block content %}
-<div class="report-wrapper bg-light py-4 py-lg-5">
-    <div class="report-card position-relative bg-white shadow-lg mx-auto" id="printableReport">
-        
-        <div class="watermark text-uppercase">
-            {{ school.motto|default:"Your Vision, Our Code" }}
+
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<div class="report-wrapper">
+
+    <!-- Floating action bar -->
+    <div class="action-bar d-print-none">
+        <div class="action-bar-inner">
+            <div class="action-label">
+                <span class="dot"></span>
+                {{ student.get_full_name }} &mdash; {{ term }}, {{ year }}
+            </div>
+            <div class="action-buttons">
+                <button onclick="window.print()" class="action-btn btn-outline-action">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                    Print
+                </button>
+                <a href="?download=pdf" class="action-btn btn-solid-action">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Download PDF
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Card -->
+    <div class="report-card" id="printableReport">
+
+        <!-- Watermark -->
+        <div class="watermark" aria-hidden="true">{{ school.motto|default:"Excellence" }}</div>
+
+        <!-- Decorative top bar -->
+        <div class="top-accent">
+            <div class="accent-block accent-dark"></div>
+            <div class="accent-block accent-mid"></div>
+            <div class="accent-block accent-light"></div>
         </div>
 
-        <div class="report-inner-padding">
-            <div class="row align-items-center mb-4 border-bottom border-3 border-dark pb-3">
-                <div class="col-2 text-start">
+        <div class="report-body">
+
+            <!-- HEADER -->
+            <header class="report-header">
+                <div class="header-logo">
                     {% if school.logo %}
-                        <img src="{{ school.logo.url }}" alt="Logo" class="school-logo-main">
+                        <img src="{{ school.logo.url }}" alt="School Logo" class="logo-img">
                     {% else %}
-                        <div class="logo-placeholder">MAC</div>
+                        <div class="logo-monogram">{{ school.name|slice:":3"|upper }}</div>
                     {% endif %}
                 </div>
-                
-                <div class="col-8 text-center">
-                    <h2 class="school-title mb-1">{{ school.name|upper }}</h2>
-                    <p class="small fw-bold mb-1 text-dark">{{ school.address|default:"KAMPALA, UGANDA" }}</p>
-                    <div class="report-label">ACADEMIC PERFORMANCE REPORT</div>
-                    <div class="mt-2 fw-bold text-primary small">
-                        {{ term|upper }} — {{ year }}
-                    </div>
+
+                <div class="header-center">
+                    <div class="school-name">{{ school.name|upper }}</div>
+                    <div class="school-address">{{ school.address|default:"Kampala, Uganda" }}</div>
+                    <div class="report-badge">Academic Performance Report</div>
+                    <div class="term-pill">{{ term|upper }} &nbsp;&middot;&nbsp; {{ year }}</div>
                 </div>
 
-                <div class="col-2 text-end">
+                <div class="header-photo">
                     {% if student.photo %}
-                        <img src="{{ student.photo.url }}" alt="Student" class="student-photo border border-2 border-dark">
+                        <img src="{{ student.photo.url }}" alt="Student" class="student-photo">
+                    {% else %}
+                        <div class="photo-placeholder">
+                            {{ student.get_full_name|slice:":1"|upper }}
+                        </div>
                     {% endif %}
                 </div>
+            </header>
+
+            <!-- STUDENT META ROW -->
+            <div class="meta-strip">
+                <div class="meta-cell meta-wide">
+                    <span class="meta-label">Student Name</span>
+                    <span class="meta-value">{{ student.get_full_name|upper }}</span>
+                </div>
+                <div class="meta-divider"></div>
+                <div class="meta-cell">
+                    <span class="meta-label">Class</span>
+                    <span class="meta-value">{{ student.classroom }}</span>
+                </div>
+                <div class="meta-divider"></div>
+                <div class="meta-cell">
+                    <span class="meta-label">Average</span>
+                    <span class="meta-value highlight-val">{{ average|floatformat:1 }}%</span>
+                </div>
+                <div class="meta-divider"></div>
+                <div class="meta-cell">
+                    <span class="meta-label">Rank</span>
+                    <span class="meta-value">{{ rank }}<span class="meta-sub"> / {{ total_students }}</span></span>
+                </div>
             </div>
 
-            <div class="row g-0 mb-4 border border-2 border-dark rounded overflow-hidden">
-                <div class="col-7 border-end border-2 border-dark p-2">
-                    <div class="d-flex justify-content-between px-2">
-                        <span class="text-muted extra-small fw-bold">NAME:</span>
-                        <span class="fw-black text-dark small">{{ student.get_full_name|upper }}</span>
-                    </div>
-                </div>
-                <div class="col-5 bg-light p-2">
-                    <div class="d-flex justify-content-between px-2">
-                        <span class="text-muted extra-small fw-bold">CLASS:</span>
-                        <span class="fw-black text-dark small">{{ student.classroom }}</span>
-                    </div>
-                </div>
-            </div>
-
-            <table class="table table-bordered border-dark table-sm mb-4">
-                <thead class="bg-dark text-white text-center">
+            <!-- MARKS TABLE -->
+            <table class="marks-table">
+                <thead>
                     <tr>
-                        <th class="text-start ps-3">SUBJECT</th>
-                        <th>MID</th>
-                        <th>END</th>
-                        <th>TOT%</th>
-                        <th>GRD</th>
-                        <th class="text-start">REMARKS</th>
+                        <th class="col-subject">Subject</th>
+                        <th class="col-num">Mid</th>
+                        <th class="col-num">End</th>
+                        <th class="col-num col-total">Total</th>
+                        <th class="col-grade">Grade</th>
+                        <th class="col-remark">Remarks</th>
                     </tr>
                 </thead>
-                <tbody class="text-center align-middle">
+                <tbody>
                     {% for item in marks %}
-                    <tr style="height: 32px;">
-                        <td class="text-start fw-bold ps-3 small">{{ item.subject.name|upper }}</td>
-                        <td>{{ item.mid_term_mark|default:"0" }}</td>
-                        <td>{{ item.end_term_mark|default:"0" }}</td>
-                        <td class="fw-black bg-yellow-soft">{{ item.total_score|floatformat:0 }}</td>
-                        <td class="fw-bold">{{ item.grade }}</td>
-                        <td class="text-start extra-small text-muted">{{ item.grade_remark|default:"—" }}</td>
+                    <tr class="{% cycle 'row-even' 'row-odd' %}">
+                        <td class="subject-name">{{ item.subject.name|upper }}</td>
+                        <td class="num-cell">{{ item.mid_term_mark|default:"0" }}</td>
+                        <td class="num-cell">{{ item.end_term_mark|default:"0" }}</td>
+                        <td class="num-cell total-cell">{{ item.total_score|floatformat:0 }}</td>
+                        <td class="grade-cell">
+                            <span class="grade-badge grade-{{ item.grade|lower }}">{{ item.grade }}</span>
+                        </td>
+                        <td class="remark-cell">{{ item.grade_remark|default:"&mdash;" }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
-                <tfoot class="bg-light fw-bold">
-                    <tr>
-                        <td colspan="3" class="text-end pe-3">AVERAGE:</td>
-                        <td class="text-center">{{ average|floatformat:1 }}%</td>
-                        <td colspan="2" class="ps-3 text-danger">RANK: {{ rank }} / {{ total_students }}</td>
-                    </tr>
-                </tfoot>
             </table>
 
-            <div class="row g-3 mb-4">
-                <div class="col-7">
-                    <div class="border border-2 border-dark rounded p-3 h-100 bg-white">
-                        <h6 class="extra-small fw-black text-uppercase border-bottom pb-2 mb-2">
-                            <i class="fas fa-list-check me-1"></i> REQUIREMENTS FOR TERM {{ target_term }}
-                        </h6>
-                        <p class="extra-small mb-0 text-dark">
-                            {% if requirements %}
-                                {{ requirements.items }}
-                            {% else %}
-                                Standard school requirements apply. Contact class teacher.
-                            {% endif %}
-                        </p>
+            <!-- LOWER SECTION -->
+            <div class="lower-grid">
+
+                <div class="requirements-box">
+                    <div class="box-title">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                        Requirements &mdash; Term {{ target_term }}
+                    </div>
+                    <div class="box-content">
+                        {% if requirements %}
+                            {{ requirements.items }}
+                        {% else %}
+                            Standard school requirements apply. Please contact the class teacher for details.
+                        {% endif %}
                     </div>
                 </div>
-                <div class="col-5">
-                    <div class="border border-2 border-dark rounded p-3 h-100 text-center d-flex flex-column justify-content-center bg-light">
-                        <span class="extra-small fw-bold text-muted">FINAL DIVISION</span>
-                        <h3 class="fw-black text-dark mb-0 mt-1">{{ division|upper }}</h3>
-                    </div>
+
+                <div class="division-box">
+                    <div class="division-label">Final Division</div>
+                    <div class="division-value">{{ division|upper }}</div>
+                </div>
+
+            </div>
+
+            <!-- COMMENTS -->
+            <div class="comments-box">
+                <div class="box-title">Official Comments</div>
+                <div class="comment-row">
+                    <span class="comment-author">Class Teacher</span>
+                    <span class="comment-text">&ldquo;{{ teacher_comment }}&rdquo;</span>
+                </div>
+                <div class="comment-row">
+                    <span class="comment-author">Headteacher</span>
+                    <span class="comment-text">&ldquo;{{ headteacher_comment|default:'Good progress made this term.' }}&rdquo;</span>
                 </div>
             </div>
 
-            <div class="border border-2 border-dark rounded p-3 mb-5">
-                <div class="extra-small fw-bold border-bottom pb-2 mb-2">OFFICIAL COMMENTS</div>
-                <p class="extra-small mb-1"><strong>Class Teacher:</strong> <em>"{{ teacher_comment }}"</em></p>
-                <p class="extra-small mb-0"><strong>Headteacher:</strong> <em>"{{ headteacher_comment|default:'Good progress made.' }}"</em></p>
+            <!-- SIGNATURES -->
+            <div class="signatures">
+                <div class="sig-block">
+                    <div class="sig-line"></div>
+                    <div class="sig-label">Class Teacher</div>
+                </div>
+                <div class="sig-block stamp-block">
+                    <div class="stamp-ring">
+                        <span>OFFICIAL<br>STAMP</span>
+                    </div>
+                </div>
+                <div class="sig-block">
+                    <div class="sig-line"></div>
+                    <div class="sig-label">Headteacher</div>
+                </div>
             </div>
 
-            <div class="row text-center mt-5">
-                <div class="col-4">
-                    <div class="sig-line mx-auto"></div>
-                    <p class="extra-small fw-bold mt-2">CLASS TEACHER</p>
-                </div>
-                <div class="col-4">
-                    <div class="school-stamp mx-auto">STAMP</div>
-                </div>
-                <div class="col-4">
-                    <div class="sig-line mx-auto"></div>
-                    <p class="extra-small fw-bold mt-2">HEADTEACHER</p>
-                </div>
-            </div>
+        </div><!-- /report-body -->
+
+        <!-- Bottom accent -->
+        <div class="bottom-accent">
+            <div class="accent-block accent-light"></div>
+            <div class="accent-block accent-mid"></div>
+            <div class="accent-block accent-dark"></div>
         </div>
-    </div>
 
-    <div class="fixed-bottom text-center mb-4 d-print-none">
-        <button onclick="window.print()" class="btn btn-dark btn-lg px-5 rounded-pill shadow-lg fw-bold">
-            <i class="fas fa-print me-2"></i> Print Official PDF
-        </button>
-    </div>
-</div>
+    </div><!-- /report-card -->
+</div><!-- /report-wrapper -->
+
 
 <style>
-/* ====================== PRINT ENGINE ====================== */
+/* ============================================================
+   PRINT ENGINE
+   ============================================================ */
 @media print {
-    /* Force Browser to ignore site navigation */
-    nav, .navbar, .sidebar, aside, footer, header, .d-print-none, .btn {
-        display: none !important;
-    }
-    
-    body, html {
-        margin: 0 !important; padding: 0 !important;
-        background: white !important;
-        width: 210mm; height: 297mm;
-    }
-
-    .report-wrapper { padding: 0 !important; margin: 0 !important; background: white !important; }
-    
-    .report-card {
-        box-shadow: none !important; border: none !important;
-        width: 210mm !important; height: 297mm !important;
+    body * { visibility: hidden; }
+    #printableReport,
+    #printableReport * { visibility: visible; }
+    #printableReport {
+        position: fixed;
+        top: 0; left: 0;
+        width: 210mm !important;
+        height: 297mm !important;
         margin: 0 !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        overflow: hidden !important;
     }
-
-    /* Print colors fix */
+    body, html { margin: 0 !important; padding: 0 !important; background: white !important; }
     * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    @page { size: A4 portrait; margin: 0; }
+    .report-card, .report-body, table, tr, td, th { page-break-inside: avoid !important; }
 }
 
-/* ====================== A4 UI DESIGN ====================== */
-.report-card { width: 210mm; min-height: 297mm; }
-.report-inner-padding { padding: 12mm 15mm; position: relative; z-index: 1; }
-.watermark { position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%) rotate(-35deg); font-size: 5rem; font-weight: 900; color: rgba(0,0,0,0.04); z-index: 0; pointer-events: none; width: 100%; text-align: center; }
-.fw-black { font-weight: 900; }
-.extra-small { font-size: 0.68rem; line-height: 1.3; }
-.school-title { font-weight: 900; font-size: 1.8rem; }
-.report-label { background: #000; color: #fff; padding: 3px 15px; font-weight: 800; border-radius: 3px; display: inline-block; font-size: 0.8rem; }
-.bg-yellow-soft { background-color: #fff9e6 !important; }
-.school-logo-main { max-height: 75px; }
-.student-photo { width: 90px; height: 110px; object-fit: cover; }
-.sig-line { width: 140px; border-bottom: 2px solid #000; margin: 0 auto; }
-.school-stamp { width: 85px; height: 85px; border: 2px dashed #666; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 0.6rem; color: #ccc; }
+/* ============================================================
+   WRAPPER & CARD
+   ============================================================ */
+.report-wrapper {
+    font-family: 'DM Sans', Helvetica, sans-serif;
+    background: #eae6e0;
+    min-height: 100vh;
+    padding: 36px 20px 110px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.report-card {
+    width: 210mm;
+    min-height: 297mm;
+    max-height: 297mm;
+    background: #fff;
+    overflow: hidden;
+    border-radius: 3px;
+    box-shadow: 0 6px 48px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.08);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ============================================================
+   ACCENT BARS
+   ============================================================ */
+.top-accent, .bottom-accent {
+    display: flex;
+    height: 6px;
+    flex-shrink: 0;
+}
+.accent-block { flex: 1; }
+.accent-dark  { background: #1a1a2e; }
+.accent-mid   { background: #b8860b; }
+.accent-light { background: #d4a017; }
+
+/* ============================================================
+   WATERMARK
+   ============================================================ */
+.watermark {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) rotate(-30deg);
+    font-family: 'Playfair Display', serif;
+    font-size: 64pt;
+    font-weight: 900;
+    color: rgba(0,0,0,0.027);
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* ============================================================
+   REPORT BODY
+   ============================================================ */
+.report-body {
+    padding: 9mm 12mm 8mm;
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+/* ============================================================
+   HEADER
+   ============================================================ */
+.report-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 8px;
+    border-bottom: 2.5px solid #1a1a2e;
+}
+
+.header-logo { width: 70px; flex-shrink: 0; }
+
+.logo-img { max-height: 65px; max-width: 70px; object-fit: contain; }
+
+.logo-monogram {
+    width: 60px; height: 60px;
+    background: #1a1a2e;
+    color: #d4a017;
+    font-family: 'Playfair Display', serif;
+    font-size: 1.3rem; font-weight: 900;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 4px;
+}
+
+.header-center { flex: 1; text-align: center; }
+
+.school-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.4rem; font-weight: 900;
+    color: #1a1a2e;
+    letter-spacing: 0.04em; line-height: 1.1;
+}
+
+.school-address {
+    font-size: 0.6rem; font-weight: 500;
+    color: #777; margin: 2px 0 5px;
+    text-transform: uppercase; letter-spacing: 0.07em;
+}
+
+.report-badge {
+    display: inline-block;
+    background: #1a1a2e; color: #d4a017;
+    font-size: 0.58rem; font-weight: 600;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    padding: 3px 12px; border-radius: 2px;
+}
+
+.term-pill {
+    margin-top: 4px;
+    font-size: 0.63rem; font-weight: 600;
+    color: #b8860b; letter-spacing: 0.08em; text-transform: uppercase;
+}
+
+.header-photo { width: 70px; flex-shrink: 0; display: flex; justify-content: flex-end; }
+
+.student-photo {
+    width: 68px; height: 85px;
+    object-fit: cover;
+    border: 2px solid #1a1a2e; border-radius: 2px;
+}
+
+.photo-placeholder {
+    width: 68px; height: 85px;
+    background: #f0ede8; border: 2px solid #1a1a2e; border-radius: 2px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Playfair Display', serif;
+    font-size: 1.8rem; font-weight: 900; color: #1a1a2e;
+}
+
+/* ============================================================
+   META STRIP
+   ============================================================ */
+.meta-strip {
+    display: flex;
+    border: 1.5px solid #1a1a2e;
+    border-radius: 3px; overflow: hidden;
+    background: #faf9f7;
+}
+
+.meta-cell { display: flex; flex-direction: column; padding: 5px 10px; flex: 1; }
+.meta-wide { flex: 2.5; }
+.meta-divider { width: 1.5px; background: #1a1a2e; flex-shrink: 0; }
+
+.meta-label {
+    font-size: 0.53rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.1em; color: #aaa;
+}
+
+.meta-value {
+    font-size: 0.76rem; font-weight: 700; color: #1a1a2e; margin-top: 1px;
+}
+
+.meta-sub { font-weight: 400; font-size: 0.63rem; color: #999; }
+.highlight-val { color: #b8860b; }
+
+/* ============================================================
+   MARKS TABLE
+   ============================================================ */
+.marks-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.7rem;
+    border: 1.5px solid #1a1a2e;
+    border-radius: 3px; overflow: hidden;
+}
+
+.marks-table thead tr { background: #1a1a2e; }
+
+.marks-table th {
+    color: #d4a017;
+    font-size: 0.58rem; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 6px 8px; border: none; text-align: center;
+}
+
+.col-subject { text-align: left !important; width: 26%; }
+.col-num  { width: 8%; }
+.col-total { width: 9%; }
+.col-grade { width: 10%; }
+.col-remark { text-align: left !important; }
+
+.marks-table td {
+    padding: 5px 8px; border: none;
+    border-bottom: 1px solid #ede9e0;
+    text-align: center; color: #1a1a2e;
+}
+
+.row-even td { background: #fff; }
+.row-odd td  { background: #faf9f7; }
+
+.subject-name {
+    text-align: left !important;
+    font-weight: 600; font-size: 0.68rem; letter-spacing: 0.02em;
+}
+
+.num-cell { font-variant-numeric: tabular-nums; }
+
+.total-cell {
+    font-weight: 700;
+    background: #fffbee !important;
+    color: #b8860b;
+}
+
+.grade-badge {
+    display: inline-block;
+    padding: 1px 7px; border-radius: 10px;
+    font-size: 0.6rem; font-weight: 700; letter-spacing: 0.05em;
+    background: #e8e4dc; color: #1a1a2e;
+}
+
+.grade-d1 { background: #d4edda; color: #1a5c30; }
+.grade-d2 { background: #cce5ff; color: #0c3c6e; }
+.grade-c3, .grade-c4 { background: #fff3cd; color: #856404; }
+.grade-c5, .grade-c6 { background: #fde8b0; color: #7a5000; }
+.grade-p7, .grade-p8 { background: #ffe5d0; color: #7a3000; }
+.grade-f9 { background: #f8d7da; color: #7a1b20; }
+
+.remark-cell {
+    text-align: left !important;
+    color: #888; font-size: 0.63rem; font-style: italic;
+}
+
+/* ============================================================
+   LOWER GRID
+   ============================================================ */
+.lower-grid { display: flex; gap: 8px; }
+
+.requirements-box {
+    flex: 1.6;
+    border: 1.5px solid #1a1a2e;
+    border-radius: 3px; padding: 7px 9px; background: #fff;
+}
+
+.division-box {
+    flex: 1;
+    border: 1.5px solid #1a1a2e; border-radius: 3px;
+    background: #1a1a2e;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 8px; text-align: center;
+}
+
+.division-label {
+    font-size: 0.53rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.12em;
+    color: #d4a017; margin-bottom: 4px;
+}
+
+.division-value {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.05rem; font-weight: 900; color: #fff; line-height: 1;
+}
+
+/* ============================================================
+   BOX TITLE (shared)
+   ============================================================ */
+.box-title {
+    font-size: 0.58rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em; color: #1a1a2e;
+    border-bottom: 1px solid #e8e4dc;
+    padding-bottom: 4px; margin-bottom: 5px;
+    display: flex; align-items: center; gap: 5px;
+}
+
+.box-content { font-size: 0.63rem; color: #444; line-height: 1.5; }
+
+/* ============================================================
+   COMMENTS
+   ============================================================ */
+.comments-box {
+    border: 1.5px solid #1a1a2e;
+    border-radius: 3px; padding: 7px 9px; background: #fff;
+}
+
+.comment-row {
+    display: flex; gap: 10px; align-items: baseline;
+    font-size: 0.65rem; padding: 2px 0;
+}
+
+.comment-author {
+    font-weight: 700; color: #1a1a2e;
+    white-space: nowrap; min-width: 82px;
+    font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em;
+}
+
+.comment-text { color: #444; font-style: italic; line-height: 1.4; }
+
+/* ============================================================
+   SIGNATURES
+   ============================================================ */
+.signatures {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    margin-top: auto; padding-top: 4px;
+}
+
+.sig-block { flex: 1; text-align: center; }
+
+.sig-line {
+    width: 120px; border-bottom: 1.5px solid #1a1a2e;
+    margin: 0 auto 4px;
+}
+
+.sig-label {
+    font-size: 0.56rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.1em; color: #777;
+}
+
+.stamp-block { display: flex; justify-content: center; }
+
+.stamp-ring {
+    width: 68px; height: 68px;
+    border: 2px dashed #b8860b; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.46rem; font-weight: 700;
+    letter-spacing: 0.05em; color: #d4a017;
+    text-transform: uppercase; text-align: center; line-height: 1.5;
+}
+
+/* ============================================================
+   FLOATING ACTION BAR
+   ============================================================ */
+.action-bar {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%); z-index: 1000;
+}
+
+.action-bar-inner {
+    display: flex; align-items: center; gap: 16px;
+    background: #1a1a2e; border-radius: 50px;
+    padding: 10px 10px 10px 20px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.28);
+}
+
+.action-label {
+    font-size: 0.7rem; font-weight: 500;
+    color: rgba(255,255,255,0.55);
+    display: flex; align-items: center; gap: 6px; white-space: nowrap;
+    font-family: 'DM Sans', sans-serif;
+}
+
+.dot {
+    width: 6px; height: 6px;
+    background: #d4a017; border-radius: 50%;
+    display: inline-block; flex-shrink: 0;
+}
+
+.action-buttons { display: flex; gap: 6px; }
+
+.action-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 16px; border-radius: 50px;
+    font-size: 0.7rem; font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer; text-decoration: none;
+    border: 1.5px solid transparent;
+    transition: all 0.15s; letter-spacing: 0.02em;
+}
+
+.btn-outline-action {
+    background: transparent;
+    border-color: rgba(255,255,255,0.2); color: #fff;
+}
+
+.btn-outline-action:hover { border-color: rgba(255,255,255,0.55); }
+
+.btn-solid-action {
+    background: #d4a017; border-color: #d4a017; color: #1a1a2e;
+}
+
+.btn-solid-action:hover { background: #e5b020; color: #1a1a2e; }
 </style>
+
 {% endblock %}

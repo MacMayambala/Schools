@@ -9,7 +9,7 @@ from .views import logout_view
 app_name = 'core'
 
 urlpatterns = [
-    path('', views.index, name='index'), # This is your main dashboard
+    #path('', views.index, name='index'), # This is your main dashboard
     
     # Using your custom class-based view
     path('auth/login/', SchoolLoginView.as_view(), name='login'),
@@ -21,6 +21,10 @@ urlpatterns = [
     path('password-reset/done/', views.MyPasswordResetDoneView.as_view(), name='password_reset_done'),
     path('password-reset-confirm/<uidb64>/<token>/', views.MyPasswordResetConfirmView.as_view(), name='password_reset_confirm'),
     path('password-reset-complete/', views.MyPasswordResetCompleteView.as_view(), name='password_reset_complete'),
+    path('', views.dashboard_view, name='index'),
+    
+    # Optional: API endpoint if you want to load chart data via AJAX later
+    #path('api/chart-data/', views.chart_data_api, name='chart_data_api'),
              
  ]
 

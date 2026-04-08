@@ -2,38 +2,51 @@
 
 {% block content %}
 <div class="container-fluid py-2">
+
+    <!-- Page Header -->
     <div class="d-flex justify-content-between align-items-end mb-4">
         <div>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-1">
-                    <li class="breadcrumb-item small"><a href="/" class="text-decoration-none text-muted">Portal</a></li>
+                    <li class="breadcrumb-item small"><a href="{% url 'core:index' %}" class="text-decoration-none text-muted">Portal</a></li>
                     <li class="breadcrumb-item small active text-primary fw-bold" aria-current="page">Finance</li>
                 </ol>
             </nav>
             <h2 class="fw-bold mb-0 text-dark tracking-tight">Financial Overview</h2>
-            <p class="text-muted small mb-0">Real-time fee collection & revenue tracking for <span class="fw-bold text-dark">{{ request.school.name }}</span></p>
+            <p class="text-muted small mb-0">
+                Real-time fee collection & revenue tracking for 
+                <span class="fw-bold text-dark">{{ request.school.name }}</span>
+            </p>
         </div>
-        <div class="d-flex gap-2">
-            <a href="{% url 'finance:account_list' %}" class="btn btn-white border shadow-sm btn-sm px-3 fw-bold rounded-3">
-                <i class="fas fa-university me-2 text-primary"></i> Chart of Accounts
+
+        <!-- Action Buttons - Now Uniform Green -->
+        <div class="d-flex gap-3">
+            <a href="{% url 'finance:account_list' %}" 
+               class="btn btn-outline-primary border-2 shadow-sm btn-sm px-4 fw-bold rounded-3">
+                <i class="fas fa-university me-2"></i> Chart of Accounts
             </a>
-            <a href="{% url 'finance:bulk_bill' %}" class="btn btn-primary btn-sm px-4 fw-bold shadow-sm rounded-3">
-                <i class="fas fa-file-invoice-dollar me-2 text-accent"></i> Generate Bulk Bills
+            <a href="{% url 'finance:bulk_bill' %}" 
+               class="btn btn-primary btn-sm px-4 fw-bold shadow-sm rounded-3">
+                <i class="fas fa-file-invoice-dollar me-2"></i> Generate Bulk Bills
             </a>
         </div>
     </div>
 
     <div class="row g-4 mb-4">
+        <!-- Expected Revenue -->
         <div class="col-md-4">
             <div class="card border-0 shadow-sm finance-card h-100">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
-                        <div class="finance-icon bg-soft-primary text-primary">
+                        <div class="finance-icon bg-primary-soft text-primary">
                             <i class="fas fa-calculator"></i>
                         </div>
                         <span class="text-muted extra-small fw-bold text-uppercase ls-1">Expected Revenue</span>
                     </div>
-                    <h3 class="fw-bold mb-1 tracking-tight"><small class="text-muted fw-normal" style="font-size: 0.6em;">UGX</small> {{ total_expected|default:"0" }}</h3>
+                    <h3 class="fw-bold mb-1 tracking-tight">
+                        <small class="text-muted fw-normal" style="font-size: 0.65em;">UGX</small> 
+                        {{ total_expected|default:"0" }}
+                    </h3>
                     <div class="progress mt-3" style="height: 6px; background: #f1f5f9;">
                         <div class="progress-bar bg-primary" style="width: 100%"></div>
                     </div>
@@ -42,6 +55,7 @@
             </div>
         </div>
         
+        <!-- Total Collected -->
         <div class="col-md-4">
             <div class="card border-0 shadow-sm finance-card h-100">
                 <div class="card-body p-4">
@@ -51,14 +65,19 @@
                         </div>
                         <span class="text-muted extra-small fw-bold text-uppercase ls-1">Total Collected</span>
                     </div>
-                    <h3 class="fw-bold mb-1 text-success tracking-tight"><small class="fw-normal" style="font-size: 0.6em;">UGX</small> {{ total_collected|default:"0" }}</h3>
+                    <h3 class="fw-bold mb-1 text-success tracking-tight">
+                        <small class="fw-normal" style="font-size: 0.65em;">UGX</small> 
+                        {{ total_collected|default:"0" }}
+                    </h3>
                     <div class="progress mt-3" style="height: 6px; background: #ecfdf5;">
-                        <div class="progress-bar bg-success" style="width: 75%"></div> </div>
+                        <div class="progress-bar bg-success" style="width: 75%"></div>
+                    </div>
                     <p class="extra-small text-muted mt-2 mb-0 fw-bold text-success">75% Collection Rate achieved</p>
                 </div>
             </div>
         </div>
 
+        <!-- Outstanding Arrears -->
         <div class="col-md-4">
             <div class="card border-0 shadow-sm finance-card h-100 border-start border-danger border-4">
                 <div class="card-body p-4">
@@ -68,10 +87,14 @@
                         </div>
                         <span class="text-muted extra-small fw-bold text-uppercase ls-1">Outstanding Arrears</span>
                     </div>
-                    <h3 class="fw-bold mb-1 text-danger tracking-tight"><small class="fw-normal" style="font-size: 0.6em;">UGX</small> {{ balance|default:"0" }}</h3>
+                    <h3 class="fw-bold mb-1 text-danger tracking-tight">
+                        <small class="fw-normal" style="font-size: 0.65em;">UGX</small> 
+                        {{ balance|default:"0" }}
+                    </h3>
                     <div class="d-flex justify-content-between align-items-center mt-3 pt-1">
                         <span class="extra-small text-muted">Pending Recovery</span>
-                        <a href="{% url 'finance:defaulters_report' %}" class="btn btn-soft-danger btn-sm extra-small fw-bold text-uppercase px-2 py-1">
+                        <a href="{% url 'finance:defaulters_report' %}" 
+                           class="btn btn-outline-danger btn-sm extra-small fw-bold text-uppercase px-3 py-1">
                             Defaulter List <i class="fas fa-arrow-right ms-1"></i>
                         </a>
                     </div>
@@ -80,6 +103,7 @@
         </div>
     </div>
 
+    <!-- Recent Invoices Table -->
     <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
         <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
             <div>
@@ -87,10 +111,12 @@
                 <p class="extra-small text-muted mb-0">Monitor individual student balances and payment status</p>
             </div>
             <div class="d-flex gap-2">
-                <a href="{% url 'finance:daily_report' %}" class="btn btn-light btn-sm rounded-3 border px-3">
-                    <i class="fas fa-print me-2 text-muted"></i> Daily Report
+                <a href="{% url 'finance:daily_report' %}" 
+                   class="btn btn-outline-secondary btn-sm rounded-3 border px-4">
+                    <i class="fas fa-print me-2"></i> Daily Report
                 </a>
-                <a href="{% url 'finance:export_excel' %}" class="btn btn-soft-success btn-sm rounded-3 px-3">
+                <a href="{% url 'finance:export_excel' %}" 
+                   class="btn btn-outline-success btn-sm rounded-3 px-4">
                     <i class="fas fa-file-excel me-2"></i> Export Ledger
                 </a>
             </div>
@@ -138,11 +164,13 @@
                         </td>
                         <td class="text-end pe-4">
                             <div class="btn-group">
-                                <a href="{% url 'finance:student_statement' inv.student.id %}" class="btn btn-white btn-sm border-end px-2" title="View Statement">
-                                    <i class="fas fa-eye text-primary"></i>
+                                <a href="{% url 'finance:student_statement' inv.student.id %}" 
+                                   class="btn btn-outline-primary btn-sm border-end px-3" title="View Statement">
+                                    <i class="fas fa-eye"></i>
                                 </a>
-                                <a href="{% url 'finance:record_payment' inv.id %}" class="btn btn-white btn-sm px-2" title="Record Payment">
-                                    <i class="fas fa-plus-circle text-success"></i>
+                                <a href="{% url 'finance:record_payment' inv.id %}" 
+                                   class="btn btn-outline-success btn-sm px-3" title="Record Payment">
+                                    <i class="fas fa-plus-circle"></i>
                                 </a>
                             </div>
                         </td>
@@ -153,7 +181,8 @@
                             <div class="py-4">
                                 <i class="fas fa-receipt fa-4x text-light mb-3"></i>
                                 <p class="text-muted mb-0">No active billing records found.</p>
-                                <a href="{% url 'finance:bulk_bill' %}" class="btn btn-primary btn-sm mt-3 px-4 rounded-pill">Start Bulk Billing</a>
+                                <a href="{% url 'finance:bulk_bill' %}" 
+                                   class="btn btn-primary btn-sm mt-3 px-4 rounded-pill">Start Bulk Billing</a>
                             </div>
                         </td>
                     </tr>
@@ -169,36 +198,131 @@
     .ls-1 { letter-spacing: 0.5px; }
     .extra-small { font-size: 0.7rem; }
     
-    .finance-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
-    .bg-soft-primary { background-color: #eef2ff; color: #4f46e5; }
+    .finance-icon { 
+        width: 44px; 
+        height: 44px; 
+        border-radius: 12px; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        font-size: 1.2rem; 
+    }
+    
+    .bg-soft-primary { background-color: var(--primary-soft); color: var(--primary); }
     .bg-soft-success { background-color: #ecfdf5; color: #10b981; }
     .bg-soft-danger { background-color: #fff1f2; color: #e11d48; }
 
-    /* Custom Table Design */
-    .custom-finance-table thead th { border-top: none; padding: 15px 10px; border-bottom: 2px solid #f8fafc; }
-    .custom-finance-table tbody tr { border-bottom: 1px solid #f1f5f9; }
-    .custom-finance-table tbody tr:hover { background-color: #f8fafc; cursor: pointer; }
-
-    /* Custom Status Badges */
-    .badge-pill-success { background: #dcfce7; color: #15803d; padding: 5px 12px; border-radius: 50px; font-size: 0.65rem; font-weight: 800; }
-    .badge-pill-warning { background: #fef9c3; color: #a16207; padding: 5px 12px; border-radius: 50px; font-size: 0.65rem; font-weight: 800; }
-    .badge-pill-danger { background: #fee2e2; color: #b91c1c; padding: 5px 12px; border-radius: 50px; font-size: 0.65rem; font-weight: 800; }
-
-    .avatar-finance {
-        width: 38px; height: 38px; border-radius: 10px; background: #f1f5f9; color: var(--primary);
-        display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.8rem; border: 1px solid #e2e8f0;
+    /* Table Styling */
+    .custom-finance-table thead th { 
+        border-top: none; 
+        padding: 15px 10px; 
+        border-bottom: 2px solid #f8fafc; 
+    }
+    .custom-finance-table tbody tr { 
+        border-bottom: 1px solid #f1f5f9; 
+    }
+    .custom-finance-table tbody tr:hover { 
+        background-color: #f8fafc; 
     }
 
-    .finance-card { border: 1px solid #f1f5f9 !important; border-radius: 20px; transition: 0.3s ease; }
-    .finance-card:hover { transform: translateY(-4px); box-shadow: 0 12px 20px rgba(0,0,0,0.04) !important; }
+    /* Status Badges */
+    .badge-pill-success { 
+        background: #dcfce7; 
+        color: #15803d; 
+        padding: 5px 12px; 
+        border-radius: 50px; 
+        font-size: 0.65rem; 
+        font-weight: 800; 
+    }
+    .badge-pill-warning { 
+        background: #fef9c3; 
+        color: #a16207; 
+        padding: 5px 12px; 
+        border-radius: 50px; 
+        font-size: 0.65rem; 
+        font-weight: 800; 
+    }
+    .badge-pill-danger { 
+        background: #fee2e2; 
+        color: #b91c1c; 
+        padding: 5px 12px; 
+        border-radius: 50px; 
+        font-size: 0.65rem; 
+        font-weight: 800; 
+    }
 
-    .btn-soft-danger { background: #fff1f2; color: #e11d48; border: none; }
-    .btn-soft-danger:hover { background: #ffe4e6; color: #be123c; }
-    
-    .btn-soft-success { background: #ecfdf5; color: #059669; border: none; }
-    .btn-soft-success:hover { background: #d1fae5; }
+    .avatar-finance {
+        width: 38px; 
+        height: 38px; 
+        border-radius: 10px; 
+        background: #f1f5f9; 
+        color: var(--primary);
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        font-weight: 800; 
+        font-size: 0.8rem; 
+        border: 1px solid #e2e8f0;
+    }
 
-    .btn-white { background: white; color: #64748b; border: 1px solid #e2e8f0; }
-    .btn-white:hover { background: #f8fafc; color: var(--primary); }
+    .finance-card { 
+        border: 1px solid #f1f5f9 !important; 
+        border-radius: 20px; 
+        transition: 0.3s ease; 
+    }
+    .finance-card:hover { 
+        transform: translateY(-4px); 
+        box-shadow: 0 12px 20px rgba(0,0,0,0.04) !important; 
+    }
+
+    /* Button Consistency with Base Green */
+    .btn-primary {
+        background-color: var(--primary);
+        border-color: var(--primary);
+    }
+    .btn-primary:hover {
+        background-color: #246d46;
+        border-color: #246d46;
+    }
+
+    .btn-outline-primary {
+        color: var(--primary);
+        border-color: var(--primary);
+    }
+    .btn-outline-primary:hover {
+        background-color: var(--primary);
+        color: white;
+    }
+
+    .btn-outline-secondary {
+        color: #64748b;
+        border-color: #e2e8f0;
+    }
+    .btn-outline-secondary:hover {
+        background-color: #f8fafc;
+        color: var(--primary);
+    }
+
+    .btn-outline-success {
+        color: #10b981;
+        border-color: #10b981;
+    }
+    .btn-outline-success:hover {
+        background-color: #10b981;
+        color: white;
+    }
+
+    .btn-outline-danger {
+        color: #e11d48;
+        border-color: #e11d48;
+    }
+    .btn-outline-danger:hover {
+        background-color: #e11d48;
+        color: white;
+    }
+
+    @media print {
+        .no-print { display: none !important; }
+    }
 </style>
 {% endblock %}

@@ -75,6 +75,14 @@ from .models import Mark, Subject
 from .utils import get_class_ranking
 from students.models import Student
 from .models import Mark, ClassRequirement
+from django.shortcuts import get_object_or_404, render
+from django.http import HttpResponse
+from django.template.loader import get_template
+from io import BytesIO
+
+# pip install xhtml2pdf
+from xhtml2pdf import pisa
+
 
 def student_report_card(request, student_id, term, year):
     student = get_object_or_404(Student, id=student_id, school=request.school)
@@ -94,7 +102,7 @@ def student_report_card(request, student_id, term, year):
         school=request.school
     ).select_related('subject')
 
-    # ✅ Calculate Average (Defined early to avoid NameError)
+    # ✅ Calculate Average
     scores = [m.total_score for m in marks if m.total_score is not None]
     average = sum(scores) / len(scores) if scores else 0
 
@@ -128,40 +136,71 @@ def student_report_card(request, student_id, term, year):
 
     # ✅ Division Helper
     def get_division(student_marks):
-        if not student_marks: return "N/A"
-        grade_map = {'D1':1,'D2':2,'C3':3,'C4':4,'C5':5,'C6':6,'P7':7,'P8':8,'F9':9}
+        if not student_marks:
+            return "N/A"
+        grade_map = {
+            'D1': 1, 'D2': 2, 'C3': 3, 'C4': 4,
+            'C5': 5, 'C6': 6, 'P7': 7, 'P8': 8, 'F9': 9
+        }
         points = [grade_map.get(m.grade, 9) for m in student_marks]
         points.sort()
         agg = sum(points[:8])
-        if agg <= 12: return "Division 1"
-        elif agg <= 24: return "Division 2"
-        elif agg <= 34: return "Division 3"
+        if agg <= 12:
+            return "Division 1"
+        elif agg <= 24:
+            return "Division 2"
+        elif agg <= 34:
+            return "Division 3"
         return "Division 4"
 
     # ✅ Comment Helper
     def get_teacher_comment(avg):
-        if avg >= 75: return "An excellent result. Keep it up!"
-        if avg >= 60: return "Good performance, but aim higher."
-        if avg >= 45: return "Fairly good, more effort is needed."
+        if avg >= 75:
+            return "An excellent result. Keep it up!"
+        if avg >= 60:
+            return "Good performance, but aim higher."
+        if avg >= 45:
+            return "Fairly good, more effort is needed."
         return "Poor performance. Please double your efforts."
 
     context = {
         'student': student,
         'marks': marks,
-        'average': average,  # This is line 114 from your error
+        'average': average,
         'rank': rank,
         'total_students': len(totals),
         'term': f"Term {clean_term}",
         'year': clean_year,
-        'term_target': target_term,
+        'target_term': target_term,
         'school': request.school,
         'division': get_division(marks),
         'teacher_comment': get_teacher_comment(average),
         'requirements': requirements,
+        'is_pdf': False,  # flag for template
     }
 
-    return render(request, 'academic/report_card.html', context)
+    # ✅ PDF Download — triggered by ?download=pdf
+    if request.GET.get('download') == 'pdf':
+        context['is_pdf'] = True
+        template = get_template('academic/report_card.html')
+        html = template.render(context, request)
 
+        buffer = BytesIO()
+        pdf = pisa.CreatePDF(BytesIO(html.encode('utf-8')), dest=buffer)
+
+        if pdf.err:
+            return HttpResponse("Error generating PDF. Please try again.", status=500)
+
+        # File named: StudentName_Term1_2026.pdf
+        safe_name = student.get_full_name().replace(" ", "_")
+        filename = f"{safe_name}_Term{clean_term}_{clean_year}.pdf"
+
+        response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+
+    # ✅ Normal HTML preview
+    return render(request, 'academic/report_card.html', context)
 
 # from django.shortcuts import get_object_or_404
 # from django.http import HttpResponse
