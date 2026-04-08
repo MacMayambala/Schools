@@ -233,33 +233,66 @@ from django.db.models import F, Sum
 from django.shortcuts import render
 from .models import Invoice
 
+from django.shortcuts import render
+from django.core.paginator import Paginator
+from django.db.models import F, Sum
+from django.db.models.functions import Coalesce
+
+from django.shortcuts import render
+from django.core.paginator import Paginator
+from django.db.models import F, Sum, DecimalField
+from django.db.models.functions import Coalesce
+
+from django.shortcuts import render
+from django.core.paginator import Paginator
+from django.db.models import F, Sum, DecimalField
+from django.db.models.functions import Coalesce
+
+from django.shortcuts import render
+from django.core.paginator import Paginator
+from django.db.models import F, Sum, DecimalField
+from django.db.models.functions import Coalesce
+
 def defaulters_report(request):
     school = request.school
     classroom_id = request.GET.get('classroom')
-    
-    # Get all invoices where the balance is greater than zero
-    # Formula: total_amount - paid_amount > 0
-    defaulters = Invoice.objects.filter(
+    page_number = request.GET.get('page', 1)
+
+    # Base queryset
+    defaulters_qs = Invoice.objects.filter(
         school=school,
         total_amount__gt=F('paid_amount')
-    ).select_related('student', 'student__classroom')
+    ).select_related('student', 'student__classroom').order_by('-created_at')
 
+    # Apply classroom filter if provided
     if classroom_id:
-        defaulters = defaulters.filter(student__classroom_id=classroom_id)
+        defaulters_qs = defaulters_qs.filter(student__classroom_id=classroom_id)
 
-    # Calculate total debt for the school summary
-    total_debt = defaulters.aggregate(Sum('total_amount'), Sum('paid_amount'))
-    expected = total_debt['total_amount__sum'] or 0
-    paid = total_debt['paid_amount__sum'] or 0
-    actual_balance = expected - paid
+    # Total count for badge and SMS modal (full records, not paginated)
+    total_defaulters = defaulters_qs.count()
+
+    # Calculate total outstanding balance
+    total_debt = defaulters_qs.aggregate(
+        total_billed=Coalesce(Sum('total_amount'), 0, output_field=DecimalField()),
+        total_paid=Coalesce(Sum('paid_amount'), 0, output_field=DecimalField())
+    )
+    
+    actual_balance = total_debt['total_billed'] - total_debt['total_paid']
+
+    # Pagination
+    paginator = Paginator(defaulters_qs, 15)
+    page_obj = paginator.get_page(page_number)
 
     context = {
-        'defaulters': defaulters,
+        'defaulters': page_obj,           # Paginated records for table
+        'total_defaulters': total_defaulters,   # Full count for badge & SMS
         'actual_balance': actual_balance,
-        'classrooms': Classroom.objects.filter(school=school)
+        'classrooms': Classroom.objects.filter(school=school),
+        'page_obj': page_obj,
+        'is_paginated': page_obj.has_other_pages(),
     }
+    
     return render(request, 'finance/defaulters_list.html', context)
-
 
 from decimal import Decimal
 from django.db import transaction
@@ -721,6 +754,108 @@ def bulk_sms_reminder_view(request):
 
     # Redirect back to the finance dashboard or student list
     return redirect(request.META.get('HTTP_REFERER', 'finance:dashboard'))
+
+from django.shortcuts import get_object_or_404
+from django.http import HttpResponse
+from weasyprint import HTML
+from weasyprint.text.fonts import FontConfiguration   # ← This is the correct import
+from django.template.loader import render_to_string
+
+def student_report_card(request, student_id, term, year):
+    student = get_object_or_404(Student, id=student_id, school=request.school)
+
+    # ✅ Normalize
+    clean_term = term.replace("Term-", "").strip()
+    try:
+        clean_year = int(year)
+    except (ValueError, TypeError):
+        clean_year = 2026
+
+    # ✅ Fetch marks
+    marks = Mark.objects.filter(
+        student=student,
+        term=clean_term,
+        year=clean_year,
+        school=request.school
+    ).select_related('subject')
+
+    # ✅ Calculate Average
+    scores = [m.total_score for m in marks if m.total_score is not None]
+    average = sum(scores) / len(scores) if scores else 0
+
+    # ✅ Requirements Logic
+    next_term_map = {"1": "2", "2": "3", "3": "1"}
+    target_term = next_term_map.get(clean_term, "1")
+    target_year = clean_year + 1 if clean_term == "3" else clean_year
+
+    requirements = ClassRequirement.objects.filter(
+        classroom=student.classroom,
+        term=target_term,
+        year=target_year,
+        school=request.school
+    ).first()
+
+    # ✅ Rank Logic
+    class_marks = Mark.objects.filter(
+        classroom=student.classroom,
+        term=clean_term,
+        year=clean_year,
+        school=request.school
+    )
+    totals = {}
+    for m in class_marks:
+        score_to_add = m.total_score if m.total_score is not None else 0
+        totals[m.student_id] = totals.get(m.student_id, 0) + score_to_add
+
+    sorted_totals = sorted(list(totals.values()), reverse=True)
+    my_total = totals.get(student.id, 0)
+    rank = sorted_totals.index(my_total) + 1 if my_total > 0 else "N/A"
+
+    # ✅ Division Helper
+    def get_division(student_marks):
+        if not student_marks: return "N/A"
+        grade_map = {'D1':1,'D2':2,'C3':3,'C4':4,'C5':5,'C6':6,'P7':7,'P8':8,'F9':9}
+        points = [grade_map.get(m.grade, 9) for m in student_marks]
+        points.sort()
+        agg = sum(points[:8])
+        if agg <= 12: return "Division 1"
+        elif agg <= 24: return "Division 2"
+        elif agg <= 34: return "Division 3"
+        return "Division 4"
+
+    # ✅ Comment Helper
+    def get_teacher_comment(avg):
+        if avg >= 75: return "An excellent result. Keep it up!"
+        if avg >= 60: return "Good performance, but aim higher."
+        if avg >= 45: return "Fairly good, more effort is needed."
+        return "Poor performance. Please double your efforts."
+
+    context = {
+        'student': student,
+        'marks': marks,
+        'average': average,
+        'rank': rank,
+        'total_students': len(totals),
+        'term': f"Term {clean_term}",
+        'year': clean_year,
+        'school': request.school,
+        'division': get_division(marks),
+        'teacher_comment': get_teacher_comment(average),
+        'headteacher_comment': "Good progress. Keep it up.",
+        'requirements': requirements,
+    }
+
+    # ====================== PDF GENERATION ======================
+    html_string = render_to_string('academic/report_card.html', context)
+    font_config = FontConfiguration()
+
+    pdf = HTML(string=html_string).write_pdf(font_config=font_config)
+
+    response = HttpResponse(pdf, content_type='application/pdf')
+    filename = f"Report_{student.admission_number}_{term}_{year}.pdf"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    return response
 
 
 

@@ -11,5 +11,6 @@ urlpatterns = [
     path('import/template/', views.download_student_import_template, name='download_template'),
     path('bulk-action/', views.student_bulk_action, name='bulk_action'), # Add this line
     path('edit/<int:pk>/', views.StudentUpdateView.as_view(), name='student_update'),
-    path('bulk-action/', views.student_bulk_action, name='bulk_action')
+    path('bulk-action/', views.student_bulk_action, name='bulk_action'),
+    path('profile/<path:admission_number>/', views.student_profile, name='student_profile'),
 ]
