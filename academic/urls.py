@@ -16,6 +16,8 @@ urlpatterns = [
     path('requirements/create/', views.create_requirement, name='create_requirement'),
     path('teacher/<int:pk>/edit/', views.teacher_edit, name='teacher_edit'),
     path('teacher/<int:pk>/status/', views.teacher_status_toggle, name='teacher_status_toggle'),
+    path('teacher/<int:teacher_id>/assign/', views.update_teacher_assignments, name='update_assignments'),
+    path('teacher/add/', views.add_teacher, name='add_teacher'),
     #path('teacher/<int:pk>/report/', views.teacher_performance_report, name='teacher_performance_report'),
     #path('report/<int:student_id>/<str:term>/<str:year>/', views.student_report_card,name='student_report_card'),
 ]

@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}Teacher Directory | {{ school.name }}{% endblock %}
+{% block title %}Faculty Directory | {{ current_school.name }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4 px-4 px-md-5">
@@ -8,14 +9,16 @@
     <div class="row align-items-end justify-content-between mb-5 g-4">
         <div class="col-lg-7">
             <h6 class="fw-bold text-uppercase tracking-widest mb-2" style="font-size: 0.78rem; color: var(--primary);">
-                {{ request.school.name|default:"MAC Portal" }}
-            </a>
+                {{ current_school.name|default:"MAC Portal" }}
             </h6>
             <h1 class="display-5 fw-bold text-dark mb-1">Teacher Directory</h1>
-            <p class="text-muted mb-0">
+            <p class="text-muted mb-3">
                 Managing <strong>{{ total_count }}</strong> professional educators • 
                 <span class="text-primary fw-bold">Academic Year 2026</span>
             </p>
+            <button class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#addTeacherModal">
+                <i class="fas fa-plus-circle me-2"></i> Add New Teacher
+            </button>
         </div>
 
         <div class="col-lg-5">
@@ -40,9 +43,12 @@
                     
                     <div class="d-flex justify-content-between align-items-start mb-3">
                         <span class="status-badge badge rounded-pill px-3 py-2 fw-semibold"
-                              data-active="{{ teacher.user.is_active|lower }}"
-                              style="{% if teacher.user.is_active %}background: #e0e7ff; color: #4338ca;{% else %}background: #fee2e2; color: #ef4444;{% endif %}">
-                            {% if teacher.user.is_active %}Active{% else %}Inactive{% endif %}
+                              style="{% if teacher.user %}{% if teacher.user.is_active %}background: #e0e7ff; color: #4338ca;{% else %}background: #fee2e2; color: #ef4444;{% endif %}{% else %}background: #f1f5f9; color: #64748b;{% endif %}">
+                            {% if teacher.user %}
+                                {% if teacher.user.is_active %}Active Account{% else %}Inactive{% endif %}
+                            {% else %}
+                                Directory Only
+                            {% endif %}
                         </span>
                         
                         <div class="dropdown">
@@ -50,16 +56,22 @@
                                     style="width: 34px; height: 34px;" data-bs-toggle="dropdown">
                                 <i class="fas fa-ellipsis-v"></i>
                             </button>
-                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-4 p-2">
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-4 p-2 mt-2">
                                 <li>
-                                    <a class="dropdown-item rounded-3 py-2 edit-btn" href="javascript:void(0)"
+                                    <button class="dropdown-item rounded-3 py-2" data-bs-toggle="modal" data-bs-target="#assignModal{{ teacher.id }}">
+                                        <i class="fas fa-book-reader me-2 text-warning"></i> Manage Subjects
+                                    </button>
+                                </li>
+                                <li>
+                                    <button class="dropdown-item rounded-3 py-2 edit-btn" 
                                        data-id="{{ teacher.id }}"
-                                       data-fname="{{ teacher.user.first_name }}"
-                                       data-lname="{{ teacher.user.last_name }}"
+                                       data-fname="{{ teacher.first_name }}"
+                                       data-lname="{{ teacher.last_name }}"
                                        data-phone="{{ teacher.phone }}">
                                         <i class="fas fa-user-edit me-2 text-info"></i> Edit Profile
-                                    </a>
+                                    </button>
                                 </li>
+                                {% if teacher.user %}
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
                                     <a class="dropdown-item rounded-3 py-2 text-danger toggle-status-btn" 
@@ -67,9 +79,10 @@
                                        data-id="{{ teacher.id }}"
                                        data-url="{% url 'academic:teacher_status_toggle' teacher.id %}">
                                         <i class="fas {% if teacher.user.is_active %}fa-user-slash{% else %}fa-user-check{% endif %} me-2"></i>
-                                        <span class="status-action-text">{% if teacher.user.is_active %}Deactivate{% else %}Activate{% endif %}</span>
+                                        <span class="status-action-text">{% if teacher.user.is_active %}Deactivate Account{% else %}Activate{% endif %}</span>
                                     </a>
                                 </li>
+                                {% endif %}
                             </ul>
                         </div>
                     </div>
@@ -77,12 +90,12 @@
                     <div class="text-center mb-4">
                         <div class="avatar-blob mx-auto mb-3">
                             {% if teacher.profile_photo %}
-                                <img src="{{ teacher.profile_photo.url }}" alt="{{ teacher.user.get_full_name }}">
+                                <img src="{{ teacher.profile_photo.url }}" alt="{{ teacher.get_full_name }}">
                             {% else %}
-                                <span class="fw-bold">{{ teacher.user.first_name|slice:":1" }}</span>
+                                <span class="fw-bold text-white">{{ teacher.first_name|slice:":1" }}</span>
                             {% endif %}
                         </div>
-                        <h5 class="fw-bold text-dark mb-1">{{ teacher.user.get_full_name }}</h5>
+                        <h5 class="fw-bold text-dark mb-1">{{ teacher.get_full_name }}</h5>
                         <p class="text-muted small mb-0 font-monospace">{{ teacher.staff_id }}</p>
                     </div>
 
@@ -96,39 +109,121 @@
                             <small class="text-muted x-small">Subjects</small>
                         </div>
                         <div class="text-center">
-                            <h5 class="fw-bold mb-0 text-primary">98%</h5>
-                            <small class="text-muted x-small">Attendance</small>
+                            <h5 class="fw-bold mb-0 text-primary">--</h5>
+                            <small class="text-muted x-small">Rating</small>
                         </div>
                     </div>
 
                     <div class="d-grid gap-2">
+                        {% if teacher.phone %}
                         <a href="tel:{{ teacher.phone }}" class="btn btn-outline-dark rounded-pill py-2 fw-bold small">
                             <i class="fas fa-phone-alt me-2"></i> Call Staff
                         </a>
+                        {% else %}
+                        <button class="btn btn-outline-light text-muted rounded-pill py-2 fw-bold small" disabled>No Contact</button>
+                        {% endif %}
                     </div>
                 </div>
             </div>
         </div>
-        {% empty %}
-        <div class="col-12 text-center py-5">
-            <h4 class="text-muted">No staff members found.</h4>
+
+        <div class="modal fade" id="assignModal{{ teacher.id }}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow-lg rounded-5">
+                    <div class="modal-header border-0 p-4">
+                        <h5 class="fw-bold text-dark mb-0">Manage Assignments</h5>
+                        <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form action="{% url 'academic:update_assignments' teacher.id %}" method="POST">
+                        {% csrf_token %}
+                        <div class="modal-body p-4 pt-0">
+                            <p class="text-muted small mb-4">Teacher: <strong>{{ teacher.get_full_name }}</strong></p>
+                            
+                            <label class="x-small fw-bold text-uppercase ls-1 text-primary d-block mb-2">Subjects</label>
+                            <div class="assignment-grid mb-4">
+                                {% for subject in all_subjects %}
+                                <div class="assignment-item">
+                                    <input type="checkbox" name="subjects" value="{{ subject.id }}" id="sub{{ teacher.id }}{{ subject.id }}"
+                                        {% if subject in teacher.subjects.all %}checked{% endif %}>
+                                    <label for="sub{{ teacher.id }}{{ subject.id }}">{{ subject.name }}</label>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                            <label class="x-small fw-bold text-uppercase ls-1 text-success d-block mb-2">Classrooms</label>
+                            <div class="assignment-grid">
+                                {% for classroom in all_classrooms %}
+                                <div class="assignment-item">
+                                    <input type="checkbox" name="classrooms" value="{{ classroom.id }}" id="cls{{ teacher.id }}{{ classroom.id }}"
+                                        {% if classroom in teacher.classrooms.all %}checked{% endif %}>
+                                    <label for="cls{{ teacher.id }}{{ classroom.id }}">{{ classroom.name }}</label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="modal-footer border-0 p-4 pt-0">
+                            <button type="submit" class="btn btn-dark w-100 rounded-pill fw-bold py-3 shadow">Save Assignments</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
         {% endfor %}
     </div>
 
-    {% if page_obj.has_other_pages %}
-    <nav class="mt-5">
-        <ul class="pagination justify-content-center gap-2">
-            {% if page_obj.has_previous %}
-                <li class="page-item"><a class="page-link border-0 shadow-sm rounded-4 px-4" href="?page={{ page_obj.previous_page_number }}&q={{ query }}"><i class="fas fa-chevron-left"></i></a></li>
-            {% endif %}
-            <li class="page-item active"><span class="page-link border-0 shadow-sm rounded-4 px-4 fw-bold">Page {{ page_obj.number }}</span></li>
-            {% if page_obj.has_next %}
-                <li class="page-item"><a class="page-link border-0 shadow-sm rounded-4 px-4" href="?page={{ page_obj.next_page_number }}&q={{ query }}"><i class="fas fa-chevron-right"></i></a></li>
-            {% endif %}
-        </ul>
-    </nav>
-    {% endif %}
+    </div>
+
+<div class="modal fade" id="addTeacherModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <form action="{% url 'academic:add_teacher' %}" method="POST">
+                {% csrf_token %}
+                <div class="modal-header border-0 pt-4 px-4">
+                    <h5 class="fw-bold mb-0">Register New Teacher</h5>
+                    <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label x-small text-muted">First Name</label>
+                            <input type="text" name="first_name" class="form-control rounded-3 border-light-subtle bg-light shadow-none" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label x-small text-muted">Last Name</label>
+                            <input type="text" name="last_name" class="form-control rounded-3 border-light-subtle bg-light shadow-none" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label x-small text-muted">Staff ID No.</label>
+                            <input type="text" name="staff_id" class="form-control rounded-3 border-light-subtle bg-light shadow-none" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label x-small text-muted">Phone Number</label>
+                            <input type="text" name="phone" class="form-control rounded-3 border-light-subtle bg-light shadow-none">
+                        </div>
+
+                        <div class="col-12 mt-4">
+                            <div class="form-check form-switch bg-light p-3 rounded-3 border border-light-subtle">
+                                <input class="form-check-input ms-0 me-2" type="checkbox" name="create_account" id="createAccountCheck" onchange="toggleEmailField()">
+                                <label class="form-check-label fw-bold small text-dark" for="createAccountCheck">Enable System Login (User Account)</label>
+                            </div>
+                        </div>
+
+                        <div class="col-12 d-none" id="emailFieldDiv">
+                            <label class="form-label x-small text-muted">Official Email (Username)</label>
+                            <input type="email" name="email" id="emailInput" class="form-control rounded-3 border-light-subtle bg-light shadow-none">
+                            <div class="alert alert-info mt-2 py-2 px-3 border-0 rounded-3" style="font-size: 0.72rem;">
+                                <i class="fas fa-key me-2"></i> Initial password will be the <strong>Staff ID</strong>.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pb-4 px-4">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Discard</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" style="background: var(--primary);">Add Teacher</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
 <div class="modal fade" id="editTeacherModal" tabindex="-1" aria-hidden="true">
@@ -162,7 +257,7 @@
                 </div>
                 <div class="modal-footer border-0 pb-4 px-4">
                     <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm">Save Profile</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" style="background: var(--primary);">Save Profile</button>
                 </div>
             </form>
         </div>
@@ -182,11 +277,14 @@
     }
     .avatar-blob img { width: 100%; height: 100%; object-fit: cover; }
     .avatar-blob span { font-size: 2.2rem; color: white; }
-    .sig-line { width: 100px; border-bottom: 2px solid #000; margin: 0 auto; }
+    .assignment-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; max-height: 180px; overflow-y: auto; padding-right: 5px; }
+    .assignment-item input { display: none; }
+    .assignment-item label { display: block; padding: 8px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.72rem; font-weight: 700; text-align: center; cursor: pointer; transition: 0.2s; }
+    .assignment-item input:checked + label { background: #1e293b; color: white; border-color: #1e293b; }
 </style>
 
 <script>
-    // 1. Live Search Logic
+    // Live Search
     const qInput = document.getElementById('q-input');
     let searchTimer;
     qInput.addEventListener('input', () => {
@@ -194,22 +292,35 @@
         searchTimer = setTimeout(() => document.getElementById('search-form').submit(), 800);
     });
 
-    // 2. Edit Modal Population
+    // Toggle Email Field Visibility
+    function toggleEmailField() {
+        const check = document.getElementById('createAccountCheck');
+        const div = document.getElementById('emailFieldDiv');
+        const emailInput = document.getElementById('emailInput');
+        
+        if (check.checked) {
+            div.classList.remove('d-none');
+            emailInput.required = true;
+        } else {
+            div.classList.add('d-none');
+            emailInput.required = false;
+        }
+    }
+
+    // Populate Edit Modal
     document.querySelectorAll('.edit-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             const id = this.dataset.id;
             const form = document.getElementById('editTeacherForm');
-            form.action = `/academic/teacher/${id}/edit/`; // Adjust based on your URL
-            
+            form.action = `/academic/teacher/${id}/edit/`; 
             document.getElementById('edit_first_name').value = this.dataset.fname;
             document.getElementById('edit_last_name').value = this.dataset.lname;
             document.getElementById('edit_phone').value = this.dataset.phone;
-            
             new bootstrap.Modal(document.getElementById('editTeacherModal')).show();
         });
     });
 
-    // 3. AJAX Status Toggle (Zero Reload)
+    // Status AJAX
     document.querySelectorAll('.toggle-status-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             const url = this.dataset.url;
@@ -223,13 +334,13 @@
                 .then(data => {
                     if (data.is_active) {
                         badge.style = "background: #e0e7ff; color: #4338ca;";
-                        badge.innerText = "Active";
-                        actionText.innerText = "Deactivate";
+                        badge.innerText = "Active Account";
+                        actionText.innerText = "Deactivate Account";
                         icon.className = "fas fa-user-slash me-2";
                     } else {
                         badge.style = "background: #fee2e2; color: #ef4444;";
                         badge.innerText = "Inactive";
-                        actionText.innerText = "Activate";
+                        actionText.innerText = "Activate Account";
                         icon.className = "fas fa-user-check me-2";
                     }
                 });

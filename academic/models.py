@@ -109,29 +109,31 @@ from django.conf import settings
 
 class Teacher(models.Model):
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='teachers')
-    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='teacher_profile')
+    # Link is now optional (null=True)
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL, 
+        related_name='teacher_profile', 
+        null=True, 
+        blank=True
+    )
+    # Fields to store names if no user exists
+    first_name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100)
+    
     staff_id = models.CharField(max_length=20, unique=True)
-    
-    # NEW PHOTO FIELD
-    # Ensure you have 'Pillow' installed: pip install Pillow
     profile_photo = models.ImageField(upload_to='teachers/photos/', null=True, blank=True)
-    
     phone = models.CharField(max_length=15)
+    
     subjects = models.ManyToManyField('academic.Subject', related_name='teachers', blank=True)
     classrooms = models.ManyToManyField('students.Classroom', related_name='teachers', blank=True)
 
     def __str__(self):
-        return f"{self.user.get_full_name()}"
+        return f"{self.first_name} {self.last_name}"
 
     @property
-    def get_photo_url(self):
-        """Returns photo if exists, otherwise a professional placeholder"""
-        if self.profile_photo and hasattr(self.profile_photo, 'url'):
-            return self.profile_photo.url
-        # Path to a default image in your static folder
-        return "/static/images/default-avatar.png"
-    
-
+    def get_full_name(self):
+        return f"{self.first_name} {self.last_name}"
 
 class ClassRequirement(models.Model):
     school = models.ForeignKey('core.School', on_delete=models.CASCADE)

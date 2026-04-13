@@ -9,65 +9,85 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from .models import Classroom, Subject, Student, Mark, SubjectAssignment
 
+from django.utils import timezone
+
 def enter_marks(request, classroom_id, subject_id):
-    # 1. Fetch data with school-scoping for security
+    # 1. Fetch data with school-scoping
     classroom = get_object_or_404(Classroom, id=classroom_id, school=request.school)
     subject = get_object_or_404(Subject, id=subject_id, school=request.school)
     
-    # 2. STRICT SECURITY: Verify Teacher Assignment
+    # Use dynamic year to prevent hardcoding lock-out
+    current_year = timezone.now().year 
+    
+    # 2. REFINED SECURITY: Multi-Level Assignment Check
     if not request.user.is_superuser:
-        try:
-            teacher_profile = request.user.teacher_profile
-            is_assigned = SubjectAssignment.objects.filter(
-                teacher=teacher_profile,
-                subject=subject,
-                classroom=classroom,
-                year=2026
-            ).exists()
-            
-            if not is_assigned:
-                messages.error(request, f"Access Denied: You are not the assigned teacher for {subject.name} in {classroom.name}.")
-                return redirect('academic:dashboard')
-        except AttributeError:
-            messages.error(request, "Only registered teachers can access this page.")
+        teacher_profile = getattr(request.user, 'teacher_profile', None)
+        
+        if not teacher_profile:
+            messages.error(request, "System Error: Your account is not linked to a Teacher Profile.")
+            return redirect('academic:dashboard')
+
+        # Check 1: Check the SubjectAssignment table (The explicit link)
+        is_assigned = SubjectAssignment.objects.filter(
+            teacher=teacher_profile,
+            subject=subject,
+            classroom=classroom,
+            year=current_year
+        ).exists()
+
+        # Check 2: Fallback - Check the ManyToMany on the Teacher model 
+        # (This handles cases where you assigned via the Teacher admin page)
+        if not is_assigned:
+            is_assigned = teacher_profile.subjects.filter(id=subject.id).exists() and \
+                          teacher_profile.classrooms.filter(id=classroom.id).exists()
+
+        if not is_assigned:
+            messages.error(
+                request, 
+                f"Access Denied: No valid assignment found for {subject.name} in {classroom.name} for {current_year}. "
+                "Please verify the 'Year' and 'Teacher' fields in Admin."
+            )
             return redirect('academic:dashboard')
 
     # 3. Fetch students efficiently
-    students = Student.objects.filter(classroom=classroom, school=request.school)
+    students = Student.objects.filter(classroom=classroom, school=request.school).order_by('first_name')
     
     if request.method == "POST":
         term = request.POST.get('term')
         
-        # 4. Atomic-style loop for mark entry
         for student in students:
             mid_val = request.POST.get(f'mid_{student.id}')
             end_val = request.POST.get(f'end_{student.id}')
             
-            # Clean empty strings to None (prevents database float errors)
-            mid_mark = float(mid_val) if mid_val and mid_val.strip() else None
-            end_mark = float(end_val) if end_val and end_val.strip() else None
-            
+            # Helper logic for safe float conversion
+            def to_float(val):
+                try:
+                    return float(val) if val and str(val).strip() else None
+                except ValueError:
+                    return None
+
             Mark.objects.update_or_create(
                 student=student,
                 subject=subject,
                 classroom=classroom,
                 school=request.school,
                 term=term,
-                year=2026,
+                year=current_year,
                 defaults={
-                    'mid_term_mark': mid_mark,
-                    'end_term_mark': end_mark,
-                    'entered_by': request.user, # Track who did the work
+                    'mid_term_mark': to_float(mid_val),
+                    'end_term_mark': to_float(end_val),
+                    'entered_by': request.user,
                 }
             )
         
-        messages.success(request, f"Marks for {subject.name} in {classroom.name} have been updated successfully.")
+        messages.success(request, f"Successfully saved marks for {subject.name} - {classroom.name}.")
         return redirect('academic:dashboard')
 
     return render(request, 'academic/mark_sheet.html', {
         'classroom': classroom,
         'subject': subject,
-        'students': students
+        'students': students,
+        'current_year': current_year
     })
 
 from django.shortcuts import render, get_object_or_404
@@ -353,6 +373,97 @@ def teacher_dashboard(request):
 
 
 
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+from .models import Teacher, Subject
+from students.models import Classroom
+
+# @require_POST
+# def update_teacher_assignments(request, teacher_id):
+#     # Security: Ensure the teacher belongs to the user's school
+#     teacher = get_object_or_404(Teacher, id=teacher_id, school=request.school)
+    
+#     # Get lists of IDs from the form
+#     subject_ids = request.POST.getlist('subjects')
+#     classroom_ids = request.POST.getlist('classrooms')
+
+#     # Update ManyToMany relationships
+#     teacher.subjects.set(Subject.objects.filter(id__in=subject_ids, school=request.school))
+#     teacher.classrooms.set(Classroom.objects.filter(id__in=classroom_ids, school=request.school))
+    
+#     messages.success(request, f"Assignments for {teacher.user.get_full_name()} updated successfully.")
+#     return redirect(request.META.get('HTTP_REFERER', 'academic:teacher_directory'))
+
+from django.contrib.auth.models import User
+from django.core.mail import send_mail
+from django.conf import settings
+from django.contrib import messages
+from django.shortcuts import redirect
+
+@require_POST
+def add_teacher(request):
+    first_name = request.POST.get('first_name')
+    last_name = request.POST.get('last_name')
+    email = request.POST.get('email')
+    staff_id = request.POST.get('staff_id')
+    phone = request.POST.get('phone')
+    create_account = request.POST.get('create_account') == 'on'
+
+    user = None
+    if create_account and email:
+        if User.objects.filter(username=email).exists():
+            messages.error(request, f"A user with email {email} already exists.")
+            return redirect('academic:teacher_directory')
+        
+        # 1. Create the User Account
+        user = User.objects.create_user(
+            username=email,
+            email=email,
+            password=staff_id, # Using Staff ID as initial password
+            first_name=first_name,
+            last_name=last_name
+        )
+
+        # 2. Send the Welcome Email
+        subject = f"Welcome to {request.school.name} Portal"
+        message = f"""
+        Hello {first_name},
+
+        An account has been created for you on the {request.school.name} management system.
+        
+        Your login credentials are:
+        Username: {email}
+        Password: {staff_id}
+        
+        You can log in here: {request.build_absolute_uri('/')}
+        
+        Please change your password after your first login for security purposes.
+        """
+        try:
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                [email],
+                fail_silently=False,
+            )
+        except Exception as e:
+            # We log the error but don't stop the process
+            messages.warning(request, "Teacher added, but the welcome email failed to send. Please check your SMTP settings.")
+
+    # 3. Create Teacher Record (Linked to user if created, else None)
+    Teacher.objects.create(
+        school=request.school,
+        user=user,
+        first_name=first_name,
+        last_name=last_name,
+        staff_id=staff_id,
+        phone=phone
+    )
+
+    messages.success(request, f"Teacher {first_name} {last_name} has been successfully registered.")
+    return redirect('academic:teacher_directory')
+
 
 from django.core.paginator import Paginator
 from django.db.models import Q
@@ -370,23 +481,30 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q
 from .models import Teacher
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.core.paginator import Paginator
+from django.db.models import Q
+from django.views.decorators.http import require_POST
+from .models import Teacher, Subject
+from students.models import Classroom
 
 def teacher_directory(request):
-    # 1. Get the search term and clean it
     query = request.GET.get('q', '').strip()
     
-    # 2. MULTI-TENANT SECURITY CHECK
-    # Check if the user has a profile and an assigned school
+    # 1. Multi-Tenant Security Check
     if not hasattr(request.user, 'teacher_profile'):
-        messages.error(request, f"Access Denied: The account '{request.user.username}' is not linked to any school profile. Please contact MAC Technologies support.")
-        return redirect('/') # Redirect to home instead of crashing on a 403 template
+        messages.error(request, f"Access Denied: Account '{request.user.username}' is not linked to a school profile.")
+        return redirect('/')
 
     user_school = request.user.teacher_profile.school
     
-    # 3. Fetch ONLY teachers belonging to this school
+    # 2. Fetch School-Specific Data
     teacher_list = Teacher.objects.filter(school=user_school).select_related('user').prefetch_related('subjects', 'classrooms')
+    all_subjects = Subject.objects.filter(school=user_school)
+    all_classrooms = Classroom.objects.filter(school=user_school)
 
-    # 4. Apply Search Filter
+    # 3. Apply Search Filter
     if query:
         teacher_list = teacher_list.filter(
             Q(user__first_name__icontains=query) | 
@@ -394,18 +512,34 @@ def teacher_directory(request):
             Q(staff_id__icontains=query)
         )
 
-    # 5. Setup Pagination (12 cards per page)
+    # 4. Pagination
     paginator = Paginator(teacher_list, 12)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+    page_obj = paginator.get_page(request.GET.get('page'))
 
     context = {
         'page_obj': page_obj,
         'query': query,
         'total_count': teacher_list.count(),
         'current_school': user_school,
+        'all_subjects': all_subjects,
+        'all_classrooms': all_classrooms,
     }
     return render(request, 'teachers/directory.html', context)
+
+@require_POST
+def update_teacher_assignments(request, teacher_id):
+    """Front-end logic to assign subjects/classes to a teacher"""
+    teacher = get_object_or_404(Teacher, id=teacher_id, school=request.school)
+    
+    subject_ids = request.POST.getlist('subjects')
+    classroom_ids = request.POST.getlist('classrooms')
+
+    # Update ManyToMany relationships safely
+    teacher.subjects.set(Subject.objects.filter(id__in=subject_ids, school=request.school))
+    teacher.classrooms.set(Classroom.objects.filter(id__in=classroom_ids, school=request.school))
+    
+    messages.success(request, f"Assignments for {teacher.user.get_full_name()} updated successfully.")
+    return redirect('academic:teacher_directory')
 
 
 
@@ -454,20 +588,28 @@ def teacher_status_toggle(request, pk):
     })
 
 def teacher_edit(request, pk):
-    """View to handle profile updates"""
+    """View to handle profile updates with optional User accounts"""
+    # Ensure the teacher belongs to the current school context
     teacher = get_object_or_404(Teacher, pk=pk, school=request.school)
+    
     if request.method == "POST":
-        # Simple update logic (Update as needed for your forms)
-        teacher.user.first_name = request.POST.get('first_name')
-        teacher.user.last_name = request.POST.get('last_name')
+        # 1. Update the Teacher model fields (These always exist)
+        teacher.first_name = request.POST.get('first_name')
+        teacher.last_name = request.POST.get('last_name')
         teacher.phone = request.POST.get('phone')
         
         if request.FILES.get('profile_photo'):
             teacher.profile_photo = request.FILES.get('profile_photo')
             
-        teacher.user.save()
         teacher.save()
-        messages.success(request, "Profile updated successfully.")
+
+        # 2. Update the User account ONLY if it is linked
+        if teacher.user:
+            teacher.user.first_name = request.POST.get('first_name')
+            teacher.user.last_name = request.POST.get('last_name')
+            teacher.user.save()
+            
+        messages.success(request, f"Profile for {teacher.get_full_name} updated successfully.")
         return redirect('academic:teacher_directory')
     
     return render(request, 'academic/teachers/edit_partial.html', {'teacher': teacher})
