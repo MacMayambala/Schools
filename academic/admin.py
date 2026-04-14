@@ -40,51 +40,71 @@ class MarkAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 from django.contrib import admin
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from .models import Teacher
 
 from django.contrib import admin
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from .models import Teacher
-
-from django.utils.html import format_html
 
 @admin.register(Teacher)
 class TeacherAdmin(admin.ModelAdmin):
-    # Added 'school' to the list display for quick identification
     list_display = ('display_photo', 'full_name', 'school', 'staff_id', 'phone', 'assigned_classes')
-    
-    # Added 'school' to filters so you can view teachers per institution
     list_filter = ('school', 'classrooms', 'subjects')
-    
     search_fields = ('user__first_name', 'user__last_name', 'staff_id', 'school__name')
     
     fieldsets = (
         ('Personal Identity', {
-            # Included 'school' here so it's assigned during creation
             'fields': ('user', 'school', 'staff_id', 'profile_photo', 'phone')
         }),
         ('Academic Responsibility', {
             'fields': ('classrooms', 'subjects'),
-            'description': 'Assign the classes and subjects this teacher is responsible for.'
         }),
     )
 
     def full_name(self, obj):
-        return obj.user.get_full_name()
-    full_name.short_description = 'Teacher Name'
+        """Returns the full name with safety checks for missing users."""
+        # 1. Try Teacher model fields if they exist
+        first = getattr(obj, 'first_name', None)
+        last = getattr(obj, 'last_name', None)
+        if first or last:
+            return f"{first or ''} {last or ''}".strip()
+        
+        # 2. Safe check: Does the user relationship exist?
+        if obj.user:
+            return obj.user.get_full_name() or obj.user.username
+            
+        # 3. Last resort fallback
+        return f"Teacher ({obj.staff_id or 'ID Missing'})"
+    full_name.short_description = 'Full Name'
 
     def display_photo(self, obj):
+        """Renders the profile photo or a placeholder."""
         if obj.profile_photo:
-            return format_html('<img src="{}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;" />', obj.profile_photo.url)
-        return format_html('<div style="width: 40px; height: 40px; border-radius: 50%; background: #eee; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #999;">No Image</div>')
+            # We use format_html with args to prevent the previous TypeError
+            return format_html(
+                '<img src="{}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;" />', 
+                obj.profile_photo.url
+            )
+        
+        # Static HTML string for placeholder
+        return mark_safe(
+            '<div style="width: 40px; height: 40px; border-radius: 50%; background: #eee; '
+            'display: flex; align-items: center; justify-content: center; font-size: 10px; '
+            'color: #999; border: 1px solid #ddd;">No Photo</div>'
+        )
     display_photo.short_description = 'Photo'
 
     def assigned_classes(self, obj):
-        return ", ".join([c.name for c in obj.classrooms.all()])
+        """Lists classrooms as a comma-separated string."""
+        classes = obj.classrooms.all()
+        if classes:
+            return ", ".join([c.name for c in classes])
+        return "Not Assigned"
     assigned_classes.short_description = 'Classes'
 
-
-
+    
 from django.contrib import admin
 from .models import ClassRequirement
 
