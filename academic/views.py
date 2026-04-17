@@ -1,33 +1,29 @@
 from django.shortcuts import render
 
-# Create your views here.
-from django.shortcuts import render, redirect
-from .models import Mark, Subject, Teacher
-from students.models import Student, Classroom
-
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
-from .models import Classroom, Subject, Student, Mark, SubjectAssignment
-
 from django.utils import timezone
+from django.db import transaction
+from .models import Mark, Subject, Teacher, Classroom, SubjectAssignment
+from students.models import Student
 
 def enter_marks(request, classroom_id, subject_id):
     # 1. Fetch data with school-scoping
     classroom = get_object_or_404(Classroom, id=classroom_id, school=request.school)
     subject = get_object_or_404(Subject, id=subject_id, school=request.school)
-    
-    # Use dynamic year to prevent hardcoding lock-out
     current_year = timezone.now().year 
     
-    # 2. REFINED SECURITY: Multi-Level Assignment Check
+    # 2. SECURITY: Multi-Level Assignment Check
     if not request.user.is_superuser:
+        # Get the teacher profile linked to the user
+        # Note: Ensure the related_name in your Teacher model is 'teacher_profile'
         teacher_profile = getattr(request.user, 'teacher_profile', None)
         
         if not teacher_profile:
-            messages.error(request, "System Error: Your account is not linked to a Teacher Profile.")
+            messages.error(request, "Access Denied: You do not have a Teacher Profile.")
             return redirect('academic:dashboard')
 
-        # Check 1: Check the SubjectAssignment table (The explicit link)
+        # Check SubjectAssignment table
         is_assigned = SubjectAssignment.objects.filter(
             teacher=teacher_profile,
             subject=subject,
@@ -35,8 +31,7 @@ def enter_marks(request, classroom_id, subject_id):
             year=current_year
         ).exists()
 
-        # Check 2: Fallback - Check the ManyToMany on the Teacher model 
-        # (This handles cases where you assigned via the Teacher admin page)
+        # Fallback: Check ManyToMany fields on Teacher model
         if not is_assigned:
             is_assigned = teacher_profile.subjects.filter(id=subject.id).exists() and \
                           teacher_profile.classrooms.filter(id=classroom.id).exists()
@@ -44,44 +39,51 @@ def enter_marks(request, classroom_id, subject_id):
         if not is_assigned:
             messages.error(
                 request, 
-                f"Access Denied: No valid assignment found for {subject.name} in {classroom.name} for {current_year}. "
-                "Please verify the 'Year' and 'Teacher' fields in Admin."
+                f"Access Denied: You are not assigned to teach {subject.name} in {classroom.name}."
             )
             return redirect('academic:dashboard')
 
-    # 3. Fetch students efficiently
+    # 3. Fetch students
     students = Student.objects.filter(classroom=classroom, school=request.school).order_by('first_name')
     
     if request.method == "POST":
         term = request.POST.get('term')
         
-        for student in students:
-            mid_val = request.POST.get(f'mid_{student.id}')
-            end_val = request.POST.get(f'end_{student.id}')
-            
-            # Helper logic for safe float conversion
-            def to_float(val):
-                try:
-                    return float(val) if val and str(val).strip() else None
-                except ValueError:
-                    return None
+        try:
+            # Use atomic transaction to prevent partial saves and fixing TransactionManagementError
+            with transaction.atomic():
+                for student in students:
+                    mid_val = request.POST.get(f'mid_{student.id}')
+                    end_val = request.POST.get(f'end_{student.id}')
+                    
+                    def to_float(val):
+                        try:
+                            return float(val) if val and str(val).strip() else None
+                        except (ValueError, TypeError):
+                            return None
 
-            Mark.objects.update_or_create(
-                student=student,
-                subject=subject,
-                classroom=classroom,
-                school=request.school,
-                term=term,
-                year=current_year,
-                defaults={
-                    'mid_term_mark': to_float(mid_val),
-                    'end_term_mark': to_float(end_val),
-                    'entered_by': request.user,
-                }
-            )
-        
-        messages.success(request, f"Successfully saved marks for {subject.name} - {classroom.name}.")
-        return redirect('academic:dashboard')
+                    # update_or_create triggers the model's .save() and .full_clean()
+                    Mark.objects.update_or_create(
+                        student=student,
+                        subject=subject,
+                        classroom=classroom,
+                        school=request.school,
+                        term=term,
+                        year=current_year,
+                        defaults={
+                            'mid_term_mark': to_float(mid_val),
+                            'end_term_mark': to_float(end_val),
+                            'entered_by': request.user,
+                        }
+                    )
+            
+            messages.success(request, f"Successfully saved marks for {subject.name} - {classroom.name}.")
+            return redirect('academic:dashboard')
+            
+        except Exception as e:
+            # This catches the ValidationError from the model
+            messages.error(request, f"Error saving marks: {e}")
+            # If it fails, we fall through to render the page again so marks aren't lost in the form
 
     return render(request, 'academic/mark_sheet.html', {
         'classroom': classroom,

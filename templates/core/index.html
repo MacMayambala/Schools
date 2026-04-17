@@ -1,11 +1,96 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static humanize %}
 
 {% block content %}
-<div class="container-fluid py-3 animate__animated animate__fadeIn">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+    :root {
+        --card-bg: #ffffff;
+        --border-color: rgba(0,0,0,0.08);
+        --primary: #1a6644;
+        --primary-soft: #e6f2ec;
+        --text-muted: #64748b;
+    }
+
+    body { font-family: 'DM Sans', system-ui, sans-serif; }
+
+    .dash-container { background: #f8f9fa; min-height: 100vh; }
+
+    .page-header { margin-bottom: 2.5rem; }
+    .breadcrumb { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; }
+    .display-6 { font-size: 2.45rem; font-weight: 700; letter-spacing: -0.045em; line-height: 1.1; }
+
+    .stat-card, .glass-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 24px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.06);
+    }
+    .stat-card:hover { transform: translateY(-8px); box-shadow: 0 20px 40px rgba(0,0,0,0.09); }
+
+    .stat-label {
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--text-muted);
+        margin-bottom: 8px;
+    }
+    .stat-value { font-size: 2.45rem; font-weight: 700; letter-spacing: -0.06em; line-height: 1; }
+
+    .stat-icon {
+        width: 64px; height: 64px;
+        border-radius: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8rem;
+    }
+
+    .panel-header {
+        padding: 22px 28px;
+        border-bottom: 1px solid var(--border-color);
+        background: rgba(0,0,0,0.015);
+    }
+
+    .command-btn {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        padding: 20px 24px;
+        background: rgba(0,0,0,0.02);
+        border: 1px solid var(--border-color);
+        border-radius: 18px;
+        text-decoration: none;
+        color: inherit;
+        transition: all 0.3s ease;
+    }
+    .command-btn:hover {
+        background: white;
+        border-color: var(--primary);
+        transform: translateX(10px);
+    }
+
+    .avatar-pill {
+        width: 44px; height: 44px;
+        border-radius: 14px;
+        background: var(--primary-soft);
+        color: var(--primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 1rem;
+    }
+</style>
+
+<div class="dash-container container-fluid py-4">
 
     <!-- Header -->
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-5 gap-4">
+    <div class="page-header d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-5 gap-4">
         <div>
             <nav aria-label="breadcrumb" class="mb-2">
                 <ol class="breadcrumb mb-0">
@@ -13,23 +98,21 @@
                     <li class="breadcrumb-item small text-uppercase fw-bold ls-1 text-muted active">Management</li>
                 </ol>
             </nav>
-            <h1 class="display-6 fw-bold text-dark mb-1 tracking-tight">
-                School Dashboard
-            </h1>
+            <h1 class="display-6 fw-bold text-dark mb-1 tracking-tight">School Dashboard</h1>
             <div class="d-flex align-items-center gap-2">
                 <div class="status-indicator-online"></div>
-                <p class="text-muted mb-0 small fw-semibold">
+                <p class="text-muted mb-0 fw-medium">
                     Live insights for <span class="fw-semibold text-dark">{{ request.school.name|default:"OLA School" }}</span>
                 </p>
             </div>
         </div>
 
-        <div class="no-print d-flex gap-3">
+        <div class="no-print d-flex gap-3 align-items-center">
             <div class="date-pill">
                 <i class="fas fa-calendar-alt text-primary me-2"></i>
-                <span class="fw-semibold">{% now "M d, Y" %}</span>
+                <span>{% now "M d, Y" %}</span>
             </div>
-            <button onclick="window.print()" class="btn btn-outline-secondary btn-icon">
+            <button onclick="window.print()" class="btn btn-outline-secondary btn-icon shadow-sm">
                 <i class="fas fa-print"></i>
             </button>
         </div>
@@ -38,62 +121,62 @@
     <!-- KPI Cards -->
     <div class="row g-4 mb-5">
         <div class="col-xl-4 col-md-6">
-            <div class="stat-card border-top border-primary border-4 h-100">
+            <div class="stat-card border-top border-4 border-primary h-100">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <p class="stat-label">Enrollment</p>
-                            <h2 class="stat-value fw-bold">{{ student_count|default:"0" }}</h2>
+                            <p class="stat-label">Total Enrollment</p>
+                            <h2 class="stat-value fw-bold">{{ student_count|default:"0"|intcomma }}</h2>
                         </div>
                         <div class="stat-icon bg-primary-soft text-primary">
                             <i class="fas fa-user-graduate"></i>
                         </div>
                     </div>
-                    <div class="stat-footer mt-3">
-                        <span class="badge bg-primary-soft text-primary">Active Term</span>
+                    <div class="stat-footer mt-4">
+                        <span class="badge bg-primary-soft text-primary px-3 py-2">Current Term</span>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="col-xl-4 col-md-6">
-            <div class="stat-card border-top border-success border-4 h-100">
+            <div class="stat-card border-top border-4 border-success h-100">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <p class="stat-label">Collections</p>
+                            <p class="stat-label">Revenue Collected</p>
                             <h2 class="stat-value fw-bold">
-                                <small class="text-muted">UGX</small> {{ total_fees|default:"0" }}
+                                <small class="text-muted fs-5">UGX</small> {{ total_fees|default:"0"|intcomma }}
                             </h2>
                         </div>
                         <div class="stat-icon bg-success-soft text-success">
                             <i class="fas fa-vault"></i>
                         </div>
                     </div>
-                    <div class="stat-footer mt-3">
-                        <span class="text-success small fw-semibold"><i class="fas fa-arrow-up me-1"></i> Received</span>
+                    <div class="stat-footer mt-4">
+                        <span class="text-success small fw-semibold"><i class="fas fa-arrow-trend-up me-1"></i> On Track</span>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="col-xl-4">
-            <div class="stat-card border-top border-danger border-4 h-100">
+            <div class="stat-card border-top border-4 border-danger h-100">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <p class="stat-label">Total Arrears</p>
+                            <p class="stat-label">Outstanding Arrears</p>
                             <h2 class="stat-value fw-bold text-danger">
-                                <small class="text-muted">UGX</small> {{ balance|default:"0" }}
+                                <small class="text-muted fs-5">UGX</small> {{ balance|default:"0"|intcomma }}
                             </h2>
                         </div>
                         <div class="stat-icon bg-danger-soft text-danger">
-                            <i class="fas fa-receipt"></i>
+                            <i class="fas fa-hand-holding-dollar"></i>
                         </div>
                     </div>
-                    <div class="stat-footer mt-3 d-flex align-items-center">
+                    <div class="stat-footer mt-4 d-flex align-items-center">
                         <div class="pulse-dot me-2"></div>
-                        <span class="text-danger small fw-semibold">Action Required</span>
+                        <span class="text-danger small fw-semibold">Immediate Attention</span>
                     </div>
                 </div>
             </div>
@@ -105,11 +188,11 @@
         <div class="col-lg-8">
             <div class="glass-card">
                 <div class="panel-header d-flex justify-content-between align-items-center">
-                    <h6 class="fw-bold mb-0">Revenue Trend</h6>
-                    <span class="badge bg-primary-soft text-primary">2026</span>
+                    <h6 class="fw-bold mb-0">Monthly Revenue Trend</h6>
+                    <span class="badge bg-primary-soft text-primary px-3 py-2">2026</span>
                 </div>
                 <div class="p-4">
-                    <div id="revenueChart" style="min-height: 350px;"></div>
+                    <div id="revenueChart" style="min-height: 360px;"></div>
                 </div>
             </div>
         </div>
@@ -117,35 +200,35 @@
         <div class="col-lg-4">
             <div class="glass-card">
                 <div class="panel-header">
-                    <h6 class="fw-bold mb-0">Term Status</h6>
+                    <h6 class="fw-bold mb-0">Fee Clearance Status</h6>
                 </div>
                 <div class="p-4">
-                    <div id="statusChart" style="min-height: 350px;"></div>
+                    <div id="statusChart" style="min-height: 360px;"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Command Suite + Recent Activity -->
+    <!-- Quick Access + Recent Activity -->
     <div class="row g-4">
         <div class="col-lg-4">
             <div class="glass-card h-100">
                 <div class="panel-header">
-                    <h6 class="fw-bold mb-0">Command Suite</h6>
+                    <h6 class="fw-bold mb-0">Quick Access</h6>
                 </div>
                 <div class="p-4">
                     <div class="d-grid gap-3">
                         <a href="{% url 'students:student_list' %}" class="command-btn">
-                            <i class="fas fa-users-viewfinder text-primary"></i>
-                            <span>Student Registry</span>
+                            <i class="fas fa-users text-primary"></i>
+                            <span class="fw-semibold">Student Registry</span>
                         </a>
                         <a href="{% url 'finance:bulk_bill' %}" class="command-btn">
-                            <i class="fas fa-file-invoice-dollar text-warning"></i>
-                            <span>Process Bulk Billing</span>
+                            <i class="fas fa-file-invoice-dollar text-amber"></i>
+                            <span class="fw-semibold">Bulk Billing</span>
                         </a>
                         <a href="{% url 'finance:dashboard' %}" class="command-btn">
                             <i class="fas fa-chart-pie text-success"></i>
-                            <span>Financial Reports</span>
+                            <span class="fw-semibold">Financial Reports</span>
                         </a>
                     </div>
                 </div>
@@ -155,16 +238,16 @@
         <div class="col-lg-8">
             <div class="glass-card h-100">
                 <div class="panel-header d-flex justify-content-between align-items-center">
-                    <h6 class="fw-bold mb-0">Recent Activity</h6>
-                    <span class="badge bg-primary-soft text-primary">Live Ledger</span>
+                    <h6 class="fw-bold mb-0">Recent Invoicing Activity</h6>
+                    <span class="badge bg-primary-soft text-primary">Live</span>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
                         <thead class="bg-light">
                             <tr class="text-muted small text-uppercase fw-bold ls-1">
                                 <th class="ps-4">Student</th>
-                                <th class="text-center">Period</th>
-                                <th class="text-end pe-4">Due Amount</th>
+                                <th class="text-center">Term</th>
+                                <th class="text-end pe-4">Balance</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -177,20 +260,20 @@
                                         </div>
                                         <div>
                                             <div class="fw-semibold">{{ inv.student.get_full_name }}</div>
-                                            <small class="text-muted">#{{ inv.student.admission_number }}</small>
+                                            <small class="text-muted">{{ inv.student.admission_number }}</small>
                                         </div>
                                     </div>
                                 </td>
                                 <td class="text-center">
-                                    <span class="badge bg-dark border">Term {{ inv.term|default:"1" }}</span>
+                                    <span class="badge bg-dark border px-3">Term {{ inv.term|default:"1" }}</span>
                                 </td>
-                                <td class="text-end pe-4 fw-bold text-danger">
-                                    UGX {{ inv.balance|floatformat:0 }}
+                                <td class="text-end pe-4 fw-bold {% if inv.balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                                    UGX {{ inv.balance|floatformat:0|intcomma }}
                                 </td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="3" class="text-center py-5 text-muted">No recent billing found.</td>
+                                <td colspan="3" class="text-center py-5 text-muted">No recent activity found.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -203,146 +286,57 @@
 
 <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 <script>
+document.addEventListener("DOMContentLoaded", function () {
+
     // Revenue Chart
-    var revenueOptions = {
-        series: [{ name: "Collected", data: {{ revenue_data|safe|default:"[0,0,0,0]" }} }],
-        chart: { type: 'area', height: 350, toolbar: { show: false }, fontFamily: 'Plus Jakarta Sans, sans-serif' },
-        colors: ['#2E8B57'],
-        stroke: { curve: 'smooth', width: 3.5 },
-        xaxis: { categories: {{ labels|safe|default:"['Jan','Feb','Mar','Apr']" }} },
-        yaxis: { labels: { formatter: (v) => "UGX " + v.toLocaleString() }},
-        fill: { type: 'gradient', gradient: { opacityFrom: 0.5, opacityTo: 0.05 }}
-    };
-    new ApexCharts(document.querySelector("#revenueChart"), revenueOptions).render();
+    new ApexCharts(document.querySelector("#revenueChart"), {
+        series: [{ 
+            name: "Collections", 
+            data: {{ revenue_data|safe|default:"[450000, 680000, 520000, 910000, 750000, 820000]" }} 
+        }],
+        chart: { type: 'area', height: 360, toolbar: { show: false } },
+        colors: ['#1a6644'],
+        stroke: { curve: 'smooth', width: 4 },
+        xaxis: { categories: {{ labels|safe|default:"['Jan','Feb','Mar','Apr','May','Jun']" }} },
+        yaxis: { labels: { formatter: (v) => 'UGX ' + v.toLocaleString() }},
+        fill: { type: 'gradient', gradient: { opacityFrom: 0.55, opacityTo: 0.08 }}
+    }).render();
 
-    // Status Chart
-    var statusOptions = {
-        series: {{ status_data|safe|default:"[75, 25]" }},
-        labels: ['Active', 'Arrears'],
-        chart: { type: 'donut', height: 350, fontFamily: 'Plus Jakarta Sans, sans-serif' },
-        colors: ['#2E8B57', '#ef4444'],
-        legend: { position: 'bottom', fontWeight: 600 }
-    };
-    new ApexCharts(document.querySelector("#statusChart"), statusOptions).render();
+    // Pie Chart - Very Safe Version
+    new ApexCharts(document.querySelector("#statusChart"), {
+        series: {{ status_data|safe|default:"[0, 0]" }},
+        labels: ['Cleared', 'With Arrears'],
+        chart: { 
+            type: 'donut', 
+            height: 360,
+            fontFamily: 'DM Sans, sans-serif'
+        },
+        colors: ['#1a6644', '#e11d48'],
+        legend: { 
+            position: 'bottom', 
+            fontSize: '15px',
+            fontWeight: 600 
+        },
+        plotOptions: {
+            pie: {
+                donut: {
+                    size: '75%',
+                    labels: {
+                        show: true,
+                        total: {
+                            show: true,
+                            label: 'Total Students',
+                            formatter: () => "{{ student_count|default:0 }}"
+                        }
+                    }
+                }
+            }
+        },
+        tooltip: { 
+            y: { formatter: (val) => val + " Students" }
+        }
+    }).render();
+
+});
 </script>
-
-<style>
-    .tracking-tight { letter-spacing: -0.04em; }
-    .ls-1 { letter-spacing: 0.05rem; }
-
-    .date-pill {
-        background: var(--card-bg);
-        border: 1px solid var(--border-color);
-        padding: 10px 20px;
-        border-radius: 50px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-    }
-
-    .btn-icon {
-        width: 44px;
-        height: 44px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .stat-card {
-        background: var(--card-bg);
-        border: 1px solid var(--border-color);
-        border-radius: 22px;
-        transition: all 0.3s ease;
-    }
-    .stat-card:hover { transform: translateY(-6px); box-shadow: 0 15px 30px rgba(0,0,0,0.08); }
-
-    .stat-label {
-        font-size: 0.75rem;
-        font-weight: 800;
-        text-transform: uppercase;
-        color: var(--text-muted);
-        margin-bottom: 6px;
-    }
-    .stat-value {
-        font-size: 2.35rem;
-        font-weight: 800;
-        letter-spacing: -1px;
-    }
-
-    .stat-icon {
-        width: 58px;
-        height: 58px;
-        border-radius: 16px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.6rem;
-    }
-
-    .glass-card {
-        background: var(--card-bg);
-        border: 1px solid var(--border-color);
-        border-radius: 22px;
-        overflow: hidden;
-    }
-
-    .panel-header {
-        padding: 20px 24px;
-        border-bottom: 1px solid var(--border-color);
-        background: rgba(0,0,0,0.02);
-    }
-
-    .command-btn {
-        display: flex;
-        align-items: center;
-        padding: 18px 22px;
-        background: rgba(0,0,0,0.02);
-        border: 1px solid var(--border-color);
-        border-radius: 16px;
-        text-decoration: none;
-        transition: all 0.3s ease;
-    }
-    .command-btn:hover {
-        background: var(--card-bg);
-        border-color: var(--primary);
-        transform: translateX(8px);
-    }
-    .command-btn i { font-size: 1.45rem; margin-right: 16px; width: 28px; }
-
-    .avatar-pill {
-        width: 40px; height: 40px;
-        border-radius: 12px;
-        background: var(--primary-soft);
-        color: var(--primary);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-        font-size: 0.9rem;
-    }
-
-    .status-indicator-online {
-        width: 10px; height: 10px;
-        background: #22c55e;
-        border-radius: 50%;
-        box-shadow: 0 0 8px #22c55e;
-        animation: glow 2s infinite;
-    }
-
-    @keyframes glow {
-        0%, 100% { opacity: 0.6; }
-        50% { opacity: 1; }
-    }
-
-    .pulse-dot {
-        width: 8px; height: 8px;
-        background: #ef4444;
-        border-radius: 50%;
-        animation: pulse 2s infinite;
-    }
-    @keyframes pulse {
-        0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
-        70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-    }
-</style>
 {% endblock %}

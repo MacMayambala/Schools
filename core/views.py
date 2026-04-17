@@ -6,20 +6,38 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Sum, Count
 from students.models import Student
 from finance.models import Invoice
+import json
+
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render
+from django.db.models import Sum
+import json
+
+from students.models import Student
+from finance.models import Invoice
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render
+from django.db.models import Sum
+
+from students.models import Student
+from finance.models import Invoice
+
+
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render
+from django.db.models import Sum
+
+from students.models import Student
+from finance.models import Invoice
+
 
 @login_required
 def index(request):
-    """
-    The Main Dashboard view for Saozirobwe.
-    Calculates key metrics based on the current user's school.
-    """
-    school = request.school # Handled by your SchoolMiddleware
+    school = request.school
     
-    # 1. Total Students Count
+    # --- Stats ---
     student_count = Student.objects.filter(school=school).count()
     
-    # 2. Finance Metrics
-    # We get the sum of total_amount and paid_amount for all invoices in this school
     finance_stats = Invoice.objects.filter(school=school).aggregate(
         total_expected=Sum('total_amount'),
         total_paid=Sum('paid_amount')
@@ -29,17 +47,48 @@ def index(request):
     paid = finance_stats['total_paid'] or 0
     balance = expected - paid
 
+    # ✅ --- FIXED PIE CHART LOGIC ---
+    students = Student.objects.filter(school=school)
+
+    cleared_students = 0
+    arrears_students = 0
+
+    for student in students:
+        invoices = student.invoices.all()
+
+        total_amount = sum(inv.total_amount for inv in invoices)
+        paid_amount = sum(inv.paid_amount for inv in invoices)
+
+        student_balance = total_amount - paid_amount
+
+        # Only count students who actually have invoices
+        if total_amount > 0:
+            if student_balance <= 0:
+                cleared_students += 1
+            else:
+                arrears_students += 1
+
+    # --- Revenue Chart (placeholder) ---
+    revenue_data = [0, 0, 0, 0, 0, 0]
+    labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
+
     context = {
         'student_count': student_count,
         'total_fees': paid,
         'balance': balance,
-        # We can also pass recent invoices for the 'Recent Activities' table
-        'recent_invoices': Invoice.objects.filter(school=school).order_by('-id')[:5]
+
+        # ✅ FINAL DATA FOR PIE CHART
+        'status_data': [cleared_students, arrears_students],
+
+        'revenue_data': revenue_data,
+        'labels': labels,
+
+        'recent_invoices': Invoice.objects.filter(school=school)
+            .select_related('student')
+            .order_by('-id')[:5]
     }
     
     return render(request, 'core/index.html', context)
-
-
 
 from django.contrib.auth.views import LoginView
 from django.contrib.messages.views import SuccessMessageMixin

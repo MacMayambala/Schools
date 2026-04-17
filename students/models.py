@@ -19,7 +19,7 @@ class Classroom(TenantModel):
         unique_together = ('school', 'level') # Optional: prevents duplicate levels in one school
 
     def __str__(self):
-        return f"{self.name} ({self.school.code})"
+        return f"{self.name} "
     
 
 class Stream(TenantModel):

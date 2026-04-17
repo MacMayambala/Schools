@@ -38,8 +38,11 @@ class SubjectAssignment(models.Model):
         return f"{self.teacher.user.last_name} - {self.subject.name} ({self.classroom.name})"
 
 
+from django.db import models
+from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
+
 class Mark(models.Model):
-    # Pointing to the 'school' app explicitly
     school = models.ForeignKey('core.School', on_delete=models.CASCADE)
     student = models.ForeignKey('students.Student', on_delete=models.CASCADE)
     subject = models.ForeignKey('Subject', on_delete=models.CASCADE)
@@ -73,30 +76,56 @@ class Mark(models.Model):
 
     @property
     def grade_remark(self):
-        remarks = {'D1':'Excellent','D2':'Very Good','C3':'Good','C4':'Quite Good','C5':'Satisfactory','C6':'Fair','P7':'Pass','P8':'Weak Pass','F9':'Fail'}
+        remarks = {
+            'D1':'Excellent','D2':'Very Good','C3':'Good',
+            'C4':'Quite Good','C5':'Satisfactory','C6':'Fair',
+            'P7':'Pass','P8':'Weak Pass','F9':'Fail'
+        }
         return remarks.get(self.grade, 'N/A')
 
     def clean(self):
-        if self.entered_by and not self.entered_by.is_superuser:
-            try:
-                teacher_profile = self.entered_by.teacher_profile
-                assigned = SubjectAssignment.objects.filter(
-                    teacher=teacher_profile,
-                    subject=self.subject,
-                    classroom=self.classroom,
-                    year=self.year
-                ).exists()
-                if not assigned:
-                    raise ValidationError(f"Access Denied: You do not teach {self.subject} in {self.classroom}.")
-            except AttributeError:
-                raise ValidationError("Teacher profile not found.")
+        # 1. If no user is assigned, skip validation
+        if not self.entered_by:
+            return
+
+        # 2. Bypass validation for Superusers (Admins)
+        if self.entered_by.is_superuser:
+            return
+
+        # 3. Validation for Teachers
+        try:
+            # Using getattr to safely check for teacher_profile
+            teacher_profile = getattr(self.entered_by, 'teacher_profile', None)
+            
+            if not teacher_profile:
+                raise ValidationError("Access Denied: Your account is not linked to a Teacher Profile.")
+
+            from .models import SubjectAssignment
+            assigned = SubjectAssignment.objects.filter(
+                teacher=teacher_profile,
+                subject=self.subject,
+                classroom=self.classroom,
+                year=self.year
+            ).exists()
+            
+            if not assigned:
+                raise ValidationError(
+                    f"Access Denied: You do not teach {self.subject.name} in {self.classroom.name}."
+                )
+        except Exception as e:
+            if isinstance(e, ValidationError):
+                raise e
+            raise ValidationError(f"Security validation failed: {str(e)}")
 
     def save(self, *args, **kwargs):
+        # We call full_clean so that the clean() method above is executed
         self.full_clean()
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.student.user.first_name} - {self.subject.name}: {self.total_score}"
+        # Fixed: Safe way to get student name since 'user' might not exist on student
+        student_name = getattr(self.student, 'full_name', str(self.student))
+        return f"{student_name} - {self.subject.name}: {self.total_score}"
 
 
 ####################################################################################################################################

@@ -1,29 +1,74 @@
 from django.shortcuts import render
+from django.db.models import Sum, Value, F
+from django.db.models.functions import Coalesce
 
-# Create your views here.
-from django.shortcuts import render, redirect
-from django.contrib import messages
+from students.models import Student
+from .models import Invoice
 
-from school_management import settings
-from .models import Invoice, FeeStructure
-from .services import generate_bulk_invoices
-from students.models import Classroom
+from django.shortcuts import render
+from django.db.models import Sum, Value, F
+from django.db.models.functions import Coalesce
+
+from students.models import Student
+from .models import Invoice
+
+
+from django.shortcuts import render
+from django.db.models import Sum, Value, F
+from django.db.models.functions import Coalesce
+from django.db.models import DecimalField
+
+from students.models import Student
+from .models import Invoice
+
+from django.shortcuts import render
+from django.db.models import Sum, Value, F
+from django.db.models.functions import Coalesce
+from django.db.models import DecimalField
+
+from students.models import Student
+from .models import Invoice
+
 
 def finance_dashboard(request):
-    """ Overview of total collections vs expectations """
-    invoices = Invoice.objects.filter(school=request.school)
+    """ Finance Dashboard View """
+    
+    # Basic totals
+    invoices = Invoice.objects.filter(school=request.school).select_related('student')
+    
     total_expected = sum(i.total_amount for i in invoices)
     total_collected = sum(i.paid_amount for i in invoices)
-    
+    balance = total_expected - total_collected
+
+    # All Students with safe annotation
+    all_students = Student.objects.filter(school=request.school).select_related('classroom').annotate(
+        total_billed=Coalesce(
+            Sum('invoices__total_amount'), 
+            Value(0, output_field=DecimalField())
+        ),
+        total_paid=Coalesce(
+            Sum('invoices__paid_amount'), 
+            Value(0, output_field=DecimalField())
+        ),
+        balance=Coalesce(
+            F('total_billed') - F('total_paid'),
+            Value(0, output_field=DecimalField()),
+            output_field=DecimalField()
+        )
+    ).order_by('first_name', 'last_name')
+
     context = {
         'total_expected': total_expected,
         'total_collected': total_collected,
-        'balance': total_expected - total_collected,
-        'recent_invoices': invoices.order_by('-id')[:10]
+        'balance': balance,
+        'recent_invoices': invoices.order_by('-id')[:10],
+        'all_students': all_students,
     }
+    
     return render(request, 'finance/dashboard.html', context)
 
-# finance/views.py
+
+    
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from .models import Invoice, FeeStructure
@@ -302,16 +347,22 @@ from .models import Invoice, Payment, Account
 from .utils import send_payment_receipt_email  # Import your email utility
 
 def record_payment(request, invoice_id):
-    invoice = get_object_or_404(Invoice, id=invoice_id, school=request.school)
-    
+    # Use .filter().first() instead of get_object_or_404
+    # This returns None if no invoice is found instead of crashing
+    invoice = Invoice.objects.filter(id=invoice_id, school=request.school).first()
+
+    # If the invoice doesn't exist, redirect with a popup message
+    if not invoice:
+        messages.warning(request, "This student has no pending invoice or the record was not found.")
+        # Replace 'students:student_list' with your actual student list URL name
+        return redirect('finance:dashboard')
+
     if request.method == "POST":
         try:
             with transaction.atomic():
-                # 1. Map incoming POST data
                 amount_val = Decimal(request.POST.get('amount'))
                 target_account = get_object_or_404(Account, id=request.POST.get('account'), school=request.school)
 
-                # 2. Create the payment record
                 payment = Payment.objects.create(
                     school=request.school,
                     invoice=invoice,
@@ -319,45 +370,39 @@ def record_payment(request, invoice_id):
                     payment_method=request.POST.get('method'),
                     transaction_id=request.POST.get('reference'),
                     depositor=request.POST.get('depositor'),
-                    phone_number=request.POST.get('phone_number'), # Added phone
+                    phone_number=request.POST.get('phone_number'),
                     recorded_by=request.user,
                     status='Completed'
                 )
 
-                # 3. Financial Updates
                 target_account.balance += amount_val
                 target_account.save()
 
-                # 4. Update the Invoice Balance
-                # Ensure your model field name is correct (paid_amount vs amount_paid)
                 invoice.paid_amount += amount_val 
                 invoice.save()
 
-            # 5. TRIGGER EMAIL (Outside the atomic block is safer for performance)
             email_success = send_payment_receipt_email(request, payment)
 
             if email_success:
-                messages.success(request, f"Successfully recorded UGX {amount_val:,.0f}. Receipt sent to parent.")
+                messages.success(request, f"Successfully recorded UGX {amount_val:,.0f}. Receipt sent.")
             else:
-                messages.success(request, f"Payment recorded, but receipt email skipped (check parent email address).")
+                messages.success(request, f"Payment recorded, but email skipped.")
             
             return redirect('finance:dashboard')
 
         except Exception as e:
             messages.error(request, f"Error processing payment: {str(e)}")
-            return redirect('finance:record_payment', invoice_id=invoice.id)
+            # If the post fails, we stay on the payment page for that specific invoice
+            return render(request, 'finance/record_payment.html', {'invoice': invoice})
 
-    # Filter for Asset accounts (Cash, Bank, Mobile Money)
+    # Normal GET request logic
     accounts = Account.objects.filter(school=request.school, account_type__iexact='Asset').order_by('name')
-    
     context = {
         'invoice': invoice, 
         'accounts': accounts,
-        'remaining_balance': invoice.balance # Useful for the frontend template
+        'remaining_balance': invoice.balance
     }
     return render(request, 'finance/record_payment.html', context)
-
-
 
 from django.shortcuts import render, redirect
 from django.contrib import messages
