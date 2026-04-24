@@ -58,26 +58,22 @@ from .models import FeeStructure
 
 from django import forms
 from .models import FeeStructure
+from students.models import Classroom
 
 class FeeStructureForm(forms.ModelForm):
     class Meta:
         model = FeeStructure
-        # 1. REMOVE 'other_requirements_total' from this list
         fields = ['classroom', 'term', 'year', 'section', 'tuition_amount']
 
     def __init__(self, *args, **kwargs):
-        # 2. Pop the 'school' argument so it doesn't break the parent init
+        # Pop school before super()
         self.school = kwargs.pop('school', None)
-        
         super().__init__(*args, **kwargs)
 
-        # 3. Apply Multi-Tenancy filtering and Bootstrap styling
         if self.school:
             self.fields['classroom'].queryset = Classroom.objects.filter(school=self.school)
             
+            # Auto-styling with Bootstrap
             for field_name, field in self.fields.items():
-                # Use form-select for dropdowns, form-control for standard inputs
-                if isinstance(field.widget, forms.Select):
-                    field.widget.attrs.update({'class': 'form-select shadow-sm'})
-                else:
-                    field.widget.attrs.update({'class': 'form-control shadow-sm'})
+                css_class = 'form-select' if isinstance(field.widget, forms.Select) else 'form-control'
+                field.widget.attrs.update({'class': f'{css_class} shadow-sm'})

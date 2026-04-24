@@ -30,62 +30,78 @@ from django.db.models import Sum
 from students.models import Student
 from finance.models import Invoice
 
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
+from django.db.models import Sum, F
+from django.utils import timezone
+from decimal import Decimal
+from finance.models import Invoice
+from students.models import Student
 
 @login_required
 def index(request):
     school = request.school
     
-    # --- Stats ---
-    student_count = Student.objects.filter(school=school).count()
+    # --- 1. Basic KPI Stats ---
+    student_count = Student.objects.filter(school=school, is_active=True).count()
     
     finance_stats = Invoice.objects.filter(school=school).aggregate(
         total_expected=Sum('total_amount'),
         total_paid=Sum('paid_amount')
     )
     
-    expected = finance_stats['total_expected'] or 0
-    paid = finance_stats['total_paid'] or 0
+    expected = finance_stats['total_expected'] or Decimal('0.00')
+    paid = finance_stats['total_paid'] or Decimal('0.00')
     balance = expected - paid
 
-    # ✅ --- FIXED PIE CHART LOGIC ---
-    students = Student.objects.filter(school=school)
+    # --- 2. Pie Chart Logic (Manual Loop for Accuracy) ---
+    students = Student.objects.filter(school=school, is_active=True).prefetch_related('invoices')
 
     cleared_students = 0
     arrears_students = 0
 
     for student in students:
+        # Use the prefetch to avoid hitting the DB inside the loop
         invoices = student.invoices.all()
+        
+        # Ensure we treat None as 0
+        total_billed = sum((inv.total_amount or Decimal('0.00')) for inv in invoices)
+        total_paid = sum((inv.paid_amount or Decimal('0.00')) for inv in invoices)
 
-        total_amount = sum(inv.total_amount for inv in invoices)
-        paid_amount = sum(inv.paid_amount for inv in invoices)
-
-        student_balance = total_amount - paid_amount
-
-        # Only count students who actually have invoices
-        if total_amount > 0:
-            if student_balance <= 0:
+        # Logic: Only count students who have actually been billed
+        if total_billed > 0:
+            if (total_billed - total_paid) <= 0:
                 cleared_students += 1
             else:
                 arrears_students += 1
 
-    # --- Revenue Chart (placeholder) ---
-    revenue_data = [0, 0, 0, 0, 0, 0]
-    labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
+    # --- 3. SQLite-Safe Revenue Logic ---
+    # Instead of TruncMonth (which crashes SQLite often), we'll do a simple monthly sum for the current year
+    labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    revenue_data = []
+    
+    current_year = timezone.now().year
+    
+    for month_index in range(1, 13):
+        monthly_sum = Invoice.objects.filter(
+            school=school,
+            created_at__year=current_year,
+            created_at__month=month_index
+        ).aggregate(total=Sum('paid_amount'))['total'] or 0
+        
+        revenue_data.append(float(monthly_sum))
 
+    # --- 4. Context Assembly ---
     context = {
         'student_count': student_count,
         'total_fees': paid,
         'balance': balance,
-
-        # ✅ FINAL DATA FOR PIE CHART
         'status_data': [cleared_students, arrears_students],
-
         'revenue_data': revenue_data,
         'labels': labels,
-
         'recent_invoices': Invoice.objects.filter(school=school)
             .select_related('student')
-            .order_by('-id')[:5]
+            .order_by('-created_at')[:5]
     }
     
     return render(request, 'core/index.html', context)
@@ -283,21 +299,26 @@ from finance.models import Invoice, Payment, FeeStructure
 
 import json
 from django.db.models import Sum
-from django.db.models.functions import TruncMonth
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
+from django.utils import timezone
+from decimal import Decimal
 from finance.models import Invoice
-from students.models import Student  # Ensure Student is imported
+from students.models import Student
+
+import json
+from django.db.models import Sum
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
+from decimal import Decimal
+from finance.models import Invoice
+from students.models import Student
 
 @login_required
 def dashboard_view(request):
-    """
-    Unified Dashboard for Saozirobwe:
-    Combines high-level KPIs with graphical revenue trends.
-    """
-    school = request.school  # Handled by your SchoolMiddleware
+    school = request.school 
 
-    # --- 1. KPI Metrics (The Big Numbers) ---
+    # --- 1. KPI Metrics ---
     student_count = Student.objects.filter(school=school).count()
     
     finance_stats = Invoice.objects.filter(school=school).aggregate(
@@ -305,39 +326,38 @@ def dashboard_view(request):
         total_paid=Sum('paid_amount')
     )
     
-    expected = finance_stats['total_expected'] or 0
-    paid = finance_stats['total_paid'] or 0
+    expected = finance_stats['total_expected'] or Decimal('0.00')
+    paid = finance_stats['total_paid'] or Decimal('0.00')
     balance = expected - paid
 
     # --- 2. Graphical Data (Monthly Revenue Trend) ---
-    # We use created_at to group by month for the current year
-    monthly_revenue = Invoice.objects.filter(
-        school=school, 
-        created_at__year=2026
-    ).annotate(
-        month=TruncMonth('created_at')
-    ).values('month').annotate(
-        total=Sum('paid_amount')
-    ).order_by('month')
+    # We fetch ALL invoices for the year and group them in Python to avoid SQLite date errors
+    labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    chart_data = [0.0] * 12 # Initialize 12 months with 0.0
+    
+    current_year = 2026
+    
+    # Fetch all relevant invoices once
+    yearly_invoices = Invoice.objects.filter(
+        school=school,
+        created_at__year=current_year
+    ).values('created_at', 'paid_amount')
 
-    # Prep for ApexCharts
-    labels = [item['month'].strftime("%b") for item in monthly_revenue]
-    chart_data = [float(item['total'] or 0) for item in monthly_revenue]
+    for inv in yearly_invoices:
+        if inv['created_at']:
+            # index 0 = Jan, index 1 = Feb, etc.
+            month_idx = inv['created_at'].month - 1 
+            chart_data[month_idx] += float(inv['paid_amount'] or 0)
 
-    # --- 3. Recent Activity (The Feed) ---
-    recent_invoices = Invoice.objects.filter(school=school).order_by('-id')[:5]
+    # --- 3. Recent Activity ---
+    recent_invoices = Invoice.objects.filter(school=school).select_related('student').order_by('-id')[:5]
 
     context = {
-        # KPI Cards
         'student_count': student_count,
         'total_fees': paid,
         'balance': balance,
-        
-        # Chart Data
         'labels': json.dumps(labels),
         'revenue_data': json.dumps(chart_data),
-        
-        # Tables
         'recent_invoices': recent_invoices,
     }
     

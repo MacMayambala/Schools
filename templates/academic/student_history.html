@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load academic_extras %}
+{% block content %}
+<div class="container py-5">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-4 mb-5">
+        <div>
+            <div class="d-flex align-items-center gap-3 mb-2">
+                <div class="bg-success bg-gradient text-white p-3 rounded-3 shadow-sm">
+                    <i class="fas fa-graduation-cap fa-2x"></i>
+                </div>
+                <div>
+                    <h1 class="fw-bold text-dark mb-0" style="letter-spacing: -2px; font-size: 2.1rem;">Academic Transcript</h1>
+                    <p class="text-muted fs-5 mb-0">
+                        Performance history for <strong class="text-dark">{{ student.get_full_name }}</strong>
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="d-flex gap-2">
+            <button onclick="window.print()" class="btn btn-success btn-lg px-4 shadow-sm d-flex align-items-center gap-2">
+                <i class="fas fa-print"></i>
+                <span>Print Transcript</span>
+            </button>
+            <button onclick="window.history.back()" class="btn btn-outline-secondary btn-lg px-4">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+        </div>
+    </div>
+
+    {% for year, terms in history.items %}
+        <div class="year-section mb-6">
+            <div class="d-flex align-items-center gap-3 mb-4">
+                <h2 class="fw-bold text-success mb-0 display-6">{{ year }}</h2>
+                <div class="flex-grow-1 border-bottom border-3 border-success border-opacity-10"></div>
+            </div>
+
+            <div class="row g-4">
+                {% for term, marks in terms.items %}
+                {% with aggregates=term_aggregates|dict_key:year|dict_key:term %}
+                <div class="col-lg-6 col-xl-6">
+                    <div class="card h-100 border-0 shadow-sm overflow-hidden" style="border-radius: 24px;">
+                        
+                        <div class="card-header bg-white border-0 pt-4 pb-0 px-4">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h5 class="fw-bold text-dark mb-1">
+                                        Term {{ term }}
+                                        {% if student_classroom or student_stream %}
+                                            <span class="text-success fw-normal fs-6 ms-2">
+                                                • {% if student_classroom %}{{ student_classroom.short_name|default:student_classroom.name }}{% endif %}
+                                                {% if student_stream %} {{ student_stream.name }}{% endif %}
+                                            </span>
+                                        {% endif %}
+                                    </h5>
+                                    <p class="text-muted small mb-0">
+                                        {{ aggregates.subject_count }} subjects
+                                    </p>
+                                </div>
+                                
+                                <div class="text-end">
+                                    <div class="fs-3 fw-bold text-success">
+                                        {{ aggregates.average|floatformat:1 }}
+                                    </div>
+                                    <small class="text-muted">Term Average</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead class="bg-light sticky-top">
+                                        <tr class="extra-small text-uppercase text-muted fw-semibold">
+                                            <th class="ps-4 py-3">Subject</th>
+                                            <th class="text-center py-3">Mid (30)</th>
+                                            <th class="text-center py-3">End (70)</th>
+                                            <th class="text-center py-3 fw-bold">Total</th>
+                                            <th class="text-center py-3">Grade</th>
+                                            <th class="pe-4 text-center py-3">Points</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for m in marks %}
+                                        <tr>
+                                            <td class="ps-4 py-3 fw-medium">{{ m.subject.name }}</td>
+                                            <td class="text-center text-muted py-3">{{ m.mid_term_mark|default:"—" }}</td>
+                                            <td class="text-center text-muted py-3">{{ m.end_term_mark|default:"—" }}</td>
+                                            <td class="text-center fw-bold py-3">{{ m.total_score }}</td>
+                                            <td class="text-center py-3">
+                                                <span class="badge 
+                                                    {% if m.grade == 'F9' or m.grade == 'F' %}bg-danger
+                                                    {% elif m.grade == 'D1' or m.grade == 'D2' %}bg-warning text-dark
+                                                    {% else %}bg-success{% endif %} rounded-pill px-3 py-2">
+                                                    {{ m.grade }}
+                                                </span>
+                                            </td>
+                                            <td class="pe-4 text-center py-3 fw-bold">
+                                                {{ m.grade|grade_points }}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Footer with Division + Aggregate -->
+                        <div class="card-footer bg-light border-0 py-3 px-4">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">
+                                    <i class="fas fa-check-circle text-success me-1"></i>
+                                    Term {{ term }} Complete
+                                </small>
+                                
+                                <div class="text-end">
+                                    <strong class="me-3"></strong>
+                                    <span class="badge 
+                                        {% if aggregates.division == 'Division 1' %}bg-success
+                                        {% elif aggregates.division == 'Division 2' %}bg-primary
+                                        {% elif aggregates.division == 'Division 3' %}bg-warning text-dark
+                                        {% else %}bg-danger{% endif %} fs-6 px-3 py-2 me-4">
+                                        {{ aggregates.division }}
+                                    </span>
+                                    
+                                    <strong>Aggregate: </strong>
+                                    <span class="fs-5 fw-bold text-dark">
+                                        {{ aggregates.aggregate_points }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endwith %}
+                {% endfor %}
+            </div>
+        </div>
+    {% empty %}
+        <div class="text-center py-5 my-5">
+            <i class="fas fa-folder-open fa-4x text-muted mb-3"></i>
+            <h5 class="text-muted">No academic records found</h5>
+        </div>
+    {% endfor %}
+</div>
+
+<style>
+    .extra-small { font-size: 0.75rem; letter-spacing: 0.08em; }
+    .card { 
+        box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.1); 
+        transition: all 0.3s ease; 
+    }
+    .card:hover { 
+        transform: translateY(-8px); 
+        box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.15); 
+    }
+    
+    @media print {
+        .btn, .navbar, .sidebar { display: none !important; }
+        .container { padding: 20px !important; }
+        .card { border: 1px solid #ddd !important; box-shadow: none !important; }
+    }
+</style>
+{% endblock %}

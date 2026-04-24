@@ -1,125 +1,138 @@
 {% extends 'base.html' %}
-{% load crispy_forms_tags %}
+{% load static humanize %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container-fluid py-5 px-4 px-lg-5">
+
     <div class="row justify-content-center">
-        <div class="col-md-9 col-lg-8"> 
-            <div class="card shadow border-0 overflow-hidden" style="border-radius: 15px;">
-                <div class="card-header bg-success text-white py-3 d-flex align-items-center">
-                    <i class="fas fa-money-bill-wave fa-lg me-2"></i>
-                    <h5 class="mb-0 fw-bold">Record Fee Payment</h5>
-                </div>
-                
-                <div class="card-body p-4">
-                    <div class="row align-items-center mb-4 p-3 bg-light rounded border-start border-success border-5 mx-0 shadow-sm">
-                        <div class="col-auto">
+        <div class="col-lg-10 col-xl-8">
+
+            <!-- Student Info Header -->
+            <div class="card border-0 shadow-sm mb-4 rounded-4 overflow-hidden">
+                <div class="card-body p-4 bg-success text-white">
+                    <div class="d-flex align-items-center gap-4">
+                        <div>
                             {% if invoice.student.photo %}
-                                <img src="{{ invoice.student.photo.url }}" alt="{{ invoice.student.first_name }}" 
-                                     class="rounded-circle border border-white shadow-sm" 
-                                     style="width: 85px; height: 85px; object-fit: cover;">
+                                <img src="{{ invoice.student.photo.url }}" alt="{{ invoice.student.get_full_name }}"
+                                     class="rounded-circle border border-3 border-white shadow" 
+                                     style="width: 100px; height: 100px; object-fit: cover;">
                             {% else %}
-                                <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-white shadow-sm" 
-                                     style="width: 85px; height: 85px;">
-                                    <i class="fas fa-user fa-2x"></i>
+                                <div class="rounded-circle bg-white d-flex align-items-center justify-content-center text-success shadow-sm"
+                                     style="width: 100px; height: 100px; font-size: 2.2rem;">
+                                    <i class="fas fa-user"></i>
                                 </div>
                             {% endif %}
                         </div>
-                        <div class="col">
-                            <h6 class="text-muted small text-uppercase fw-bold mb-1">Fee Payment For:</h6>
-                            <h3 class="mb-0 fw-bold text-dark">{{ invoice.student.get_full_name }}</h3>
-                            <span class="badge bg-success-subtle text-success border border-success px-3">{{ invoice.student.admission_number }}</span>
-                            <span class="ms-2 text-muted small"><i class="fas fa-chalkboard me-1"></i>{{ invoice.student.classroom.name }}</span>
+                        <div class="flex-grow-1">
+                            <h3 class="mb-1 fw-bold">{{ invoice.student.get_full_name }}</h3>
+                            <p class="mb-1 opacity-90">
+                                <i class="fas fa-id-card me-2"></i> {{ invoice.student.admission_number }}
+                            </p>
+                            <p class="mb-0 opacity-90">
+                                <i class="fas fa-chalkboard-teacher me-2"></i> {{ invoice.student.classroom|default:"-" }}
+                            </p>
                         </div>
-                        <div class="col-md-4 text-md-end mt-3 mt-md-0">
-                            <div class="text-muted small text-uppercase fw-bold">Current Balance</div>
-                            <h4 class="text-danger fw-bold mb-0">UGX {{ invoice.balance|floatformat:0 }}</h4>
+                        <div class="text-end">
+                            <div class="small opacity-75">CURRENT BALANCE</div>
+                            <h2 class="fw-bold mb-0">UGX {{ invoice.balance|floatformat:0|intcomma }}</h2>
                         </div>
                     </div>
+                </div>
+            </div>
 
+            <!-- Payment Form -->
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-header bg-white border-0 py-4 px-4">
+                    <h4 class="fw-bold text-success mb-0">
+                        <i class="fas fa-money-bill-wave me-2"></i> Record Fee Payment
+                    </h4>
+                </div>
+
+                <div class="card-body p-5">
                     <form method="POST" id="paymentForm">
                         {% csrf_token %}
-                        
+
                         <div class="row g-4">
+                            <!-- Account -->
                             <div class="col-md-6">
-                                <label class="form-label fw-bold"><i class="fas fa-university me-1 text-success"></i> Deposit To Account</label>
-                                <select name="account" class="form-select form-select-lg border-success" required>
+                                <label class="form-label fw-semibold text-dark">Deposit Into Account</label>
+                                <select name="account" class="form-select form-select-lg" required>
                                     {% if not accounts %}
-                                        <option value="" disabled selected>⚠️ No Asset Accounts Found!</option>
+                                        <option value="" disabled selected>No Asset Accounts Available</option>
                                     {% else %}
-                                        <option value="" selected disabled>-- Select School Account --</option>
+                                        <option value="" disabled selected>-- Select Account --</option>
                                         {% for acc in accounts %}
-                                            <option value="{{ acc.id }}">
-                                                {{ acc.name }} (UGX {{ acc.balance|floatformat:0 }})
-                                            </option>
+                                        <option value="{{ acc.id }}">
+                                            {{ acc.name }} (Balance: UGX {{ acc.balance|floatformat:0|intcomma }})
+                                        </option>
                                         {% endfor %}
                                     {% endif %}
                                 </select>
                             </div>
 
+                            <!-- Amount -->
                             <div class="col-md-6">
-                                <label class="form-label fw-bold"><i class="fas fa-coins me-1 text-success"></i> Amount Paid (UGX)</label>
+                                <label class="form-label fw-semibold text-dark">Amount Paid (UGX)</label>
                                 <div class="input-group input-group-lg">
-                                    <span class="input-group-text bg-light fw-bold text-success">UGX</span>
-                                    <input type="number" name="amount" class="form-control fw-bold" 
-                                           max="{{ invoice.balance }}" value="{{ invoice.balance|floatformat:0 }}" required>
+                                    <span class="input-group-text bg-success text-white fw-bold">UGX</span>
+                                    <input type="number" name="amount" id="amount" 
+                                           class="form-control fw-bold" 
+                                           value="{{ invoice.balance|floatformat:0 }}" 
+                                           max="{{ invoice.balance }}" required>
                                 </div>
                             </div>
 
+                            <!-- Payment Method -->
                             <div class="col-md-6">
-                                <label class="form-label fw-bold">Payment Method</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-white"><i class="fas fa-wallet text-muted"></i></span>
-                                    <select name="method" id="id_method" class="form-select" required>
-                                        <option value="Cash">Cash</option>
-                                        <option value="Bank">Bank Deposit</option>
-                                        <option value="Mobile Money">Mobile Money</option>
-                                    </select>
-                                </div>
+                                <label class="form-label fw-semibold text-dark">Payment Method</label>
+                                <select name="method" id="id_method" class="form-select form-select-lg" required>
+                                    <option value="Cash">Cash</option>
+                                    <option value="Bank">Bank Transfer</option>
+                                    <option value="Mobile Money">Mobile Money (MTN/Airtel)</option>
+                                </select>
                             </div>
 
+                            <!-- Reference -->
                             <div class="col-md-6">
-                                <label class="form-label fw-bold">Reference / Slip No.</label>
-                                <input type="text" name="reference" class="form-control" placeholder="e.g. Bank Slip ID">
+                                <label class="form-label fw-semibold text-dark">Reference / Transaction ID</label>
+                                <input type="text" name="reference" class="form-control form-control-lg" 
+                                       placeholder="Bank slip, Receipt No, or MoMo Ref">
                             </div>
 
+                            <!-- MoMo Phone -->
                             <div class="col-12" id="momo_phone_container" style="display: none;">
-                                <div class="p-3 bg-primary-subtle rounded border border-primary border-opacity-25">
-                                    <label class="form-label fw-bold text-primary"><i class="fas fa-mobile-alt me-1"></i> MoMo Phone Number (MTN/Airtel)</label>
+                                <div class="p-4 bg-success-subtle border border-success rounded-3">
+                                    <label class="form-label fw-bold text-success">
+                                        <i class="fas fa-mobile-alt me-2"></i> Mobile Money Number
+                                    </label>
                                     <div class="input-group">
-                                        <span class="input-group-text bg-primary text-white border-primary">+256</span>
-                                        <input type="number" name="phone_number" id="id_phone_number" class="form-control border-primary" placeholder="770000000">
+                                        <span class="input-group-text bg-success text-white">+256</span>
+                                        <input type="text" name="phone_number" id="id_phone_number" 
+                                               class="form-control form-control-lg" placeholder="700123456">
                                     </div>
-                                    <small class="text-primary opacity-75 mt-1 d-block italic">
-                                        <i class="fas fa-info-circle me-1"></i> A PIN prompt will be sent to this number.
-                                    </small>
                                 </div>
                             </div>
 
+                            <!-- Depositor -->
                             <div class="col-12">
-                                <label class="form-label fw-bold">Depositor Name (Parent/Student)</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-white"><i class="fas fa-user-tag text-muted"></i></span>
-                                    <input type="text" name="depositor" class="form-control" required 
-                                           placeholder="Who brought the money?">
-                                </div>
+                                <label class="form-label fw-semibold text-dark">Depositor / Parent Name</label>
+                                <input type="text" name="depositor" class="form-control form-control-lg" 
+                                       placeholder="e.g. Mr. John Mukasa" required>
                             </div>
                         </div>
 
-                        <div class="d-grid gap-2 mt-5">
-                            <button type="submit" id="submitBtn" class="btn btn-success btn-lg py-3 fw-bold shadow-sm" {% if not accounts %}disabled{% endif %}>
-                                <i class="fas fa-save me-2"></i> Post Payment to Ledger
+                        <div class="d-grid mt-5">
+                            <button type="submit" id="submitBtn" class="btn btn-success btn-lg py-3 fw-bold shadow">
+                                <i class="fas fa-check-circle me-2"></i> Confirm &amp; Post Payment
                             </button>
-                            <div class="d-flex justify-content-between">
-                                <a href="{% url 'finance:dashboard' %}" class="btn btn-link text-secondary text-decoration-none">
-                                    <i class="fas fa-arrow-left me-1"></i> Exit Finance
-                                </a>
-                                <span class="text-muted small align-self-center">
-                                    Operator: <strong>{{ request.user.username }}</strong>
-                                </span>
-                            </div>
                         </div>
                     </form>
+                </div>
+
+                <div class="card-footer bg-light border-0 py-3 text-center">
+                    <small class="text-muted">
+                        Logged in as <strong>{{ request.user.get_full_name|default:request.user.username }}</strong>
+                    </small>
                 </div>
             </div>
         </div>
@@ -127,12 +140,18 @@
 </div>
 
 <style>
+    .form-control, .form-select {
+        border-radius: 12px;
+        padding: 14px 16px;
+    }
     .form-control:focus, .form-select:focus {
         border-color: #198754;
-        box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.15);
+        box-shadow: 0 0 0 0.3rem rgba(25, 135, 84, 0.15);
     }
-    label { font-size: 0.9rem; margin-bottom: 0.4rem; color: #444; }
-    .italic { font-style: italic; }
+    label {
+        font-size: 0.95rem;
+        color: #444;
+    }
 </style>
 
 <script>
@@ -145,29 +164,23 @@
         methodSelect.addEventListener('change', function() {
             if (this.value === 'Mobile Money') {
                 momoContainer.style.display = 'block';
-                phoneInput.setAttribute('required', 'required');
-                submitBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i> Send MoMo PIN Prompt';
-                submitBtn.classList.replace('btn-success', 'btn-primary');
+                phoneInput.required = true;
+                submitBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i> Send MoMo Request & Post';
             } else {
                 momoContainer.style.display = 'none';
-                phoneInput.removeAttribute('required');
-                submitBtn.innerHTML = '<i class="fas fa-save me-2"></i> Post Payment to Ledger';
-                submitBtn.classList.replace('btn-primary', 'btn-success');
+                phoneInput.required = false;
+                submitBtn.innerHTML = '<i class="fas fa-check-circle me-2"></i> Confirm &amp; Post Payment';
             }
         });
 
-        // Simple form validation for MoMo
-        document.getElementById('paymentForm').onsubmit = function() {
-            if (methodSelect.value === 'Mobile Money') {
-                const phone = phoneInput.value;
-                if (phone.length < 9) {
-                    alert("Please enter a valid Ugandan phone number (e.g. 770000000)");
-                    return false;
-                }
-            }
+        // Form submission feedback
+        document.getElementById('paymentForm').addEventListener('submit', function() {
             submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Processing...';
-        };
+            submitBtn.innerHTML = `
+                <span class="spinner-border spinner-border-sm me-2"></span>
+                Processing Payment...
+            `;
+        });
     });
 </script>
 {% endblock %}

@@ -58,11 +58,10 @@ def send_payment_receipt_email(request, payment):
     print("--- STARTING EMAIL FUNCTION ---") 
     try:
         school = request.school 
-        student = payment.invoice.student # This is your Student model
+        student = payment.invoice.student
         
         recipients = []
         
-        # FIX: Changed 'parent_email' to 'guardian_email' to match your model
         if student.guardian_email:
             recipients.append(student.guardian_email)
             logger.info(f"Found Guardian Email: {student.guardian_email}")
@@ -82,7 +81,7 @@ def send_payment_receipt_email(request, payment):
         context = {
             'payment': payment,
             'school': school,
-            'student': student, # Added student to context for easier template access
+            'student': student,
             'protocol': 'https' if request.is_secure() else 'http',
             'domain': get_current_site(request).domain,
             'now': timezone.now(),
@@ -91,7 +90,10 @@ def send_payment_receipt_email(request, payment):
         html_content = render_to_string('finance/emails/receipt_email.html', context)
         text_content = strip_tags(html_content)
         
-        from_email = f"{school.name} <{settings.DEFAULT_FROM_EMAIL}>"
+        # FIX: Wrap the name in double quotes to satisfy RFC email standards 
+        # specifically because of the "." in "St. Joseph's"
+        clean_school_name = school.name.replace('"', '') # Remove existing quotes to avoid nesting issues
+        from_email = f'"{clean_school_name}" <{settings.DEFAULT_FROM_EMAIL}>'
         
         email = EmailMultiAlternatives(subject, text_content, from_email, recipients)
         email.attach_alternative(html_content, "text/html")
@@ -103,7 +105,6 @@ def send_payment_receipt_email(request, payment):
     except Exception as e:
         logger.error(f"Failed to send receipt email: {str(e)}")
         return False
-    
 
 
 import requests

@@ -2,9 +2,31 @@
 {% load static humanize %}
 
 {% block content %}
+<div id="promotion-bar" class="no-print position-fixed bottom-0 start-50 translate-middle-x mb-4 shadow-lg bg-dark text-white rounded-pill px-4 py-3 d-none" style="z-index: 1060; min-width: 550px; border: 1px solid rgba(255,255,255,0.1);">
+    <form id="promotionForm" method="POST" action="{% url 'students:promote_students' %}" class="d-flex align-items-center justify-content-between gap-3">
+        {% csrf_token %}
+        <div class="d-flex align-items-center">
+            <span class="badge bg-primary me-3" id="selected-count">0</span>
+            <span class="small fw-bold">Students Selected</span>
+        </div>
+        
+        <div class="d-flex align-items-center gap-2">
+            <select name="target_class" class="form-select form-select-sm border-0 rounded-pill px-3 fw-bold" style="width: 200px;" required>
+                <option value="">Move to Class...</option>
+                {% for cls in classrooms %}
+                    <option value="{{ cls.id }}">{{ cls.name }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold">
+                Promote Now
+            </button>
+            <button type="button" class="btn btn-link btn-sm text-white text-decoration-none small" onclick="deselectAll()">Cancel</button>
+        </div>
+    </form>
+</div>
+
 <div class="container-fluid py-4">
 
-    <!-- Page Header -->
     <div class="d-flex justify-content-between align-items-end mb-5">
         <div>
             <nav aria-label="breadcrumb">
@@ -32,7 +54,6 @@
         </div>
     </div>
 
-    <!-- Students Table Card -->
     <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
         <div class="card-header bg-white border-bottom py-3 px-4">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
@@ -40,7 +61,6 @@
                 <p class="text-muted small mb-0">{{ students|length }} Students • Scroll to view all</p>
             </div>
             
-            <!-- Search & Filter -->
             <div class="row g-3 mt-3">
                 <div class="col-md-8">
                     <div class="input-group">
@@ -87,6 +107,7 @@
                     <tr data-class="{{ student.classroom.name }}">
                         <td class="ps-4">
                             <input type="checkbox" name="student_ids" value="{{ student.id }}" 
+                                   form="promotionForm"
                                    class="form-check-input student-checkbox">
                         </td>
                         <td>
@@ -118,7 +139,6 @@
                             {% endwith %}
                         </td>
                         <td class="text-end pe-4">
-                            <!-- Floating Dropdown Menu -->
                             <div class="dropdown">
                                 <button class="btn btn-outline-primary btn-sm px-4 fw-semibold rounded-3 dropdown-toggle" 
                                         type="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -126,130 +146,111 @@
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 p-2 rounded-4 mt-2">
                                     <li><h6 class="dropdown-header extra-small text-uppercase fw-bold text-muted ls-1">Student Info</h6></li>
-                                    <li>
-                                        <a class="dropdown-item rounded-3 py-2 fw-medium" 
-                                           href="{% url 'students:student_profile' student.admission_number %}">
-                                            <i class="fas fa-id-card text-primary me-2"></i> View Profile
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item rounded-3 py-2 fw-medium" 
-                                           href="{% url 'students:student_edit' student.id %}">
-                                            <i class="fas fa-user-pen text-primary me-2"></i> Edit Profile
-                                        </a>
-                                    </li>
+                                    <li><a class="dropdown-item rounded-3 py-2 fw-medium" href="{% url 'students:student_profile' student.admission_number %}"><i class="fas fa-id-card text-primary me-2"></i> View Profile</a></li>
+                                    <li><a class="dropdown-item rounded-3 py-2 fw-medium" href="{% url 'students:student_edit' student.id %}"><i class="fas fa-user-pen text-primary me-2"></i> Edit Profile</a></li>
                                     <li><hr class="dropdown-divider mx-2"></li>
                                     <li><h6 class="dropdown-header extra-small text-uppercase fw-bold text-muted ls-1">Finance</h6></li>
-                                    <li>
-                                        <a class="dropdown-item rounded-3 py-2 fw-medium" 
-                                           href="{% url 'finance:student_statement' student.id %}">
-                                            <i class="fas fa-receipt text-success me-2"></i> Fee Statement
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item rounded-3 py-2 fw-medium" 
-                                           href="{% url 'finance:record_payment' student.id %}">
-                                            <i class="fas fa-plus-circle text-success me-2"></i> Record Payment
-                                        </a>
-                                    </li>
+                                    <li><a class="dropdown-item rounded-3 py-2 fw-medium" href="{% url 'finance:student_statement' student.id %}"><i class="fas fa-receipt text-success me-2"></i> Fee Statement</a></li>
+                                    
+                                    <!-- FIXED: Record Payment now correctly uses invoice ID -->
+                                    {% with inv=student.invoices.first %}
+                                        {% if inv %}
+                                            <li><a class="dropdown-item rounded-3 py-2 fw-medium" href="{% url 'finance:record_payment' inv.id %}"><i class="fas fa-plus-circle text-success me-2"></i> Record Payment</a></li>
+                                        {% else %}
+                                            <li><a class="dropdown-item rounded-3 py-2 fw-medium text-muted" href="{% url 'finance:dashboard' %}"><i class="fas fa-plus-circle text-muted me-2"></i> Record Payment</a></li>
+                                        {% endif %}
+                                    {% endwith %}
+                                    
                                     <li><hr class="dropdown-divider mx-2"></li>
                                     <li><h6 class="dropdown-header extra-small text-uppercase fw-bold text-muted ls-1">Academic</h6></li>
-                                    <li>
-                                        <a class="dropdown-item rounded-3 py-2 fw-medium" 
-                                           href="{% url 'academic:report_card' student.id 'Term-1' 2026 %}">
-                                            <i class="fas fa-file-contract text-primary me-2"></i> Report Card
-                                        </a>
-                                    </li>
+                                    <li><a class="dropdown-item rounded-3 py-2 fw-medium" href="{% url 'academic:report_card' student.id 'Term-1' 2026 %}"><i class="fas fa-file-contract text-primary me-2"></i> Report Card</a></li>
+                                    <li><a class="dropdown-item rounded-3 py-2 fw-medium" href="{% url 'academic:student_history' student.id %}"><i class="fas fa-history text-primary me-2"></i> Academic History</a></li>
                                 </ul>
                             </div>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="text-center py-5 text-muted">
-                            No students found.
-                        </td>
+                        <td colspan="6" class="text-center py-5 text-muted">No students found.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
-
 </div>
 
 <style>
     .tracking-tight { letter-spacing: -0.02em; }
     .ls-1 { letter-spacing: 0.5px; }
     .extra-small { font-size: 0.75rem; }
-
-    .avatar-finance {
-        width: 42px; 
-        height: 42px; 
-        border-radius: 10px;
-        background: #f1f5f9; 
-        color: var(--primary);
-        display: flex; 
-        align-items: center; 
-        justify-content: center;
-        font-weight: 800; 
-        font-size: 0.95rem;
-        overflow: hidden;
-        border: 2px solid #f1f5f9;
-    }
-
-    .sticky-top {
-        position: sticky; 
-        top: 0; 
-        z-index: 10; 
-        background: white; 
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    }
-
-    .table-hover tbody tr:hover { 
-        background-color: #f8fafc; 
-    }
-
-    /* Green Theme Consistency */
-    .btn-primary, .badge.bg-success, .text-success {
-        color: var(--primary) !important;
-    }
-    .btn-outline-primary {
-        color: var(--primary);
-        border-color: var(--primary);
-    }
-    .btn-outline-primary:hover {
-        background-color: var(--primary);
-        color: white;
-    }
-    .dropdown-item:hover {
-        background-color: var(--primary-soft);
-        color: var(--primary);
-    }
+    .avatar-finance { width: 42px; height: 42px; border-radius: 10px; background: #f1f5f9; color: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.95rem; overflow: hidden; border: 2px solid #f1f5f9; }
+    .sticky-top { position: sticky; top: 0; z-index: 10; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .table-hover tbody tr:hover { background-color: #f8fafc; }
+    .btn-primary, .badge.bg-success, .text-success { color: var(--primary) !important; }
+    .btn-outline-primary { color: var(--primary); border-color: var(--primary); }
+    .btn-outline-primary:hover { background-color: var(--primary); color: white; }
+    .dropdown-item:hover { background-color: var(--primary-soft); color: var(--primary); }
+    
+    /* Animation for the bar */
+    @keyframes slideUp { from { transform: translate(-50%, 100%); } to { transform: translate(-50%, 0); } }
+    #promotion-bar:not(.d-none) { animation: slideUp 0.3s ease-out forwards; }
 </style>
 
 <script>
+    const selectAll = document.getElementById('select-all');
+    const checkboxes = document.querySelectorAll('.student-checkbox');
+    const promoBar = document.getElementById('promotion-bar');
+    const selectedCountSpan = document.getElementById('selected-count');
+
+    function updatePromoBar() {
+        const checkedCount = document.querySelectorAll('.student-checkbox:checked').length;
+        selectedCountSpan.innerText = checkedCount;
+        
+        if (checkedCount > 0) {
+            promoBar.classList.remove('d-none');
+        } else {
+            promoBar.classList.add('d-none');
+        }
+    }
+
+    selectAll.addEventListener('change', function() {
+        checkboxes.forEach(cb => {
+            if (cb.closest('tr').style.display !== 'none') {
+                cb.checked = selectAll.checked;
+            }
+        });
+        updatePromoBar();
+    });
+
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', updatePromoBar);
+    });
+
+    function deselectAll() {
+        checkboxes.forEach(cb => cb.checked = false);
+        selectAll.checked = false;
+        updatePromoBar();
+    }
+
     function filterStudents() {
         const searchInput = document.getElementById('studentSearch').value.toLowerCase().trim();
         const classFilter = document.getElementById('class-filter').value;
-        
         const rows = document.querySelectorAll('#studentsTable tbody tr');
 
         rows.forEach(row => {
             if (row.cells.length < 4) return;
-
             const studentName = row.cells[1].textContent.toLowerCase();
             const admissionNo = row.cells[2].textContent.toLowerCase();
             const studentClass = row.getAttribute('data-class') || '';
 
-            const matchesSearch = !searchInput || 
-                                studentName.includes(searchInput) || 
-                                admissionNo.includes(searchInput);
-
+            const matchesSearch = !searchInput || studentName.includes(searchInput) || admissionNo.includes(searchInput);
             const matchesClass = !classFilter || studentClass === classFilter;
-
             row.style.display = (matchesSearch && matchesClass) ? '' : 'none';
         });
+        // Uncheck hidden rows
+        checkboxes.forEach(cb => { if(cb.closest('tr').style.display === 'none') cb.checked = false; });
+        updatePromoBar();
     }
 
     document.addEventListener('DOMContentLoaded', function() {

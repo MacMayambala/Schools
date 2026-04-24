@@ -6,15 +6,36 @@
 
 {% block content %}
 <style>
-    /* Professional UI Enhancements */
+    /* Professional Typography & UI Enhancements */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    body { font-family: 'Inter', sans-serif; }
+
     .hover-shadow { transition: transform 0.2s ease, box-shadow 0.2s ease; }
     .hover-shadow:hover { transform: translateY(-3px); box-shadow: 0 1rem 3rem rgba(0,0,0,.1) !important; }
     .border-dashed { border-style: dashed !important; }
     .x-small { font-size: 0.7rem; letter-spacing: 0.05rem; font-weight: 700; text-transform: uppercase; }
-    .bg-glass { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); }
-    .requirement-row:not(:last-child) { border-bottom: 1px solid #f1f1f1; padding-bottom: 4px; margin-bottom: 4px; }
     .avatar-sm { width: 35px; height: 35px; line-height: 35px; display: flex; align-items: center; justify-content: center; }
+    
+    .requirement-row {
+        border-bottom: 1px dashed #e9ecef;
+        padding-bottom: 4px;
+        margin-bottom: 4px;
+    }
+    .requirement-row:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+        margin-bottom: 0;
+    }
+
+    /* Interactive Header Styling */
+    .collapse-header { cursor: pointer; transition: background 0.2s ease; }
+    .collapse-header:hover { background-color: #f8f9fa !important; }
+    .chevron-icon { transition: transform 0.3s ease; }
+    .collapsed .chevron-icon { transform: rotate(-90deg); }
 </style>
+
+
 
 <div class="container-fluid py-4 bg-light min-vh-100">
     <div class="row align-items-center mb-5">
@@ -22,24 +43,21 @@
             <h2 class="fw-bold text-dark mb-1">System Configuration</h2>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item"><a href="#" class="text-decoration-none">Finance</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'finance:dashboard' %}" class="text-decoration-none">Finance</a></li>
                     <li class="breadcrumb-item active">Settings Hub</li>
                 </ol>
             </nav>
         </div>
         <div class="col-auto">
             <div class="dropdown">
-                <button class="btn btn-primary rounded-pill px-4 dropdown-toggle shadow border-0" data-bs-toggle="dropdown" 
-                        style="background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);">
+                <button class="btn btn-primary rounded-pill px-4 dropdown-toggle shadow border-0" data-bs-toggle="dropdown" style="background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);">
                     <i class="fas fa-tools me-2"></i>Quick Action
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg rounded-4 overflow-hidden mt-2">
                     <li class="dropdown-header x-small text-muted">Academic Setup</li>
                     <li><a class="dropdown-item py-2" data-bs-toggle="modal" data-bs-target="#classModal" href="#"><i class="fas fa-school me-2 text-primary"></i>New Classroom</a></li>
                     <li><a class="dropdown-item py-2" data-bs-toggle="modal" data-bs-target="#streamModal" href="#"><i class="fas fa-stream me-2 text-info"></i>New Stream</a></li>
-                    
                     <li><a class="dropdown-item py-2" data-bs-toggle="modal" data-bs-target="#requirementModal" href="#"><i class="fas fa-clipboard-list me-2 text-warning"></i>Class Requirements</a></li>
-                    
                     <li><hr class="dropdown-divider"></li>
                     <li class="dropdown-header x-small text-muted">Financial Setup</li>
                     <li><a class="dropdown-item py-2 bg-success-subtle text-success" data-bs-toggle="modal" data-bs-target="#feeModal" href="#"><i class="fas fa-plus-circle me-2"></i>Create Fee Structure</a></li>
@@ -70,10 +88,7 @@
                                     <small class="text-muted">{{ cls.name }}</small>
                                 </div>
                             </div>
-                            <i class="fas fa-chevron-right text-light small"></i>
                         </div>
-                        {% empty %}
-                        <div class="p-4 text-center text-muted italic small">No classrooms defined.</div>
                         {% endfor %}
                     </div>
                 </div>
@@ -85,8 +100,6 @@
                     <div class="d-flex flex-wrap gap-2">
                         {% for stream in streams %}
                         <span class="badge bg-white text-dark border-dashed rounded-3 p-2 px-3 border shadow-sm">{{ stream.name }}</span>
-                        {% empty %}
-                        <p class="text-muted small text-center w-100">No streams defined.</p>
                         {% endfor %}
                     </div>
                 </div>
@@ -94,63 +107,176 @@
         </div>
 
         <div class="col-xl-9 col-lg-8">
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
-                <div class="card-header bg-white border-0 py-4 px-4">
-                    <div class="row align-items-center">
-                        <div class="col">
-                            <h5 class="fw-bold mb-0">Fee Structure Inventory</h5>
-                            <small class="text-muted">Defined tuition and mandatory requirements per section</small>
+            <h5 class="fw-bold mb-4 text-dark">Fee Structure Inventory (2026)</h5>
+
+            <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+                <div class="card-header bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center collapse-header" data-bs-toggle="collapse" data-bs-target="#collapseTerm1">
+                    <h6 class="fw-bold text-success mb-0">
+                        <i class="fas fa-chevron-down me-2 chevron-icon"></i>TERM 1
+                    </h6>
+                    <span class="badge bg-success-subtle text-success rounded-pill px-3">{{ term1_structures|length }} Structures</span>
+                </div>
+                <div class="collapse show" id="collapseTerm1">
+                    <div class="card-body p-0 border-top">
+                        {% if term1_structures %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="bg-light">
+                                    <tr class="x-small text-muted">
+                                        <th class="ps-4 py-3">GRADE & SECTION</th>
+                                        <th>BASE TUITION</th>
+                                        <th>OTHER REQUIREMENTS</th>
+                                        <th class="text-end pe-4">TERM TOTAL</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for fee in term1_structures %}
+                                    <tr>
+                                        <td class="ps-4 py-3">
+                                            <div class="d-flex align-items-center">
+                                                <div class="fw-bolder text-dark fs-6 me-2">{{ fee.classroom.short_name }}</div>
+                                                <span class="badge {% if fee.section == 'Boarding' %}bg-warning{% else %}bg-info{% endif %} rounded-pill x-small" style="font-size: 0.6rem;">{{ fee.section|upper }}</span>
+                                            </div>
+                                        </td>
+                                        <td class="text-dark font-camrbria fw-medium">
+                                            <small class="text-muted">UGX</small> {{ fee.tuition_amount|intcomma }}
+                                        </td>
+                                        <td>
+                                            <div class="p-2 bg-light rounded-3" style="max-width: 250px;">
+                                                {% for item in fee.template_items.all %}
+                                                <div class="d-flex justify-content-between requirement-row">
+                                                    <span class="text-muted x-small text-uppercase">{{ item.category.name }}</span>
+                                                    <span class="fw-bold text-dark small">{{ item.amount|intcomma }}</span>
+                                                </div>
+                                                {% empty %}
+                                                <span class="text-muted italic small">Standard tuition only</span>
+                                                {% endfor %}
+                                            </div>
+                                        </td>
+                                        <td class="text-end pe-4">
+                                            <div class="text-primary fw-bold fs-5 mb-0">{{ fee.total_fees|intcomma }}</div>
+                                            <small class="text-muted x-small">PER STUDENT</small>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
-                        <div class="col-auto">
-                             <span class="badge bg-success-subtle text-success rounded-pill px-3 py-2 fw-bold">TERM {{ fee_structures.0.term|default:"1" }} | 2026</span>
-                        </div>
+                        {% else %}
+                        <div class="p-5 text-center text-muted"><p class="small mb-0">No fee structures for Term 1.</p></div>
+                        {% endif %}
                     </div>
                 </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
-                            <thead class="bg-light">
-                                <tr class="x-small text-muted">
-                                    <th class="ps-4 py-3">GRADE & SECTION</th>
-                                    <th>BASE TUITION</th>
-                                    <th>OTHER REQUIREMENTS</th>
-                                    <th class="text-end pe-4">TERM TOTAL</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for fee in fee_structures %}
-                                <tr>
-                                    <td class="ps-4 py-3">
-                                        <div class="d-flex align-items-center">
-                                            <div class="fw-bolder text-dark fs-6 me-2">{{ fee.classroom.short_name }}</div>
-                                            <span class="badge {% if fee.section == 'Boarding' %}bg-warning{% else %}bg-info{% endif %} rounded-pill x-small" style="font-size: 0.6rem;">
-                                                {{ fee.section|upper }}
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td class="text-dark font-monospace fw-medium">
-                                        <small class="text-muted">UGX</small> {{ fee.tuition_amount|intcomma }}
-                                    </td>
-                                    <td>
-                                        <div class="p-2 bg-light rounded-3" style="max-width: 250px;">
-                                            {% for item in fee.fee_items.all %}
-                                            <div class="d-flex justify-content-between requirement-row">
-                                                <span class="text-muted x-small text-uppercase">{{ item.category.name }}</span>
-                                                <span class="fw-bold text-dark small">{{ item.amount|intcomma }}</span>
+            </div>
+
+            <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+                <div class="card-header bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center collapse-header collapsed" data-bs-toggle="collapse" data-bs-target="#collapseTerm2">
+                    <h6 class="fw-bold text-success mb-0">
+                        <i class="fas fa-chevron-down me-2 chevron-icon"></i>TERM 2
+                    </h6>
+                    <span class="badge bg-success-subtle text-success rounded-pill px-3">{{ term2_structures|length }} Structures</span>
+                </div>
+                <div class="collapse" id="collapseTerm2">
+                    <div class="card-body p-0 border-top">
+                        {% if term2_structures %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="bg-light">
+                                    <tr class="x-small text-muted">
+                                        <th class="ps-4 py-3">GRADE & SECTION</th>
+                                        <th>BASE TUITION</th>
+                                        <th>OTHER REQUIREMENTS</th>
+                                        <th class="text-end pe-4">TERM TOTAL</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for fee in term2_structures %}
+                                    <tr>
+                                        <td class="ps-4 py-3">
+                                            <div class="d-flex align-items-center">
+                                                <div class="fw-bolder text-dark fs-6 me-2">{{ fee.classroom.short_name }}</div>
+                                                <span class="badge {% if fee.section == 'Boarding' %}bg-warning{% else %}bg-info{% endif %} rounded-pill x-small" style="font-size: 0.6rem;">{{ fee.section|upper }}</span>
                                             </div>
-                                            {% empty %}
-                                            <span class="text-muted italic small">Standard tuition only</span>
-                                            {% endfor %}
-                                        </div>
-                                    </td>
-                                    <td class="text-end pe-4">
-                                        <div class="text-primary fw-bold fs-5 mb-0">{{ fee.total_fees|intcomma }}</div>
-                                        <small class="text-muted x-small">PER STUDENT</small>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                                        </td>
+                                        <td class="text-dark font-monospace fw-medium"><small class="text-muted">UGX</small> {{ fee.tuition_amount|intcomma }}</td>
+                                        <td>
+                                            <div class="p-2 bg-light rounded-3" style="max-width: 250px;">
+                                                {% for item in fee.template_items.all %}
+                                                <div class="d-flex justify-content-between requirement-row">
+                                                    <span class="text-muted x-small text-uppercase">{{ item.category.name }}</span>
+                                                    <span class="fw-bold text-dark small">{{ item.amount|intcomma }}</span>
+                                                </div>
+                                                {% empty %}<span class="text-muted italic small">Standard tuition only</span>{% endfor %}
+                                            </div>
+                                        </td>
+                                        <td class="text-end pe-4">
+                                            <div class="text-primary fw-bold fs-5 mb-0">{{ fee.total_fees|intcomma }}</div>
+                                            <small class="text-muted x-small">PER STUDENT</small>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="p-5 text-center text-muted"><p class="small mb-0">No fee structures for Term 2.</p></div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+                <div class="card-header bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center collapse-header collapsed" data-bs-toggle="collapse" data-bs-target="#collapseTerm3">
+                    <h6 class="fw-bold text-success mb-0">
+                        <i class="fas fa-chevron-down me-2 chevron-icon"></i>TERM 3
+                    </h6>
+                    <span class="badge bg-success-subtle text-success rounded-pill px-3">{{ term3_structures|length }} Structures</span>
+                </div>
+                <div class="collapse" id="collapseTerm3">
+                    <div class="card-body p-0 border-top">
+                        {% if term3_structures %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="bg-light">
+                                    <tr class="x-small text-muted">
+                                        <th class="ps-4 py-3">GRADE & SECTION</th>
+                                        <th>BASE TUITION</th>
+                                        <th>OTHER REQUIREMENTS</th>
+                                        <th class="text-end pe-4">TERM TOTAL</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for fee in term3_structures %}
+                                    <tr>
+                                        <td class="ps-4 py-3">
+                                            <div class="d-flex align-items-center">
+                                                <div class="fw-bolder text-dark fs-6 me-2">{{ fee.classroom.short_name }}</div>
+                                                <span class="badge {% if fee.section == 'Boarding' %}bg-warning{% else %}bg-info{% endif %} rounded-pill x-small" style="font-size: 0.6rem;">{{ fee.section|upper }}</span>
+                                            </div>
+                                        </td>
+                                        <td class="text-dark font-monospace fw-medium"><small class="text-muted">UGX</small> {{ fee.tuition_amount|intcomma }}</td>
+                                        <td>
+                                            <div class="p-2 bg-light rounded-3" style="max-width: 250px;">
+                                                {% for item in fee.template_items.all %}
+                                                <div class="d-flex justify-content-between requirement-row">
+                                                    <span class="text-muted x-small text-uppercase">{{ item.category.name }}</span>
+                                                    <span class="fw-bold text-dark small">{{ item.amount|intcomma }}</span>
+                                                </div>
+                                                {% empty %}<span class="text-muted italic small">Standard tuition only</span>{% endfor %}
+                                            </div>
+                                        </td>
+                                        <td class="text-end pe-4">
+                                            <div class="text-primary fw-bold fs-5 mb-0">{{ fee.total_fees|intcomma }}</div>
+                                            <small class="text-muted x-small">PER STUDENT</small>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="p-5 text-center text-muted"><p class="small mb-0">No fee structures for Term 3.</p></div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -173,7 +299,7 @@
                             <label class="form-label x-small text-muted">SELECT CLASSROOM</label>
                             <select name="classroom" class="form-select rounded-3 border-light-subtle bg-light" required>
                                 {% for cls in classrooms %}
-                                    <option value="{{ cls.id }}">{{ cls.name }} ({{ cls.short_name }})</option>
+                                <option value="{{ cls.id }}">{{ cls.name }} ({{ cls.short_name }})</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -191,11 +317,7 @@
                         </div>
                         <div class="col-12">
                             <label class="form-label x-small text-muted">REQUIREMENT ITEMS</label>
-                            <textarea name="items" class="form-control rounded-3 border-light-subtle bg-light" rows="5" 
-                                      placeholder="Example: &#10;• 1 dozen exercise books&#10;• 2 rolls of toilet paper&#10;• 1 ream of paper"></textarea>
-                            <div class="form-text extra-small mt-2 text-info">
-                                <i class="fas fa-info-circle me-1"></i> These will print on the Report Card.
-                            </div>
+                            <textarea name="items" class="form-control rounded-3 border-light-subtle bg-light" rows="5"></textarea>
                         </div>
                     </div>
                 </div>
@@ -209,5 +331,4 @@
 </div>
 
 {% include 'finance/includes/setup_modals.html' %}
-
 {% endblock %}

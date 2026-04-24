@@ -10,7 +10,7 @@ urlpatterns = [
     path('receipt/<int:payment_id>/', views.receipt_detail, name='receipt_detail'),
     path('reports/defaulters/', views.defaulters_report, name='defaulters_report'),
     path('accounts/', views.account_list, name='account_list'),
-    path('accounts/add/', views.account_list, name='add_account'),
+    #path('accounts/add/', views.add_account, name='add_account'),
     path('reports/daily-collection/', views.daily_collection_report, name='daily_report'),
     path('statement/<int:student_id>/', views.student_statement, name='student_statement'),
     path('reports/export-excel/', views.export_collections_excel, name='export_excel'),
@@ -22,5 +22,8 @@ urlpatterns = [
     path('report/<int:student_id>/<str:term>/<str:year>/', 
          views.student_report_card, 
          name='student_report_card'),
+    path('record-income/', views.record_income, name='record_income'),
+    path('record-expense/', views.record_expense, name='record_expense'),
+
 
 ]

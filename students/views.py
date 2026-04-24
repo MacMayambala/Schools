@@ -18,7 +18,7 @@ class StudentListView(ListView):
     model = Student
     template_name = 'students/student_list.html'
     context_object_name = 'students'
-    paginate_by = 50  # Increased for better administrative overview
+     # Increased for better administrative overview
 
     def get_queryset(self):
         # 1. Base Queryset with Multi-Tenant isolation

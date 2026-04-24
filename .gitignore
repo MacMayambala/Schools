@@ -1,24 +1,7 @@
-*.pyc
-__pycache__/
-db.sqlite3
-.env
-/staticfiles/
-
-# Python virtual environments
-venv/
-school/lib/
-school/bin/
-school/include/
-school/share/
-
-# Python cache
 __pycache__/
 *.pyc
-
-# Local settings (keep your passwords secret!)
-.env
 db.sqlite3
-
-# Static & Media (usually handled on server)
-/static/
-/media/
+.env
+school/
+media/
+finance1/

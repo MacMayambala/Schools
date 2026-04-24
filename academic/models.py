@@ -41,14 +41,21 @@ class SubjectAssignment(models.Model):
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from decimal import Decimal
 
 class Mark(models.Model):
+    TERM_CHOICES = [
+        ('Term 1', 'Term 1'),
+        ('Term 2', 'Term 2'),
+        ('Term 3', 'Term 3'),
+    ]
+
     school = models.ForeignKey('core.School', on_delete=models.CASCADE)
-    student = models.ForeignKey('students.Student', on_delete=models.CASCADE)
+    student = models.ForeignKey('students.Student', on_delete=models.CASCADE, related_name='marks')
     subject = models.ForeignKey('Subject', on_delete=models.CASCADE)
     classroom = models.ForeignKey('students.Classroom', on_delete=models.CASCADE)
     
-    term = models.CharField(max_length=20) 
+    term = models.CharField(max_length=20, choices=TERM_CHOICES) 
     year = models.IntegerField(default=2026)
     
     mid_term_mark = models.FloatField(null=True, blank=True)
@@ -56,6 +63,14 @@ class Mark(models.Model):
     
     entered_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        # Prevents duplicate entries for the same term/year
+        unique_together = ('student', 'subject', 'term', 'year', 'school')
+        # Speeds up historical lookups
+        indexes = [
+            models.Index(fields=['student', 'year', 'term']),
+        ]
 
     @property
     def total_score(self):
@@ -84,21 +99,12 @@ class Mark(models.Model):
         return remarks.get(self.grade, 'N/A')
 
     def clean(self):
-        # 1. If no user is assigned, skip validation
-        if not self.entered_by:
+        if not self.entered_by or self.entered_by.is_superuser:
             return
-
-        # 2. Bypass validation for Superusers (Admins)
-        if self.entered_by.is_superuser:
-            return
-
-        # 3. Validation for Teachers
         try:
-            # Using getattr to safely check for teacher_profile
             teacher_profile = getattr(self.entered_by, 'teacher_profile', None)
-            
             if not teacher_profile:
-                raise ValidationError("Access Denied: Your account is not linked to a Teacher Profile.")
+                raise ValidationError("Access Denied: Account not linked to Teacher Profile.")
 
             from .models import SubjectAssignment
             assigned = SubjectAssignment.objects.filter(
@@ -109,23 +115,17 @@ class Mark(models.Model):
             ).exists()
             
             if not assigned:
-                raise ValidationError(
-                    f"Access Denied: You do not teach {self.subject.name} in {self.classroom.name}."
-                )
+                raise ValidationError(f"Access Denied: You are not assigned to {self.subject.name} here.")
         except Exception as e:
-            if isinstance(e, ValidationError):
-                raise e
-            raise ValidationError(f"Security validation failed: {str(e)}")
+            if isinstance(e, ValidationError): raise e
+            raise ValidationError(f"Validation error: {str(e)}")
 
     def save(self, *args, **kwargs):
-        # We call full_clean so that the clean() method above is executed
         self.full_clean()
         super().save(*args, **kwargs)
 
     def __str__(self):
-        # Fixed: Safe way to get student name since 'user' might not exist on student
-        student_name = getattr(self.student, 'full_name', str(self.student))
-        return f"{student_name} - {self.subject.name}: {self.total_score}"
+        return f"{self.student} - {self.subject} ({self.term} {self.year})"
 
 
 ####################################################################################################################################

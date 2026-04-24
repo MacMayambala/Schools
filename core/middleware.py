@@ -5,32 +5,28 @@ class SchoolMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        # 1. Get the host (e.g., 'sao.localhost' or 'saozirobwe.yoursystem.com')
+        # 1. Extract Subdomain
         host = request.get_host().split(':')[0]
         host_parts = host.split('.')
+        subdomain = host_parts[0] if len(host_parts) >= 2 else None
 
-        # 2. Determine if we have a subdomain
-        # On Localhost: ['sao', 'localhost'] -> length 2
-        # On Production: ['saozirobwe', 'yoursystem', 'com'] -> length 3
-        subdomain = None
-        
-        if len(host_parts) >= 2:
-            # We assume the first part is always the subdomain
-            subdomain = host_parts[0]
-            
-            # Filter the school by the 'subdomain' field we added to the model
+        # 2. Identify School by Subdomain
+        request.school = None
+        if subdomain and subdomain.lower() not in ['www', '127', 'localhost']:
             request.school = School.objects.filter(subdomain__iexact=subdomain).first()
-        else:
-            request.school = None
 
-        # 3. Fallback: If no subdomain found, check if a logged-in user is an admin for a school
+        # 3. CRITICAL FIX: Identify School by User Session
+        # If subdomain lookup fails, use the User's linked school.
+        # This ensures that even on 127.0.0.1, the financial views work.
         if not request.school and request.user.is_authenticated:
-            # This links the logged-in staff member back to their specific institution
-            request.school = School.objects.filter(admin=request.user).first()
+            # Check if your User model has a 'school' FK, or use the 'admin' lookup
+            request.school = getattr(request.user, 'school', None) or \
+                             School.objects.filter(admin=request.user).first()
 
-        # 4. Final Fallback: If still nothing, you can set a 'Default' school for dev purposes
-        # request.school = request.school or School.objects.first()
-
+        # 4. Final Security Check
+        # If we are in a finance view but request.school is still None, 
+        # the system won't know which data to pull.
+        
         response = self.get_response(request)
         return response
     

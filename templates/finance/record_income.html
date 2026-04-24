@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 rounded-4">
+                <div class="card-header bg-success text-white border-0 py-4">
+                    <h4 class="mb-0 fw-bold">
+                        <i class="fas fa-plus-circle me-2"></i> Record Income
+                    </h4>
+                </div>
+                <div class="card-body p-5">
+                    <form method="POST">
+                        {% csrf_token %}
+
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Income Account</label>
+                            <select name="account" class="form-select form-select-lg" required>
+                                <option value="">-- Select Income Account --</option>
+                                {% for acc in income_accounts %}
+                                <option value="{{ acc.id }}">{{ acc.code }} - {{ acc.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Amount (UGX)</label>
+                            <input type="number" name="amount" class="form-control form-control-lg" 
+                                   placeholder="0.00" step="0.01" required>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Description</label>
+                            <textarea name="description" class="form-control" rows="3" 
+                                      placeholder="e.g. School fees collection, Donation, etc."></textarea>
+                        </div>
+
+                        <div class="d-grid gap-2 mt-5">
+                            <button type="submit" class="btn btn-success btn-lg py-3 fw-bold">
+                                <i class="fas fa-save me-2"></i> Record Income
+                            </button>
+                            <a href="{% url 'finance:dashboard' %}" class="btn btn-outline-secondary btn-lg py-3">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,56 +1,49 @@
-from django.shortcuts import render
-
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.utils import timezone
 from django.db import transaction
-from .models import Mark, Subject, Teacher, Classroom, SubjectAssignment
+from .models import Mark, Subject, Classroom, SubjectAssignment
 from students.models import Student
 
 def enter_marks(request, classroom_id, subject_id):
-    # 1. Fetch data with school-scoping
     classroom = get_object_or_404(Classroom, id=classroom_id, school=request.school)
     subject = get_object_or_404(Subject, id=subject_id, school=request.school)
-    current_year = timezone.now().year 
     
-    # 2. SECURITY: Multi-Level Assignment Check
+    # Allow dynamic selection of term/year from GET or default to current
+    selected_term = request.GET.get('term', 'Term 1')
+    selected_year = int(request.GET.get('year', timezone.now().year))
+    
+    # 1. SECURITY: Superuser or Assigned Teacher
     if not request.user.is_superuser:
-        # Get the teacher profile linked to the user
-        # Note: Ensure the related_name in your Teacher model is 'teacher_profile'
         teacher_profile = getattr(request.user, 'teacher_profile', None)
-        
         if not teacher_profile:
-            messages.error(request, "Access Denied: You do not have a Teacher Profile.")
+            messages.error(request, "Teacher Profile missing.")
             return redirect('academic:dashboard')
 
-        # Check SubjectAssignment table
         is_assigned = SubjectAssignment.objects.filter(
-            teacher=teacher_profile,
-            subject=subject,
-            classroom=classroom,
-            year=current_year
+            teacher=teacher_profile, subject=subject,
+            classroom=classroom, year=selected_year
         ).exists()
 
-        # Fallback: Check ManyToMany fields on Teacher model
         if not is_assigned:
-            is_assigned = teacher_profile.subjects.filter(id=subject.id).exists() and \
-                          teacher_profile.classrooms.filter(id=classroom.id).exists()
-
-        if not is_assigned:
-            messages.error(
-                request, 
-                f"Access Denied: You are not assigned to teach {subject.name} in {classroom.name}."
-            )
+            messages.error(request, f"Access Denied for {subject.name} in {selected_year}.")
             return redirect('academic:dashboard')
 
-    # 3. Fetch students
-    students = Student.objects.filter(classroom=classroom, school=request.school).order_by('first_name')
+    # 2. Fetch students and existing marks for this specific term/year
+    students = Student.objects.filter(classroom=classroom, school=request.school, is_active=True)
     
+    # Map existing marks to a dictionary {student_id: mark_object} for easy lookup in template
+    existing_marks = {
+        m.student_id: m for m in Mark.objects.filter(
+            subject=subject, term=selected_term, year=selected_year
+        )
+    }
+
     if request.method == "POST":
-        term = request.POST.get('term')
+        post_term = request.POST.get('term')
+        post_year = int(request.POST.get('year'))
         
         try:
-            # Use atomic transaction to prevent partial saves and fixing TransactionManagementError
             with transaction.atomic():
                 for student in students:
                     mid_val = request.POST.get(f'mid_{student.id}')
@@ -62,14 +55,10 @@ def enter_marks(request, classroom_id, subject_id):
                         except (ValueError, TypeError):
                             return None
 
-                    # update_or_create triggers the model's .save() and .full_clean()
                     Mark.objects.update_or_create(
-                        student=student,
-                        subject=subject,
-                        classroom=classroom,
-                        school=request.school,
-                        term=term,
-                        year=current_year,
+                        student=student, subject=subject,
+                        classroom=classroom, school=request.school,
+                        term=post_term, year=post_year,
                         defaults={
                             'mid_term_mark': to_float(mid_val),
                             'end_term_mark': to_float(end_val),
@@ -77,19 +66,20 @@ def enter_marks(request, classroom_id, subject_id):
                         }
                     )
             
-            messages.success(request, f"Successfully saved marks for {subject.name} - {classroom.name}.")
+            messages.success(request, f"Marks saved for {post_term} {post_year}.")
             return redirect('academic:dashboard')
             
         except Exception as e:
-            # This catches the ValidationError from the model
-            messages.error(request, f"Error saving marks: {e}")
-            # If it fails, we fall through to render the page again so marks aren't lost in the form
+            messages.error(request, f"Error: {e}")
 
     return render(request, 'academic/mark_sheet.html', {
         'classroom': classroom,
         'subject': subject,
         'students': students,
-        'current_year': current_year
+        'existing_marks': existing_marks,
+        'selected_term': selected_term,
+        'selected_year': selected_year,
+        'years': range(2024, timezone.now().year + 2) # List for year dropdown
     })
 
 from django.shortcuts import render, get_object_or_404
@@ -615,3 +605,91 @@ def teacher_edit(request, pk):
         return redirect('academic:teacher_directory')
     
     return render(request, 'academic/teachers/edit_partial.html', {'teacher': teacher})
+
+
+
+
+from django.shortcuts import render, get_object_or_404
+from collections import defaultdict
+from django.shortcuts import render, get_object_or_404
+from django.db.models import Avg, Count
+from collections import defaultdict
+
+from django.shortcuts import render, get_object_or_404
+from collections import defaultdict
+from django.shortcuts import render, get_object_or_404
+from collections import defaultdict
+
+from django.shortcuts import render, get_object_or_404
+from collections import defaultdict
+
+def get_division_and_aggregate(marks_list):
+    """Calculate Division and Aggregate (best 8 subjects)"""
+    if not marks_list or len(marks_list) == 0:
+        return "N/A", 0
+    
+    grade_map = {
+        'D1': 1, 'D2': 2, 'C3': 3, 'C4': 4,
+        'C5': 5, 'C6': 6, 'P7': 7, 'P8': 8, 'F9': 9, 'F': 9
+    }
+    
+    points = [grade_map.get(mark.grade, 9) for mark in marks_list]
+    points.sort()                    # Best grades first
+    best_8 = points[:8]
+    aggregate = sum(best_8)
+    
+    if aggregate <= 12:
+        division = "Division 1"
+    elif aggregate <= 24:
+        division = "Division 2"
+    elif aggregate <= 34:
+        division = "Division 3"
+    else:
+        division = "Division 4"
+    
+    return division, aggregate
+
+
+def student_report_history(request, student_id):
+    student = get_object_or_404(Student, id=student_id, school=request.school)
+    
+    marks_queryset = Mark.objects.filter(
+        student=student
+    ).select_related('subject').order_by('-year', 'term')
+
+    structured_history = defaultdict(lambda: defaultdict(list))
+    term_aggregates = defaultdict(dict)
+
+    for mark in marks_queryset:
+        structured_history[mark.year][mark.term].append(mark)
+
+    # Calculate aggregates + Division + Total Points
+    for year, terms in structured_history.items():
+        for term, marks_list in terms.items():
+            if marks_list:
+                total = sum(m.total_score for m in marks_list)
+                count = len(marks_list)
+                average = round(total / count, 1) if count > 0 else 0
+                
+                division, aggregate_points = get_division_and_aggregate(marks_list)
+                
+                term_aggregates[year][term] = {
+                    'average': average,
+                    'subject_count': count,
+                    'division': division,
+                    'aggregate_points': aggregate_points,
+                }
+
+    history = {
+        year: dict(terms) for year, terms in structured_history.items()
+    }
+
+    context = {
+        'student': student,
+        'history': history,
+        'term_aggregates': dict(term_aggregates),
+        'student_classroom': getattr(student, 'classroom', None),
+        'student_stream': getattr(student, 'stream', None),
+    }
+
+    return render(request, 'academic/student_history.html', context)
