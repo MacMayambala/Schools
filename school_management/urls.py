@@ -15,6 +15,7 @@ urlpatterns = [
     path('students/', include('students.urls')),
     path('finance/', include('finance.urls')),
     path('academic/', include('academic.urls')),
+    path('reports/', include('reports.urls')),
    
     
     # Auth (Login/Logout)
