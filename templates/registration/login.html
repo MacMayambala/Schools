@@ -158,8 +158,10 @@
                         <img src="{% static 'images/togsfavicon.png' %}" alt="Togs Logo">
                     {% elif "olam" in request.get_host %}
                         <img src="{% static 'images/olamfavicon.png' %}" alt="Olam Logo">
+                    {% elif "sjoks" in request.get_host %}
+                        <img src="{% static 'images/sjoksfavicon.png' %}" alt="Sjoks Logo">
                     {% else %}
-                        <img src="{% static 'images/olamfavicon.png' %}" alt="Default Logo">
+                        <img src="{% static 'images/macfavicon.png' %}" alt="Default Logo">
                     {% endif %}
                 </div>
                 <h1 class="display-5 fw-bold mb-0" style="letter-spacing: -1px;">
@@ -196,8 +198,10 @@
                     <img src="{% static 'images/togsfavicon.png' %}" class="watermark" alt="">
                 {% elif "olam" in request.get_host %}
                     <img src="{% static 'images/olamfavicon.png' %}" class="watermark" alt="">
+                {% elif "sjoks" in request.get_host %}
+                    <img src="{% static 'images/sjoksfavicon.png' %}" class="watermark" alt="">
                 {% else %}
-                    <img src="{% static 'images/olamfavicon.png' %}" class="watermark" alt="">
+                    <img src="{% static 'images/macfavicon.png' %}" class="watermark" alt="">
                 {% endif %}
 
                 <div class="login-wrapper">
