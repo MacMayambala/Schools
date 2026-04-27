@@ -85,21 +85,32 @@
         font-weight: 700;
         font-size: 1rem;
     }
+
+    /* Mobile Specific Overrides */
+    @media (max-width: 768px) {
+        .display-6 { font-size: 1.8rem; }
+        .stat-value { font-size: 1.75rem; }
+        .stat-icon { width: 48px; height: 48px; font-size: 1.3rem; }
+        .page-header { margin-bottom: 1.5rem; text-align: center; }
+        .page-header .d-flex { justify-content: center !important; }
+        .command-btn:hover { transform: none; }
+        .stat-card { margin-bottom: 10px; }
+        .panel-header { padding: 15px 20px; }
+    }
 </style>
 
-<div class="dash-container container-fluid py-4">
+<div class="dash-container container-fluid py-3 py-md-4">
 
-    <!-- Header -->
-    <div class="page-header d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-5 gap-4">
+    <div class="page-header d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-4 mb-md-5 gap-3 gap-md-4">
         <div>
-            <nav aria-label="breadcrumb" class="mb-2">
+            <nav aria-label="breadcrumb" class="mb-2 d-none d-md-block">
                 <ol class="breadcrumb mb-0">
                     <li class="breadcrumb-item small text-uppercase fw-bold ls-1 text-primary">Overview</li>
                     <li class="breadcrumb-item small text-uppercase fw-bold ls-1 text-muted active">Management</li>
                 </ol>
             </nav>
             <h1 class="display-6 fw-bold text-dark mb-1 tracking-tight">School Dashboard</h1>
-            <div class="d-flex align-items-center gap-2">
+            <div class="d-flex align-items-center gap-2 justify-content-md-start justify-content-center">
                 <div class="status-indicator-online"></div>
                 <p class="text-muted mb-0 fw-medium">
                     Live insights for <span class="fw-semibold text-dark">{{ request.school.name|default:"OLA School" }}</span>
@@ -107,22 +118,21 @@
             </div>
         </div>
 
-        <div class="no-print d-flex gap-3 align-items-center">
-            <div class="date-pill">
+        <div class="no-print d-flex gap-2 gap-md-3 align-items-center justify-content-center">
+            <div class="date-pill bg-white border px-3 py-2 rounded-pill small fw-bold shadow-sm">
                 <i class="fas fa-calendar-alt text-primary me-2"></i>
                 <span>{% now "M d, Y" %}</span>
             </div>
-            <button onclick="window.print()" class="btn btn-outline-secondary btn-icon shadow-sm">
+            <button onclick="window.print()" class="btn btn-outline-secondary btn-icon shadow-sm rounded-circle">
                 <i class="fas fa-print"></i>
             </button>
         </div>
     </div>
 
-    <!-- KPI Cards -->
-    <div class="row g-4 mb-5">
+    <div class="row g-3 g-md-4 mb-4 mb-md-5">
         <div class="col-xl-4 col-md-6">
             <div class="stat-card border-top border-4 border-primary h-100">
-                <div class="card-body p-4">
+                <div class="card-body p-3 p-md-4">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
                             <p class="stat-label">Total Enrollment</p>
@@ -132,7 +142,7 @@
                             <i class="fas fa-user-graduate"></i>
                         </div>
                     </div>
-                    <div class="stat-footer mt-4">
+                    <div class="stat-footer mt-3 mt-md-4">
                         <span class="badge bg-primary-soft text-primary px-3 py-2">Current Term</span>
                     </div>
                 </div>
@@ -141,40 +151,40 @@
 
         <div class="col-xl-4 col-md-6">
             <div class="stat-card border-top border-4 border-success h-100">
-                <div class="card-body p-4">
+                <div class="card-body p-3 p-md-4">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
                             <p class="stat-label">Revenue Collected</p>
-                            <h2 class="stat-value fw-bold">
-                                <small class="text-muted fs-5">UGX</small> {{ total_fees|default:"0"|intcomma }}
+                            <h2 class="stat-value fw-bold text-success">
+                                <small class="text-muted fs-6">UGX</small> {{ total_fees|default:"0"|intcomma }}
                             </h2>
                         </div>
                         <div class="stat-icon bg-success-soft text-success">
                             <i class="fas fa-vault"></i>
                         </div>
                     </div>
-                    <div class="stat-footer mt-4">
+                    <div class="stat-footer mt-3 mt-md-4">
                         <span class="text-success small fw-semibold"><i class="fas fa-arrow-trend-up me-1"></i> On Track</span>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-xl-4">
+        <div class="col-xl-4 col-12">
             <div class="stat-card border-top border-4 border-danger h-100">
-                <div class="card-body p-4">
+                <div class="card-body p-3 p-md-4">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
                             <p class="stat-label">Outstanding Arrears</p>
                             <h2 class="stat-value fw-bold text-danger">
-                                <small class="text-muted fs-5">UGX</small> {{ balance|default:"0"|intcomma }}
+                                <small class="text-muted fs-6">UGX</small> {{ balance|default:"0"|intcomma }}
                             </h2>
                         </div>
                         <div class="stat-icon bg-danger-soft text-danger">
                             <i class="fas fa-hand-holding-dollar"></i>
                         </div>
                     </div>
-                    <div class="stat-footer mt-4 d-flex align-items-center">
+                    <div class="stat-footer mt-3 mt-md-4 d-flex align-items-center">
                         <div class="pulse-dot me-2"></div>
                         <span class="text-danger small fw-semibold">Immediate Attention</span>
                     </div>
@@ -183,16 +193,15 @@
         </div>
     </div>
 
-    <!-- Charts -->
-    <div class="row g-4 mb-5">
+    <div class="row g-3 g-md-4 mb-4 mb-md-5">
         <div class="col-lg-8">
             <div class="glass-card">
                 <div class="panel-header d-flex justify-content-between align-items-center">
                     <h6 class="fw-bold mb-0">Monthly Revenue Trend</h6>
                     <span class="badge bg-primary-soft text-primary px-3 py-2">2026</span>
                 </div>
-                <div class="p-4">
-                    <div id="revenueChart" style="min-height: 360px;"></div>
+                <div class="p-2 p-md-4">
+                    <div id="revenueChart" style="min-height: 300px;"></div>
                 </div>
             </div>
         </div>
@@ -202,28 +211,27 @@
                 <div class="panel-header">
                     <h6 class="fw-bold mb-0">Fee Clearance Status</h6>
                 </div>
-                <div class="p-4">
-                    <div id="statusChart" style="min-height: 360px;"></div>
+                <div class="p-2 p-md-4">
+                    <div id="statusChart" style="min-height: 300px;"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Quick Access + Recent Activity -->
-    <div class="row g-4">
-        <div class="col-lg-4">
+    <div class="row g-3 g-md-4">
+        <div class="col-lg-4 order-2 order-lg-1">
             <div class="glass-card h-100">
                 <div class="panel-header">
                     <h6 class="fw-bold mb-0">Quick Access</h6>
                 </div>
-                <div class="p-4">
-                    <div class="d-grid gap-3">
+                <div class="p-3 p-md-4">
+                    <div class="d-grid gap-2 gap-md-3">
                         <a href="{% url 'students:student_list' %}" class="command-btn">
                             <i class="fas fa-users text-primary"></i>
                             <span class="fw-semibold">Student Registry</span>
                         </a>
                         <a href="{% url 'finance:bulk_bill' %}" class="command-btn">
-                            <i class="fas fa-file-invoice-dollar text-amber"></i>
+                            <i class="fas fa-file-invoice-dollar text-warning"></i>
                             <span class="fw-semibold">Bulk Billing</span>
                         </a>
                         <a href="{% url 'finance:dashboard' %}" class="command-btn">
@@ -235,39 +243,39 @@
             </div>
         </div>
 
-        <div class="col-lg-8">
+        <div class="col-lg-8 order-1 order-lg-2">
             <div class="glass-card h-100">
                 <div class="panel-header d-flex justify-content-between align-items-center">
-                    <h6 class="fw-bold mb-0">Recent Invoicing Activity</h6>
+                    <h6 class="fw-bold mb-0">Recent Activity</h6>
                     <span class="badge bg-primary-soft text-primary">Live</span>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
                         <thead class="bg-light">
                             <tr class="text-muted small text-uppercase fw-bold ls-1">
-                                <th class="ps-4">Student</th>
-                                <th class="text-center">Term</th>
-                                <th class="text-end pe-4">Balance</th>
+                                <th class="ps-3 ps-md-4">Student</th>
+                                <th class="text-center d-none d-sm-table-cell">Term</th>
+                                <th class="text-end pe-3 pe-md-4">Balance</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for inv in recent_invoices %}
                             <tr>
-                                <td class="ps-4">
+                                <td class="ps-3 ps-md-4">
                                     <div class="d-flex align-items-center">
-                                        <div class="avatar-pill me-3">
+                                        <div class="avatar-pill me-2 me-md-3 d-none d-sm-flex">
                                             {{ inv.student.first_name|first }}{{ inv.student.last_name|first }}
                                         </div>
                                         <div>
-                                            <div class="fw-semibold">{{ inv.student.get_full_name }}</div>
-                                            <small class="text-muted">{{ inv.student.admission_number }}</small>
+                                            <div class="fw-semibold small">{{ inv.student.get_full_name }}</div>
+                                            <small class="text-muted" style="font-size: 0.7rem;">{{ inv.student.admission_number }}</small>
                                         </div>
                                     </div>
                                 </td>
-                                <td class="text-center">
-                                    <span class="badge bg-dark border px-3">Term {{ inv.term|default:"1" }}</span>
+                                <td class="text-center d-none d-sm-table-cell">
+                                    <span class="badge bg-dark border px-2">Term {{ inv.term|default:"1" }}</span>
                                 </td>
-                                <td class="text-end pe-4 fw-bold {% if inv.balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                                <td class="text-end pe-3 pe-md-4 fw-bold small {% if inv.balance > 0 %}text-danger{% else %}text-success{% endif %}">
                                     UGX {{ inv.balance|floatformat:0|intcomma }}
                                 </td>
                             </tr>
@@ -294,46 +302,42 @@ document.addEventListener("DOMContentLoaded", function () {
             name: "Collections", 
             data: {{ revenue_data|safe|default:"[450000, 680000, 520000, 910000, 750000, 820000]" }} 
         }],
-        chart: { type: 'area', height: 360, toolbar: { show: false } },
+        chart: { type: 'area', height: 320, toolbar: { show: false } },
         colors: ['#1a6644'],
-        stroke: { curve: 'smooth', width: 4 },
+        stroke: { curve: 'smooth', width: 3 },
         xaxis: { categories: {{ labels|safe|default:"['Jan','Feb','Mar','Apr','May','Jun']" }} },
         yaxis: { labels: { formatter: (v) => 'UGX ' + v.toLocaleString() }},
-        fill: { type: 'gradient', gradient: { opacityFrom: 0.55, opacityTo: 0.08 }}
+        fill: { type: 'gradient', gradient: { opacityFrom: 0.5, opacityTo: 0.05 }}
     }).render();
 
-    // Pie Chart - Very Safe Version
+    // Status Chart
     new ApexCharts(document.querySelector("#statusChart"), {
         series: {{ status_data|safe|default:"[0, 0]" }},
         labels: ['Cleared', 'With Arrears'],
         chart: { 
             type: 'donut', 
-            height: 360,
+            height: 320,
             fontFamily: 'DM Sans, sans-serif'
         },
         colors: ['#1a6644', '#e11d48'],
         legend: { 
             position: 'bottom', 
-            fontSize: '15px',
-            fontWeight: 600 
+            fontSize: '12px'
         },
         plotOptions: {
             pie: {
                 donut: {
-                    size: '75%',
+                    size: '70%',
                     labels: {
                         show: true,
                         total: {
                             show: true,
-                            label: 'Total Students',
+                            label: 'Students',
                             formatter: () => "{{ student_count|default:0 }}"
                         }
                     }
                 }
             }
-        },
-        tooltip: { 
-            y: { formatter: (val) => val + " Students" }
         }
     }).render();
 
