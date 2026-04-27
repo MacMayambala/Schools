@@ -102,7 +102,7 @@
         #sidebar {
             width: var(--sidebar-width); height: 100vh; position: fixed;
             background: var(--sidebar-bg); transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
-            z-index: 1050; border-right: 1px solid var(--border-color); display: flex; flex-direction: column;
+            z-index: 1100; border-right: 1px solid var(--border-color); display: flex; flex-direction: column;
         }
         #sidebar.collapsed { transform: translateX(calc(var(--sidebar-width) * -1)); }
         .sidebar-header { padding: 2.25rem 1.5rem 1.75rem; text-align: center; border-bottom: 1px solid var(--border-color); }
@@ -120,31 +120,65 @@
         .dashboard-content { padding: 2rem 2.5rem 3rem; }
         .app-card { background: var(--card-bg); border-radius: 26px; border: 1px solid var(--border-color); box-shadow: 0 12px 40px rgba(0,0,0,0.04); padding: 2.75rem; min-height: 80vh; }
 
+        /* --- MOBILE OPTIMIZATIONS --- */
         @media (max-width: 992px) {
             #sidebar { transform: translateX(-100%); }
             #sidebar.active { transform: translateX(0); }
             #main { margin-left: 0 !important; }
+            .top-navbar { padding: 0 1rem; }
+            .dashboard-content { padding: 1rem; }
+            .app-card { padding: 1.25rem; border-radius: 18px; min-height: auto; }
+            
+            /* Stat Bar Mobile: Make scrollable */
+            .sticky-stat-wrapper { 
+                top: 72px; 
+                padding: 10px 1rem; 
+                justify-content: flex-start;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+            }
+            .sticky-stat-wrapper::-webkit-scrollbar { display: none; }
+            .micro-stat-bar { 
+                padding: 12px 20px; 
+                gap: 20px; 
+                border-radius: 15px; 
+                width: max-content;
+            }
+            .stat-unit { padding-right: 20px; gap: 8px; }
+            .stat-number { font-size: 16px; }
+
+            /* Overlay for sidebar */
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 1090;
+                backdrop-filter: blur(2px);
+            }
+            .sidebar-overlay.active { display: block; }
         }
     </style>
 </head>
 <body>
     <div id="top-loader"></div>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <aside id="sidebar">
         <div class="sidebar-header">
             <div class="school-logo-container">
-                {% if "togs" in request.get_host %}
-                    <img src="{% static 'images/togsfavicon.png' %}" style="width:100%; height:100%; object-fit:contain;">
-                {% elif "olam" in request.get_host %}
-                    <img src="{% static 'images/olamfavicon.png' %}" style="width:100%; height:100%; object-fit:contain;">
-                {% elif "sjoks" in request.get_host %}
-                    <img src="{% static 'images/sjoksfavicon.png' %}" style="width:100%; height:100%; object-fit:contain;">
-                {% else %}
-                    <img src="{% static 'images/macfavicon.png' %}" style="width:100%; height:100%; object-fit:contain;">
-                {% endif %}
+                    {% if request.school.logo %}
+                        <img src="{{ request.school.logo.url }}" alt="{{ request.school.name }}" style="width:100%; height:100%; object-fit:contain;">
+                    {% else %}
+                        {# Fallback to a default image if no logo is uploaded in the DB #}
+                        <img src="{% static 'images/macfavicon.png' %}" style="width:100%; height:100%; object-fit:contain;">
+                    {% endif %}
+                </div>
+                <h6 class="fw-bold mb-1" style="color: var(--primary);">{{ request.school.name|default:"School Admin" }}</h6>
+                <small class="text-muted fw-bold opacity-50" style="font-size: 8px; text-transform: uppercase;">Management System</small>
             </div>
-            <h6 class="fw-bold mb-1" style="color: var(--primary);">{{ request.school.name|default:"School Admin" }}</h6>
-            <small class="text-muted fw-bold opacity-50" style="font-size: 8px; text-transform: uppercase;">Management System</small>
+            
         </div>
 
         <div class="nav-scroll flex-grow-1 overflow-auto">
@@ -198,8 +232,6 @@
                 </li>
             </ul>
         </div>
-
-        
     </aside>
 
     <div id="main">
@@ -207,16 +239,16 @@
             <button id="toggleSidebar" class="btn shadow-none p-0 me-4"><i class="fas fa-bars-staggered fa-lg text-muted"></i></button>
             <h6 class="mb-0 fw-bold text-muted d-none d-md-block">{{ request.school.name }}</h6>
             
-            <div class="ms-auto d-flex align-items-center gap-3">
-                <div id="themeSwitcher" class="btn border border-color rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width:42px; height:42px; cursor: pointer;">
+            <div class="ms-auto d-flex align-items-center gap-2 gap-md-3">
+                <div id="themeSwitcher" class="btn border border-color rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width:38px; height:38px; cursor: pointer;">
                     <i class="fas fa-moon" id="themeIcon"></i>
                 </div>
-                <div class="d-flex align-items-center gap-2 border p-1 pe-3 rounded-pill bg-white shadow-sm">
-                    <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width:32px; height:32px;">{{ user.username|slice:":1"|upper }}</div>
-                    <span class="small fw-bold text-dark">{{ user.username }}</span>
+                <div class="d-flex align-items-center gap-2 border p-1 pe-md-3 rounded-pill bg-white shadow-sm">
+                    <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width:28px; height:28px; font-size: 0.8rem;">{{ user.username|slice:":1"|upper }}</div>
+                    <span class="small fw-bold text-dark d-none d-sm-inline">{{ user.username }}</span>
                 </div>
                 <form action="{% url 'core:logout' %}" method="post" class="m-0">
-                    {% csrf_token %}<button class="btn btn-sm btn-outline-danger px-3 rounded-pill fw-bold">Logout</button>
+                    {% csrf_token %}<button class="btn btn-sm btn-outline-danger px-2 px-md-3 rounded-pill fw-bold" style="font-size: 0.75rem;">Logout</button>
                 </form>
             </div>
         </nav>
@@ -258,7 +290,6 @@
                     <div class="stat-unit">
                         <div class="stat-brand text-info">SMS<br><small>Credits</small></div>
                         <div class="stat-number">{{ sms_credit|default:"0"|intcomma }}</div>
-                    
                     </div>
                 </div>
             </div>
@@ -271,21 +302,32 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Sidebar & Top Loader
+        const sidebar = document.getElementById("sidebar");
+        const overlay = document.getElementById("sidebarOverlay");
+        const toggleBtn = document.getElementById("toggleSidebar");
+
+        // Sidebar logic
+        toggleBtn.onclick = () => {
+            if (window.innerWidth > 992) {
+                sidebar.classList.toggle("collapsed");
+                document.getElementById("main").classList.toggle("expanded");
+            } else {
+                sidebar.classList.toggle("active");
+                overlay.classList.toggle("active");
+            }
+        };
+
+        overlay.onclick = () => {
+            sidebar.classList.remove("active");
+            overlay.classList.remove("active");
+        };
+
+        // Top Loader
         window.onbeforeunload = () => { document.getElementById('top-loader').style.width = '40%'; };
         window.addEventListener('pageshow', () => { 
             const loader = document.getElementById('top-loader');
             loader.style.width = '100%'; setTimeout(() => { loader.style.width = '0%'; }, 500); 
         });
-
-        document.getElementById("toggleSidebar").onclick = () => {
-            if (window.innerWidth > 992) {
-                document.getElementById("sidebar").classList.toggle("collapsed");
-                document.getElementById("main").classList.toggle("expanded");
-            } else {
-                document.getElementById("sidebar").classList.toggle("active");
-            }
-        };
 
         // Theme Switcher
         const applyTheme = (theme) => {
