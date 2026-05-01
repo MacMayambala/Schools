@@ -160,7 +160,10 @@
                         <img src="{% static 'images/olamfavicon.png' %}" alt="Olam Logo">
                     {% elif "sjoks" in request.get_host %}
                         <img src="{% static 'images/sjoksfavicon.png' %}" alt="Sjoks Logo">
+                    {% elif "staz" in request.get_host %}
+                        <img src="{% static 'images/zirobwe.png' %}" alt="Staz Logo">
                     {% else %}
+
                         <img src="{% static 'images/macfavicon.png' %}" alt="Default Logo">
                     {% endif %}
                 </div>
@@ -168,11 +171,14 @@
                     {% if request.school %}
                         {{ request.school.name|upper }}
                     {% elif "togs" in request.get_host %}
+                    
                         THRONES OF GRACE NURSERY AND PRIMARY SCHOOL
                     {% elif "olam" in request.get_host %}
                         OUR LADY OF AFRICA MUKONO
-                    {% else %}
-                        St.Joseph's Kindercare and Pre School Zirobwe
+                    {% elif "sjoks" in request.get_host %}
+                       St.Joseph's Kindercare and Pre School Zirobwe
+                    {% elif "staz" in request.get_host %}
+                        St. Augustine Zirobwe
                     {% endif %}
                 </h1>
 
@@ -181,10 +187,16 @@
                         {{ request.school.motto|upper }}
                     {% elif "togs" in request.get_host %}
                         WISDOM IS POWER
+                
                     {% elif "olam" in request.get_host %}
                         EVER FORWARD
+                    {% elif "sjoks" in request.get_host %}
+                        SANCTE_ET_SAPIENTER
+                    {% elif "staz" in request.get_host %}
+                        LOVE AND WORK
                     {% else %}
-                         SANCTE_ET_SAPIENTER
+
+                         
                     {% endif %}
                 </p>
                     
@@ -200,6 +212,8 @@
                     <img src="{% static 'images/olamfavicon.png' %}" class="watermark" alt="">
                 {% elif "sjoks" in request.get_host %}
                     <img src="{% static 'images/sjoksfavicon.png' %}" class="watermark" alt="">
+                {% elif "staz" in request.get_host %}
+                    <img src="{% static 'images/zirobwe.png' %}" class="watermark" alt="">
                 {% else %}
                     <img src="{% static 'images/macfavicon.png' %}" class="watermark" alt="">
                 {% endif %}
