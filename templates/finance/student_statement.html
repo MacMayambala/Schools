@@ -48,14 +48,21 @@
                         <img src="{{ student.photo.url }}" class="rounded-3 shadow-sm me-3 border border-white" style="width: 90px; height: 90px; object-fit: cover;">
                     {% else %}
                         <div class="bg-secondary bg-opacity-10 rounded-3 me-3 d-flex align-items-center justify-content-center text-secondary" style="width: 90px; height: 90px;">
-                            <i class="fas fa-user-graduate fa-2x"></i>
+                                                    <i class="fas fa-user-graduate fa-2x"></i>
+                                                </div>
+                                            {% endif %}
+                                        <div>
+                            <h5 class="fw-bold mb-0">{{ student.get_full_name }}</h5>
+                            <p class="mb-0 text-primary fw-bold small">ID: {{ student.admission_number }}</p>
+                            <p class="mb-0 text-muted small">
+                                Class: 
+                                {% if student.class_stream %}
+                                    {{ student.class_stream.classroom.name }} ({{ student.class_stream.stream.name }})
+                                {% else %}
+                                    Not Assigned
+                                {% endif %}
+                            </p>
                         </div>
-                    {% endif %}
-                    <div>
-                        <h5 class="fw-bold mb-0">{{ student.get_full_name }}</h5>
-                        <p class="mb-0 text-primary fw-bold small">ID: {{ student.admission_number }}</p>
-                        <p class="mb-0 text-muted small">Class: {{ student.classroom.name }}</p>
-                    </div>
                 </div>
             </div>
             <div class="col-md-6">
@@ -89,7 +96,12 @@
                     <tr>
                         <td class="ps-3 text-muted small">{{ entry.date|date:"d/m/Y" }}</td>
                         <td>
-                            <div class="fw-bold text-dark">{{ entry.description }}</div>
+                            <div class="fw-bold text-dark">
+                                {{ entry.description }}
+                                {% if entry.credit > 0 and entry.payment_method %}
+                                    <span class="text-success small fw-normal">({{ entry.payment_method }})</span>
+                                {% endif %}
+                            </div>
                             <div class="extra-small text-muted text-uppercase">Ref: {{ entry.reference }}</div>
                         </td>
                         <td class="text-end text-danger fw-semibold">

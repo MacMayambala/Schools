@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <!-- Header Section -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div>
+            <h4 class="fw-bold mb-1" style="color: var(--primary);">
+                <i class="fas fa-shield-cat me-2"></i>System Audit Trail
+            </h4>
+            <p class="text-muted small mb-0">A real-time record of all administrative actions and security events.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button onclick="window.print()" class="btn btn-sm btn-outline-secondary rounded-pill px-3 no-print">
+                <i class="fas fa-print me-1"></i> Print Report
+            </button>
+            <a href="{% url 'core:user_list' %}" class="btn btn-sm btn-primary rounded-pill px-3 no-print">
+                <i class="fas fa-users me-1"></i> Manage Staff
+            </a>
+        </div>
+    </div>
+
+    <!-- Quick Stats & Filter Bar -->
+    <div class="row g-3 mb-4 no-print">
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-body p-2 px-3">
+                    <form method="GET" class="d-flex align-items-center gap-2">
+                        <i class="fas fa-search text-muted"></i>
+                        <input type="text" name="q" class="form-control border-0 shadow-none bg-transparent" placeholder="Search by user, action, or resource...">
+                        <button type="submit" class="btn btn-primary btn-sm rounded-pill px-3">Filter</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="bg-primary-soft rounded-4 p-2 px-3 d-flex align-items-center justify-content-between h-100 border border-primary-subtle">
+                <span class="small fw-bold text-primary">Recent Events</span>
+                <span class="badge bg-primary rounded-pill">{{ logs|length }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logs Table -->
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                        <th class="ps-4 py-3 text-muted">Timestamp</th>
+                        <th class="py-3 text-muted">User</th>
+                        <th class="py-3 text-muted">Action</th>
+                        <th class="py-3 text-muted">Resource / Module</th>
+                        <th class="pe-4 py-3 text-end text-muted">Network Info</th>
+                    </tr>
+                </thead>
+                <tbody style="border-top: 0;">
+                    {% for log in logs %}
+                    <tr style="transition: all 0.2s ease;">
+                        <td class="ps-4">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="fas fa-clock-rotate-left text-muted opacity-50" style="font-size: 0.75rem;"></i>
+                                <div class="small fw-bold text-dark">{{ log.timestamp|date:"d M, Y" }}</div>
+                                <div class="text-muted small">{{ log.timestamp|date:"H:i:s" }}</div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="bg-light rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; font-size: 0.7rem;">
+                                    <i class="fas fa-user-shield text-primary"></i>
+                                </div>
+                                <span class="fw-bold small">{{ log.user|default:"System" }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            {% if "Deleted" in log.action or "Lock" in log.action %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">
+                                    {{ log.action }}
+                                </span>
+                            {% elif "Created" in log.action or "Added" in log.action %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                    {{ log.action }}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-primary-soft text-primary border border-primary-subtle px-2 py-1">
+                                    {{ log.action }}
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <code class="text-muted small bg-light px-2 py-1 rounded">{{ log.model_name|default:"-" }}</code>
+                        </td>
+                        <td class="pe-4 text-end">
+                            <div class="d-flex flex-column align-items-end">
+                                <span class="badge bg-light text-dark fw-normal border" style="font-family: monospace;">
+                                    {{ log.ip_address|default:"127.0.0.1" }}
+                                </span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5">
+                            <i class="fas fa-list-check fa-3x mb-3 text-muted opacity-25"></i>
+                            <h5 class="text-muted">No logs recorded yet</h5>
+                            <p class="small text-muted">Activities will appear here once users start performing actions.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    .bg-primary-soft { background-color: var(--primary-soft) !important; }
+    .bg-success-subtle { background-color: #e7f5ed !important; }
+    .bg-danger-subtle { background-color: #fcebed !important; }
+    
+    /* Table row subtle animation */
+    .table-hover tbody tr:hover {
+        background-color: rgba(46, 139, 87, 0.03) !important;
+        transform: scale(1.002);
+    }
+
+    /* Print Styles */
+    @media print {
+        .no-print { display: none !important; }
+        .card { border: 1px solid #ddd !important; box-shadow: none !important; }
+        #main { margin: 0 !important; padding: 0 !important; }
+        body { background: white !important; }
+    }
+</style>
+{% endblock %}

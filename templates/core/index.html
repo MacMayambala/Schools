@@ -13,14 +13,15 @@
         --primary: #1a6644;
         --primary-soft: #e6f2ec;
         --text-muted: #64748b;
+        --success-soft: #e8f5e9;
+        --danger-soft: #ffebee;
     }
 
     body { font-family: 'DM Sans', system-ui, sans-serif; }
-
     .dash-container { background: #f8f9fa; min-height: 100vh; }
 
+    /* Restoration of original Typography */
     .page-header { margin-bottom: 2.5rem; }
-    .breadcrumb { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; }
     .display-6 { font-size: 2.45rem; font-weight: 700; letter-spacing: -0.045em; line-height: 1.1; }
 
     .stat-card, .glass-card {
@@ -28,6 +29,7 @@
         border: 1px solid var(--border-color);
         border-radius: 24px;
         box-shadow: 0 8px 25px rgba(0,0,0,0.06);
+        transition: all 0.3s ease;
     }
     .stat-card:hover { transform: translateY(-8px); box-shadow: 0 20px 40px rgba(0,0,0,0.09); }
 
@@ -83,33 +85,41 @@
         align-items: center;
         justify-content: center;
         font-weight: 700;
-        font-size: 1rem;
     }
 
-    /* Mobile Specific Overrides */
+    /* Status Dot */
+    .status-indicator-online {
+        width: 10px; height: 10px;
+        background: #10b981;
+        border-radius: 50%;
+        box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2);
+    }
+
+    /* Mobile Overrides - Only affecting small screens */
     @media (max-width: 768px) {
-        .display-6 { font-size: 1.8rem; }
+        .display-6 { font-size: 1.8rem; text-align: center; }
         .stat-value { font-size: 1.75rem; }
         .stat-icon { width: 48px; height: 48px; font-size: 1.3rem; }
-        .page-header { margin-bottom: 1.5rem; text-align: center; }
-        .page-header .d-flex { justify-content: center !important; }
+        .page-header { margin-bottom: 1.5rem; }
         .command-btn:hover { transform: none; }
-        .stat-card { margin-bottom: 10px; }
+        .stat-card { margin-bottom: 5px; }
         .panel-header { padding: 15px 20px; }
+        .date-pill { font-size: 0.75rem; }
     }
 </style>
 
-<div class="dash-container container-fluid py-3 py-md-4">
+<div class="dash-container container-fluid py-3 py-md-5">
 
-    <div class="page-header d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-4 mb-md-5 gap-3 gap-md-4">
+    <!-- Header Restoration -->
+    <div class="page-header d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-4 mb-md-5 gap-3">
         <div>
             <nav aria-label="breadcrumb" class="mb-2 d-none d-md-block">
                 <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item small text-uppercase fw-bold ls-1 text-primary">Overview</li>
-                    <li class="breadcrumb-item small text-uppercase fw-bold ls-1 text-muted active">Management</li>
+                    <li class="breadcrumb-item small text-uppercase fw-bold text-primary" style="letter-spacing: 0.1em;">Overview</li>
+                    <li class="breadcrumb-item small text-uppercase fw-bold text-muted active" style="letter-spacing: 0.1em;">Management</li>
                 </ol>
             </nav>
-            <h1 class="display-6 fw-bold text-dark mb-1 tracking-tight">School Dashboard</h1>
+            <h1 class="display-6 fw-bold text-dark mb-1">School Dashboard</h1>
             <div class="d-flex align-items-center gap-2 justify-content-md-start justify-content-center">
                 <div class="status-indicator-online"></div>
                 <p class="text-muted mb-0 fw-medium">
@@ -123,12 +133,13 @@
                 <i class="fas fa-calendar-alt text-primary me-2"></i>
                 <span>{% now "M d, Y" %}</span>
             </div>
-            <button onclick="window.print()" class="btn btn-outline-secondary btn-icon shadow-sm rounded-circle">
+            <button onclick="window.print()" class="btn btn-outline-secondary btn-icon shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
                 <i class="fas fa-print"></i>
             </button>
         </div>
     </div>
 
+    <!-- Stats Cards Restored -->
     <div class="row g-3 g-md-4 mb-4 mb-md-5">
         <div class="col-xl-4 col-md-6">
             <div class="stat-card border-top border-4 border-primary h-100">
@@ -143,7 +154,7 @@
                         </div>
                     </div>
                     <div class="stat-footer mt-3 mt-md-4">
-                        <span class="badge bg-primary-soft text-primary px-3 py-2">Current Term</span>
+                        <span class="badge bg-primary-soft text-primary px-3 py-2 rounded-pill">Current Term</span>
                     </div>
                 </div>
             </div>
@@ -159,7 +170,7 @@
                                 <small class="text-muted fs-6">UGX</small> {{ total_fees|default:"0"|intcomma }}
                             </h2>
                         </div>
-                        <div class="stat-icon bg-success-soft text-success">
+                        <div class="stat-icon bg-success-soft text-success" style="background-color: var(--success-soft);">
                             <i class="fas fa-vault"></i>
                         </div>
                     </div>
@@ -180,12 +191,12 @@
                                 <small class="text-muted fs-6">UGX</small> {{ balance|default:"0"|intcomma }}
                             </h2>
                         </div>
-                        <div class="stat-icon bg-danger-soft text-danger">
+                        <div class="stat-icon bg-danger-soft text-danger" style="background-color: var(--danger-soft);">
                             <i class="fas fa-hand-holding-dollar"></i>
                         </div>
                     </div>
                     <div class="stat-footer mt-3 mt-md-4 d-flex align-items-center">
-                        <div class="pulse-dot me-2"></div>
+                        <div class="spinner-grow text-danger me-2" role="status" style="width: 8px; height: 8px;"></div>
                         <span class="text-danger small fw-semibold">Immediate Attention</span>
                     </div>
                 </div>
@@ -193,6 +204,7 @@
         </div>
     </div>
 
+    <!-- Charts Section Restored -->
     <div class="row g-3 g-md-4 mb-4 mb-md-5">
         <div class="col-lg-8">
             <div class="glass-card">
@@ -201,7 +213,7 @@
                     <span class="badge bg-primary-soft text-primary px-3 py-2">2026</span>
                 </div>
                 <div class="p-2 p-md-4">
-                    <div id="revenueChart" style="min-height: 300px;"></div>
+                    <div id="revenueChart" style="min-height: 320px;"></div>
                 </div>
             </div>
         </div>
@@ -212,12 +224,13 @@
                     <h6 class="fw-bold mb-0">Fee Clearance Status</h6>
                 </div>
                 <div class="p-2 p-md-4">
-                    <div id="statusChart" style="min-height: 300px;"></div>
+                    <div id="statusChart" style="min-height: 320px;"></div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Quick Access & Recent Activity Restored -->
     <div class="row g-3 g-md-4">
         <div class="col-lg-4 order-2 order-lg-1">
             <div class="glass-card h-100">
@@ -247,12 +260,12 @@
             <div class="glass-card h-100">
                 <div class="panel-header d-flex justify-content-between align-items-center">
                     <h6 class="fw-bold mb-0">Recent Activity</h6>
-                    <span class="badge bg-primary-soft text-primary">Live</span>
+                    <span class="badge bg-primary-soft text-primary">Live Updates</span>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
                         <thead class="bg-light">
-                            <tr class="text-muted small text-uppercase fw-bold ls-1">
+                            <tr class="text-muted small text-uppercase fw-bold" style="letter-spacing: 1px;">
                                 <th class="ps-3 ps-md-4">Student</th>
                                 <th class="text-center d-none d-sm-table-cell">Term</th>
                                 <th class="text-end pe-3 pe-md-4">Balance</th>
@@ -273,7 +286,7 @@
                                     </div>
                                 </td>
                                 <td class="text-center d-none d-sm-table-cell">
-                                    <span class="badge bg-dark border px-2">Term {{ inv.term|default:"1" }}</span>
+                                    <span class="badge bg-dark text-white px-2">Term {{ inv.term|default:"1" }}</span>
                                 </td>
                                 <td class="text-end pe-3 pe-md-4 fw-bold small {% if inv.balance > 0 %}text-danger{% else %}text-success{% endif %}">
                                     UGX {{ inv.balance|floatformat:0|intcomma }}
@@ -302,11 +315,11 @@ document.addEventListener("DOMContentLoaded", function () {
             name: "Collections", 
             data: {{ revenue_data|safe|default:"[450000, 680000, 520000, 910000, 750000, 820000]" }} 
         }],
-        chart: { type: 'area', height: 320, toolbar: { show: false } },
+        chart: { type: 'area', height: 320, toolbar: { show: false }, zoom: { enabled: false } },
         colors: ['#1a6644'],
         stroke: { curve: 'smooth', width: 3 },
         xaxis: { categories: {{ labels|safe|default:"['Jan','Feb','Mar','Apr','May','Jun']" }} },
-        yaxis: { labels: { formatter: (v) => 'UGX ' + v.toLocaleString() }},
+        yaxis: { labels: { formatter: (v) => v.toLocaleString() }},
         fill: { type: 'gradient', gradient: { opacityFrom: 0.5, opacityTo: 0.05 }}
     }).render();
 
@@ -320,10 +333,7 @@ document.addEventListener("DOMContentLoaded", function () {
             fontFamily: 'DM Sans, sans-serif'
         },
         colors: ['#1a6644', '#e11d48'],
-        legend: { 
-            position: 'bottom', 
-            fontSize: '12px'
-        },
+        legend: { position: 'bottom', fontSize: '12px' },
         plotOptions: {
             pie: {
                 donut: {

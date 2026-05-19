@@ -21,4 +21,6 @@ urlpatterns = [
     path('student/<int:student_id>/history/', views.student_report_history, name='student_history'),
     #path('teacher/<int:pk>/report/', views.teacher_performance_report, name='teacher_performance_report'),
     #path('report/<int:student_id>/<str:term>/<str:year>/', views.student_report_card,name='student_report_card'),
+    # The main interface page
+    
 ]

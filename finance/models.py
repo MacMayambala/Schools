@@ -153,27 +153,35 @@ class FeeLineItem(TenantModel):
         return f"{self.category.name}: {self.amount}"
 
 
+import uuid
+from django.db import models, transaction
+from django.conf import settings
+
 class Payment(TenantModel):
     PAYMENT_METHODS = [
         ('Cash', 'Cash'),
         ('Bank', 'Bank Transfer'),
-        ('Mobile Money', 'Mobile Money'),
+        ('MTN MobileMoney', 'MTN Mobile Money'),
+        ('AirtelMoney', 'Airtel Money'),
+        ('SchoolPay', 'SchoolPay'),
     ]
+    
     STATUS_CHOICES = [
         ('Pending', 'Pending'),
         ('Completed', 'Completed'),
         ('Failed', 'Failed'),
     ]
 
-    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name='payments')
+    invoice = models.ForeignKey('Invoice', on_delete=models.CASCADE, related_name='payments')
     account = models.ForeignKey('Account', on_delete=models.PROTECT, related_name='payments', null=True, blank=True)
-
     amount_paid = models.DecimalField(max_digits=12, decimal_places=2)
     date_paid = models.DateTimeField(auto_now_add=True)
     receipt_number = models.CharField(max_length=50, editable=False, unique=True)
-    payment_method = models.CharField(max_length=50, choices=PAYMENT_METHODS)
+    
+    # Increased max_length to 100 to safely store "MTN MobileMoney" or "AirtelMoney" from API
+    payment_method = models.CharField(max_length=100, choices=PAYMENT_METHODS)
+    
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Completed')
-
     depositor = models.CharField(max_length=100, blank=True, null=True)
     recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     phone_number = models.CharField(max_length=15, blank=True, null=True)
@@ -186,10 +194,10 @@ class Payment(TenantModel):
                 if not Payment.objects.filter(receipt_number=new_receipt).exists():
                     self.receipt_number = new_receipt
                     break
-
+        
         if not self.transaction_id:
             self.transaction_id = f"TX-{uuid.uuid4().hex[:12].upper()}"
-
+            
         with transaction.atomic():
             super().save(*args, **kwargs)
             if self.invoice and self.status == 'Completed':
@@ -203,8 +211,6 @@ class Payment(TenantModel):
 
     def __str__(self):
         return f"{self.receipt_number} - {self.amount_paid}"
-
-
 # ==================== CHART OF ACCOUNTS & DOUBLE ENTRY ====================
 
 class Account(TenantModel):

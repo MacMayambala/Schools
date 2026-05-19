@@ -55,3 +55,25 @@ class GlobalLoginRequiredMiddleware:
                 return redirect(f"{login_url}?next={request.path}")
 
         return self.get_response(request)
+    
+
+
+# core/middleware.py (Example)
+class TenantMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if request.user.is_authenticated:
+            # Check Admin first
+            school = getattr(request.user, 'managed_school', None) # If you have a related name
+            if not school:
+                # Check Teacher profile
+                profile = getattr(request.user, 'teacher_profile', None)
+                school = profile.school if profile else None
+            
+            request.school = school
+        else:
+            request.school = None
+
+        return self.get_response(request)

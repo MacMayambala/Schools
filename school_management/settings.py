@@ -10,10 +10,28 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 # settings.py
+
 import os
 
-
 from pathlib import Path
+
+def config(key, default=None, cast=None):
+    value = os.environ.get(key, default)
+    if cast is bool:
+        return str(value).lower() in ('1', 'true', 'yes', 'on')
+    if cast and value is not None:
+        return cast(value)
+    return value
+
+# ====================== EXAMPLE USAGE ======================
+
+DEBUG = config('DEBUG', default=False, cast=bool)
+SECRET_KEY = config('SECRET_KEY')
+
+# Your SchoolPay variables
+SCHOOLPAY_API_PASSWORD = config('SCHOOLPAY_API_PASSWORD')
+SCHOOLPAY_API_ID = config('SCHOOLPAY_API_ID')           # example
+# ... other variables
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 
@@ -60,6 +78,7 @@ INSTALLED_APPS = [
     'students',
     'finance',
     'academic',
+    'reports',
     
     # Third party (Install these via pip if missing)
     'crispy_forms',
@@ -75,6 +94,8 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 LOGIN_URL = 'core:login'
 LOGIN_REDIRECT_URL = 'core:index'
 LOGOUT_REDIRECT_URL = 'core:login'
+
+SCHOOLPAY_API_PASSWORD = 'your_schoolpay_api_'   # Get from SchoolPay portal
 
 
 MIDDLEWARE = [
@@ -104,6 +125,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'core.context_processors.school_context',
+                'finance.context_processors.school_financials',
             ],
         },
     },
@@ -153,7 +175,7 @@ USE_I18N = True
 
 USE_TZ = True
 
-
+SCHOOLPAY_API_ID = config('SCHOOLPAY_API_ID') 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 

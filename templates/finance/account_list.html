@@ -1,93 +1,143 @@
 {% extends 'base.html' %}
+{% load humanize %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+<div class="container-fluid py-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-4 gap-3">
         <div>
-            <h2 class="fw-bold text-dark">Chart of Accounts</h2>
-            <p class="text-muted">Manage your school's financial ledgers and balances.</p>
+            <h2 class="fw-bold text-dark mb-1">Chart of Accounts</h2>
+            <p class="text-muted mb-0">Manage all financial accounts and track their balances.</p>
         </div>
-        <button class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#addAccountModal">
+        <button class="btn btn-success rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#addAccountModal">
             <i class="fas fa-plus me-2"></i>New Account
         </button>
     </div>
 
     <div class="card border-0 shadow-sm">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="bg-light text-uppercase small fw-bold">
-                        <tr>
-                            <th class="ps-4">Code</th>
-                            <th>Account Name</th>
-                            <th>Type</th>
-                            <th class="text-end pe-4">Current Balance (UGX)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for acc in accounts %}
-                        <tr>
-                            <td class="ps-4 fw-bold text-primary">{{ acc.code }}</td>
-                            <td>{{ acc.name }}</td>
-                            <td>
-                                <span class="badge {% if acc.account_type == 'Asset' %}bg-success{% elif acc.account_type == 'Income' %}bg-info{% else %}bg-warning{% endif %}-subtle text-dark">
-                                    {{ acc.account_type }}
-                                </span>
-                            </td>
-                            <td class="text-end pe-4 fw-bold">
-                                {{ acc.balance|floatformat:0 }}
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="4" class="text-center py-5 text-muted">No accounts found. Create your first Asset account (e.g. Cash).</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        <div class="card-header bg-white py-3">
+            <div class="input-group" style="max-width: 380px;">
+                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                <input type="text" id="accountSearch" class="form-control" placeholder="Search accounts..." onkeyup="filterAccounts()">
             </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="accountsTable">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="ps-4">Code</th>
+                        <th>Account Name</th>
+                        <th>Type</th>
+                        <th class="text-end">Balance (UGX)</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-end pe-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for acc in accounts %}
+                    <tr class="account-row">
+                        <td class="ps-4 fw-bold text-success">{{ acc.code }}</td>
+                        <td class="fw-medium">{{ acc.name }}</td>
+                        <td>
+                            <span class="badge {% if acc.account_type == 'Asset' %}bg-success{% elif acc.account_type == 'Income' %}bg-info{% elif acc.account_type == 'Expense' %}bg-warning{% else %}bg-secondary{% endif %}">
+                                {{ acc.account_type }}
+                            </span>
+                        </td>
+                        <td class="text-end fw-bold {% if acc.balance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ acc.balance|floatformat:0|intcomma }}
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-success rounded-pill">Active</span>
+                        </td>
+                        <td class="text-end pe-4">
+                            <button class="btn btn-sm btn-outline-success" 
+                                    onclick="editAccount({{ acc.id }}, '{{ acc.code }}', '{{ acc.name|escapejs }}', '{{ acc.account_type }}', {{ acc.balance }})">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">No accounts found. Create your first one.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
 
+<!-- Add / Edit Modal -->
 <div class="modal fade" id="addAccountModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title fw-bold">Add New Account</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold" id="modalTitle">Create New Account</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST">
+            <form method="POST" id="accountForm">
                 {% csrf_token %}
+                <input type="hidden" name="account_id" id="account_id">
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold">Account Code</label>
-                        <input type="text" name="code" class="form-control" placeholder="e.g. 1001" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold">Account Name</label>
-                        <input type="text" name="name" class="form-control" placeholder="e.g. Stanbic Bank Main" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold">Account Type</label>
-                        <select name="account_type" class="form-select" required>
-                            <option value="Asset">Asset (Cash/Bank)</option>
-                            <option value="Income">Income (Fees/Sales)</option>
-                            <option value="Expense">Expense (Salaries/Bills)</option>
-                            <option value="Liability">Liability (Loans)</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold">Opening Balance (UGX)</label>
-                        <input type="number" name="opening_balance" class="form-control" value="0">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Account Code <span class="text-danger">*</span></label>
+                            <input type="text" name="code" id="code" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Account Type <span class="text-danger">*</span></label>
+                            <select name="account_type" id="account_type" class="form-select" required>
+                                <option value="Asset">Asset</option>
+                                <option value="Income">Income</option>
+                                <option value="Expense">Expense</option>
+                                <option value="Liability">Liability</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold small">Account Name <span class="text-danger">*</span></label>
+                            <input type="text" name="name" id="name" class="form-control" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold small">Opening / Current Balance (UGX)</label>
+                            <input type="number" name="opening_balance" id="opening_balance" class="form-control" step="0.01" value="0">
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
-                    <button type="submit" class="btn btn-primary px-4">Create Account</button>
+                    <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success px-5" id="submitBtn">Create Account</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+
+<script>
+    function filterAccounts() {
+        const input = document.getElementById('accountSearch').value.toLowerCase();
+        document.querySelectorAll('.account-row').forEach(row => {
+            row.style.display = row.textContent.toLowerCase().includes(input) ? '' : 'none';
+        });
+    }
+
+    function editAccount(id, code, name, type, balance) {
+        document.getElementById('account_id').value = id;
+        document.getElementById('code').value = code;
+        document.getElementById('name').value = name;
+        document.getElementById('account_type').value = type;
+        document.getElementById('opening_balance').value = balance;
+
+        document.getElementById('modalTitle').textContent = 'Edit Account';
+        document.getElementById('submitBtn').textContent = 'Save Changes';
+
+        new bootstrap.Modal(document.getElementById('addAccountModal')).show();
+    }
+
+    // Reset modal when closed
+    document.getElementById('addAccountModal').addEventListener('hidden.bs.modal', function () {
+        document.getElementById('accountForm').reset();
+        document.getElementById('account_id').value = '';
+        document.getElementById('modalTitle').textContent = 'Create New Account';
+        document.getElementById('submitBtn').textContent = 'Create Account';
+    });
+</script>
 {% endblock %}

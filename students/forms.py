@@ -1,116 +1,98 @@
-# students/forms.py
 from django import forms
-from .models import Student, Classroom
+from .models import Student, ClassStream, Classroom, Stream
 
-from django import forms
-from .models import Student, Classroom, Stream
+class BaseTenantForm(forms.ModelForm):
+    """
+    Base form that automatically filters querysets by school 
+    and applies premium styling.
+    """
+    def __init__(self, *args, **kwargs):
+        self.school = kwargs.pop('school', None)
+        super().__init__(*args, **kwargs)
+        
+        # Filter all foreign keys to only show items belonging to this school
+        if self.school:
+            for field_name, field in self.fields.items():
+                if hasattr(field, 'queryset') and hasattr(field.queryset.model, 'school'):
+                    field.queryset = field.queryset.filter(school=self.school)
+        
+        # Add Bootstrap styling to every field
+        for field in self.fields.values():
+            if isinstance(field.widget, (forms.Select, forms.SelectMultiple)):
+                field.widget.attrs.update({'class': 'form-select rounded-3'})
+            else:
+                field.widget.attrs.update({'class': 'form-control rounded-3'})
 
-class StudentForm(forms.ModelForm):
+class StudentForm(BaseTenantForm): # Inheriting from BaseTenantForm
     class Meta:
         model = Student
-        # 1. Added 'stream' and 'section' to the fields list
         fields = [
-            'photo', 'first_name', 'last_name', 'classroom', 
-            'stream', 'section', 'gender', 'date_of_birth', 
+            'photo', 'first_name', 'last_name', 'class_stream', 'studentPaymentCode',
+            'section', 'gender', 'date_of_birth', 
             'guardian_name', 'guardian_relation', 'guardian_phone', 
             'guardian_email', 'guardian_address'
         ]
         
-        # 2. Refined widgets for a premium UI feel
         widgets = {
-            'date_of_birth': forms.DateInput(attrs={
-                'type': 'date', 
-                'class': 'form-control'
-            }),
-            'guardian_address': forms.Textarea(attrs={
-                'rows': 2, 
-                'placeholder': 'Enter residential address...'
-            }),
-            'guardian_email': forms.EmailInput(attrs={
-                'placeholder': 'example@gmail.com'
-            }),
-            'guardian_phone': forms.TextInput(attrs={
-                'placeholder': 'e.g. 0700 000 000'
-            }),
+            'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
+            'guardian_address': forms.Textarea(attrs={'rows': 2, 'placeholder': 'Enter residential address...'}),
+            'guardian_email': forms.EmailInput(attrs={'placeholder': 'example@gmail.com'}),
+            'guardian_phone': forms.TextInput(attrs={'placeholder': 'e.g. 0700 000 000'}),
         }
 
     def __init__(self, *args, **kwargs):
-        # 3. Pull the 'school' (tenant) from the view
-        school = kwargs.pop('school', None)
         super().__init__(*args, **kwargs)
-        
-        if school:
-            # 4. Filter querysets so SAO doesn't see OLAM's classes or streams
-            self.fields['classroom'].queryset = Classroom.objects.filter(school=school)
-            self.fields['stream'].queryset = Stream.objects.filter(school=school)
+        if self.school:
+            self.fields['class_stream'].queryset = ClassStream.objects.filter(
+                school=self.school, 
+                is_active=True
+            ).select_related('classroom', 'stream').order_by('classroom__level', 'stream__name')
             
-        # 5. Clean look: Add 'Select' placeholders to dropdowns
-        self.fields['classroom'].empty_label = "--- Select Class ---"
-        self.fields['stream'].empty_label = "--- Select Stream (Optional) ---"
+        self.fields['class_stream'].empty_label = "--- Select Class & Stream ---"
 
-
-from django import forms
-from .models import Classroom
-
-class BaseTenantForm(forms.ModelForm):
-    def __init__(self, *args, **kwargs):
-        self.school = kwargs.pop('school', None)
-        super().__init__(*args, **kwargs)
-        # Filter all foreign keys to only show items belonging to this school
-        for field_name, field in self.fields.items():
-            if hasattr(field, 'queryset'):
-                field.queryset = field.queryset.filter(school=self.school)
-        
-        # Add Bootstrap styling
-        for field in self.fields.values():
-            field.widget.attrs.update({'class': 'form-control rounded-3'})
-
-from django import forms
-from .models import Classroom, Stream
-
-class ClassroomForm(forms.ModelForm):
+class ClassroomForm(BaseTenantForm):
     class Meta:
         model = Classroom
-        # We exclude 'school' because it's handled automatically in the view
         fields = ['name', 'short_name', 'level']
         widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. Primary One'}),
-            'short_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. P.1'}),
-            'level': forms.NumberInput(attrs={'class': 'form-control'}),
+            'name': forms.TextInput(attrs={'placeholder': 'e.g. Primary One'}),
+            'short_name': forms.TextInput(attrs={'placeholder': 'e.g. P1'}),
         }
 
-class StreamForm(forms.ModelForm):
+class StreamForm(BaseTenantForm):
     class Meta:
         model = Stream
         fields = ['name']
         widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. North, Blue, or A'}),
+            'name': forms.TextInput(attrs={'placeholder': 'e.g. North, Blue, or A'}),
         }
 
-
-from django import forms
-from finance.models import FeeStructure
-from students.models import Classroom
-
-class FeeStructureForm(forms.ModelForm):
+class ClassStreamForm(BaseTenantForm):
     class Meta:
+        model = ClassStream
+        fields = ['classroom', 'stream', 'class_teacher', 'capacity', 'room_number']
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # LAZY IMPORT: Fixes the "academic.Teacher not loaded" error
+        try:
+            from academic.models import Teacher 
+            if self.school:
+                self.fields['class_teacher'].queryset = Teacher.objects.filter(school=self.school)
+        except ImportError:
+            pass
+
+class FeeStructureForm(BaseTenantForm):
+    class Meta:
+        from finance.models import FeeStructure
         model = FeeStructure
-        # 1. REMOVED 'other_requirements_total' from this list
-        fields = [
-            'classroom', 'term', 'year', 'section', 
-            'tuition_amount'
-        ]
+        fields = ['classroom', 'term', 'year', 'section', 'tuition_amount']
         widgets = {
-            'classroom': forms.Select(attrs={'class': 'form-select rounded-3'}),
-            'term': forms.Select(attrs={'class': 'form-select rounded-3'}),
-            'year': forms.NumberInput(attrs={'class': 'form-control rounded-3'}),
-            'section': forms.Select(attrs={'class': 'form-select rounded-3'}),
-            'tuition_amount': forms.NumberInput(attrs={'class': 'form-control rounded-3', 'placeholder': '0.00'}),
-            # 2. REMOVED the widget entry for other_requirements_total
+            'tuition_amount': forms.NumberInput(attrs={'placeholder': '0.00'}),
         }
 
     def __init__(self, *args, **kwargs):
-        school = kwargs.pop('school', None)
         super().__init__(*args, **kwargs)
-        if school:
-            self.fields['classroom'].queryset = Classroom.objects.filter(school=school)
+        if self.school:
+            self.fields['classroom'].empty_label = "--- Select Class Level ---"

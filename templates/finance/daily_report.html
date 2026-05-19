@@ -1,39 +1,49 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<!-- Flatpickr CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_green.css">
+
 <div class="container mt-4">
-    <div class="card shadow-sm border-0 mb-4 d-print-none overflow-hidden" style="border-radius: 12px;">
+    <!-- Filter Card -->
+    <div class="card shadow-sm border-0 mb-4 d-print-none overflow-hidden" style="border-radius: 16px;">
         <div class="card-body bg-white p-4">
-            <form method="GET" class="row g-3 align-items-end">
+            <form method="GET" id="report-filter-form" class="row g-3 align-items-end">
                 <div class="col-md-3">
                     <label class="uppercase-label">From Date</label>
-                    <input type="date" name="start_date" class="form-control custom-date-picker" 
-                           value="{{ start_date|default:today|date:'Y-m-d' }}">
+                    <div class="date-input-wrapper">
+                        <i class="far fa-calendar-alt calendar-icon"></i>
+                        <input type="text" name="start_date" id="start_date" class="form-control custom-date-picker flatpickr-input" 
+                               value="{{ start_date|default:today|date:'Y-m-d' }}" placeholder="Select Date">
+                    </div>
                 </div>
                 <div class="col-md-3">
                     <label class="uppercase-label">To Date</label>
-                    <input type="date" name="end_date" class="form-control custom-date-picker" 
-                           value="{{ end_date|default:today|date:'Y-m-d' }}">
+                    <div class="date-input-wrapper">
+                        <i class="far fa-calendar-alt calendar-icon"></i>
+                        <input type="text" name="end_date" id="end_date" class="form-control custom-date-picker flatpickr-input" 
+                               value="{{ end_date|default:today|date:'Y-m-d' }}" placeholder="Select Date">
+                    </div>
                 </div>
-                <div class="col-md-6 d-flex gap-2">
-                    <button type="submit" class="btn btn-success px-4 fw-bold flex-grow-1 shadow-sm">
-                        <i class="fas fa-sync-alt me-2"></i>Generate Report
-                    </button>
+                <div class="col-md-6 d-flex gap-2 justify-content-end">
                     <a href="{% url 'finance:export_excel' %}?start_date={{ start_date }}&end_date={{ end_date }}" 
-                       class="btn btn-outline-success px-3 shadow-sm" title="Export to Excel">
-                        <i class="fas fa-file-excel"></i>
+                       class="btn btn-outline-success px-3 py-2 shadow-sm fw-semibold" title="Export to Excel" style="font-size: 0.85rem;">
+                        <i class="fas fa-file-excel me-1"></i> Export Excel
                     </a>
-                    <button type="button" onclick="window.print()" class="btn btn-dark px-3 shadow-sm">
-                        <i class="fas fa-print"></i>
+                    <button type="button" onclick="window.print()" class="btn btn-dark px-3 py-2 shadow-sm fw-semibold" style="font-size: 0.85rem;">
+                        <i class="fas fa-print me-1"></i> Print Report
                     </button>
                 </div>
             </form>
         </div>
     </div>
 
+    <!-- Official Report Paper -->
     <div class="card border-0 shadow-lg p-5 report-paper bg-white position-relative">
-        <div class="watermark d-none d-print-block">SAOZIROBWE OFFICIAL</div>
+        <div class="watermark d-none d-print-block">{{ request.school.name|upper }} OFFICIAL</div>
 
+        <!-- Header -->
         <div class="row mb-5 border-bottom border-2 pb-4 align-items-center">
             <div class="col-2 text-center">
                 {% if request.school.logo %}
@@ -48,7 +58,7 @@
             <div class="col-6">
                 <h1 class="fw-black text-dark mb-0" style="letter-spacing: -1.5px; font-size: 2.3rem;">{{ request.school.name|upper }}</h1>
                 <p class="text-success fw-bold mb-0">FINANCE & ACCOUNTING DEPARTMENT</p>
-                <p class="text-muted small mb-0">{{ request.school.address|default:"P.O. Box 123, Kampala, Uganda" }}</p>
+                <p class="text-muted small mb-0">{{ request.school.address|default:"Kampala, Uganda" }}</p>
             </div>
             <div class="col-4 text-end">
                 <h4 class="fw-bold text-uppercase text-muted mt-2">Collection Report</h4>
@@ -59,15 +69,16 @@
             </div>
         </div>
 
+        <!-- Transactions Table -->
         <div class="table-responsive">
             <table class="table table-hover align-middle custom-table">
                 <thead>
                     <tr class="table-light">
                         <th class="ps-3 py-3">Date</th>
-                        <th>Student / Parent Contact</th>
+                        <th>Student & Payer Info</th>
                         <th>Method</th>
                         <th class="text-end">Amount Paid</th>
-                        <th class="text-end pe-3">Remaining Balance</th>
+                        <th class="text-end pe-3">Balance / Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -75,31 +86,55 @@
                     <tr>
                         <td class="small text-muted">{{ p.date_paid|date:"d/m/y" }}</td>
                         <td>
-                            <div class="fw-bold text-dark">{{ p.invoice.student.get_full_name }}</div>
-                            <div class="text-success small fw-bold">
-                                <i class="fas fa-phone-alt me-1 extra-small"></i>
-                                <a href="tel:{{ p.invoice.student.guardian_phone }}" class="text-decoration-none text-success">
-                                    {{ p.invoice.student.guardian_phone|default:"No Contact" }}
-                                </a>
-                            </div>
+                            <!-- Clickable Student Name -->
+                            <a href="{% url 'finance:student_statement' p.invoice.student.id %}" 
+                               class="fw-bold text-dark text-decoration-none student-link">
+                                {{ p.invoice.student.get_full_name }}
+                            </a>
                             <div class="text-muted extra-small">
-                                {{ p.invoice.student.admission_number }} | {{ p.invoice.student.classroom.name }}
+                                <span class="fw-bold text-dark">
+                                    {{ p.invoice.student.class_stream.classroom.name|default:"No Class" }} 
+                                    ({{ p.invoice.student.class_stream.stream.name|default:"General" }})
+                                </span> |
+                                <span class="text-success fw-bold">{{ p.depositor|default:"Direct Deposit" }}</span> | 
+                                <span class="text-uppercase">Ref: {{ p.transaction_id|slice:":12" }}</span>
                             </div>
                         </td>
-                        <td><span class="badge payment-badge">{{ p.method }}</span></td>
+                        <td>
+                            {% if 'MTN' in p.payment_method %}
+                                <span class="badge method-badge mtn-style">
+                                    <i class="fas fa-mobile-alt me-1"></i> MTN MoMo
+                                </span>
+                            {% elif 'Airtel' in p.payment_method %}
+                                <span class="badge method-badge airtel-style">
+                                    <i class="fas fa-mobile-alt me-1"></i> Airtel Money
+                                </span>
+                            {% else %}
+                                <span class="badge method-badge bank-style">
+                                    <i class="fas fa-university me-1"></i> {{ p.payment_method }}
+                                </span>
+                            {% endif %}
+                        </td>
                         <td class="text-end fw-bold text-dark">
                             UGX {{ p.amount_paid|floatformat:0 }}
                         </td>
                         <td class="text-end pe-3">
-                            {% if p.invoice.balance <= 0 %}
-                                <span class="badge bg-success-subtle text-success border border-success px-2">
-                                    <i class="fas fa-check-circle me-1"></i>Cleared
-                                </span>
-                            {% else %}
-                                <span class="text-danger fw-bold small">
-                                    UGX {{ p.invoice.balance|floatformat:0 }}
-                                </span>
-                            {% endif %}
+                            <div class="d-flex align-items-center justify-content-end gap-2">
+                                <!-- PRINT RECEIPT BUTTON -->
+                                <a href="{% url 'finance:receipt_detail' p.id %}" target="_blank" class="btn btn-sm btn-outline-dark px-2 py-1 d-print-none" title="Print Receipt">
+                                    <i class="fas fa-receipt"></i>
+                                </a>
+
+                                {% if p.invoice.balance <= 0 %}
+                                    <span class="badge bg-success-subtle text-success border border-success px-2">
+                                        <i class="fas fa-check-circle"></i>
+                                    </span>
+                                {% else %}
+                                    <span class="text-danger fw-bold small">
+                                        UGX {{ p.invoice.balance|floatformat:0 }}
+                                    </span>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% empty %}
@@ -123,14 +158,15 @@
             </table>
         </div>
 
+        <!-- Summary & Signatures -->
         <div class="row mt-5">
             <div class="col-md-5">
                 <div class="p-3 bg-light rounded-3 border shadow-sm">
                     <h6 class="fw-bold small text-uppercase mb-3 text-success">Summary by Method</h6>
                     {% for item in summary_by_method %}
                     <div class="d-flex justify-content-between mb-2 pb-1 border-bottom border-white">
-                        <span class="text-muted small">{{ item.method }}</span>
-                        <span class="fw-bold">UGX {{ item.total|floatformat:0 }}</span>
+                        <span class="text-muted small fw-bold">{{ item.payment_method }}</span>
+                        <span class="fw-bold text-dark">UGX {{ item.total|floatformat:0 }}</span>
                     </div>
                     {% empty %}
                     <p class="small text-muted mb-0">No data available</p>
@@ -153,88 +189,71 @@
                 </div>
             </div>
         </div>
-
-        <div class="text-center mt-5 d-none d-print-block">
-            <p class="extra-small text-muted">This is an automated financial report generated by the Saozirobwe Management System.</p>
-        </div>
     </div>
 </div>
 
 <style>
-    /* 🕒 MODERN DATE PICKER STYLING */
-    .custom-date-picker {
-        border: 2px solid #edeff1;
-        border-radius: 10px;
-        padding: 10px 15px;
-        font-weight: 500;
-        color: #495057;
-        transition: all 0.2s ease-in-out;
-        background-color: #fcfcfc;
-    }
-    .custom-date-picker:focus {
-        border-color: #198754;
-        background-color: #fff;
-        box-shadow: 0 0 0 4px rgba(25, 135, 84, 0.1);
-        outline: none;
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap');
+
+    .student-link:hover {
+        color: #198754 !important;
+        text-decoration: underline !important;
     }
 
-    /* 📄 REPORT STYLING */
-    .report-paper {
-        border-radius: 0;
-        min-height: 29.7cm; /* Ensures A4 vertical height */
-        font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+    .date-input-wrapper { position: relative; display: flex; align-items: center; }
+    .calendar-icon { position: absolute; left: 15px; color: #198754; z-index: 5; }
+    .custom-date-picker {
+        border: 2px solid #e9ecef !important;
+        border-radius: 12px !important;
+        padding: 8px 12px 8px 38px !important;
+        font-family: 'Inter', sans-serif;
+        font-weight: 500;
+        font-size: 0.85rem !important;
+        background-color: #f8f9fa !important;
     }
-    .uppercase-label { 
-        font-size: 0.65rem; 
-        letter-spacing: 1.2px; 
-        margin-bottom: 8px; 
-        text-transform: uppercase; 
-        font-weight: 700; 
-        color: #198754;
-        display: block;
+
+    .method-badge {
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        border-width: 1px;
+        border-style: solid;
     }
-    .extra-small { font-size: 0.7rem; }
+    .mtn-style { background-color: #fff9e6; color: #856404; border-color: #ffeeba; }
+    .airtel-style { background-color: #fff5f5; color: #a82323; border-color: #feb2b2; }
+    .bank-style { background-color: #f7fafc; color: #4a5568; border-color: #e2e8f0; }
+
+    .report-paper { border-radius: 0; min-height: 29.7cm; font-family: 'Inter', sans-serif; z-index: 1; }
+    .uppercase-label { font-size: 0.65rem; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 700; color: #636e72; display: block; margin-bottom: 5px; }
     .fw-black { font-weight: 900; }
     .sig-line { border-top: 2px solid #333; width: 80%; margin: 0 auto 8px; }
+    .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-35deg); font-size: 7rem; color: rgba(0,0,0,0.02); font-weight: 900; z-index: 0; pointer-events: none; }
     
-    .payment-badge {
-        background-color: #f8f9fa;
-        color: #333;
-        border: 1px solid #dee2e6;
-        font-weight: 500;
-        padding: 4px 10px;
-    }
-
-    .custom-table thead th {
-        font-size: 0.7rem;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        color: #555;
-        border-bottom: 2px solid #198754;
-    }
-
-    .watermark {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%) rotate(-35deg);
-        font-size: 7rem;
-        color: rgba(0,0,0,0.02);
-        font-weight: 900;
-        z-index: 0;
-        pointer-events: none;
-        white-space: nowrap;
-    }
-
-    /* 🖨️ PRINT RULES */
     @media print {
-        .d-print-none, .sidebar, .navbar, .breadcrumb, footer { display: none !important; }
-        .container { width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
+        .d-print-none { display: none !important; }
         .report-paper { box-shadow: none !important; padding: 20px !important; border: none !important; }
-        body { background: white !important; }
-        .table-success { background-color: #d1e7dd !important; -webkit-print-color-adjust: exact; }
-        .bg-success { background-color: #198754 !important; color: white !important; -webkit-print-color-adjust: exact; }
-        .badge { border: 1px solid #ccc !important; -webkit-print-color-adjust: exact; }
     }
 </style>
+
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const reportForm = document.getElementById('report-filter-form');
+
+        flatpickr(".flatpickr-input", {
+            dateFormat: "Y-m-d",
+            altInput: true,
+            altFormat: "M j, Y",
+            allowInput: true,
+            onChange: function(selectedDates, dateStr, instance) {
+                if (dateStr) {
+                    reportForm.submit();
+                }
+            }
+        });
+    });
+</script>
 {% endblock %}

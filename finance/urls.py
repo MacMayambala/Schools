@@ -24,6 +24,11 @@ urlpatterns = [
          name='student_report_card'),
     path('record-income/', views.record_income, name='record_income'),
     path('record-expense/', views.record_expense, name='record_expense'),
+    path('webhook/schoolpay/', views.schoolpay_webhook, name='schoolpay_webhook'),
+    #path('reports/class-standing/', views.class_standing_report, name='class_standing'),
+    path('reports/finance/class-standing/', views.financial_report_view, name='finance_class_standing'),
+    path('reports/finance/excel/', views.export_finance_excel, name='export_finance_excel'),
+    path('reports/finance/pdf/', views.export_finance_pdf, name='export_pdf'),
 
 
 ]

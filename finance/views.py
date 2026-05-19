@@ -1,78 +1,66 @@
-from django.shortcuts import render
-from django.db.models import Sum, Value, F
-from django.db.models.functions import Coalesce
-
-from students.models import Student
-from .models import Invoice, JournalItem
-
-from django.shortcuts import render
-from django.db.models import Sum, Value, F
-from django.db.models.functions import Coalesce
-
-from students.models import Student
-from .models import Invoice
-
-
-from django.shortcuts import render
-from django.db.models import Sum, Value, F
-from django.db.models.functions import Coalesce
-from django.db.models import DecimalField
-
-from students.models import Student
-from .models import Invoice
-
-from django.shortcuts import render
-from django.db.models import Sum, Value, F
-from django.db.models.functions import Coalesce
-from django.db.models import DecimalField
-
-from students.models import Student
-from .models import Invoice
-
-
-from django.shortcuts import render
-from django.db.models import Sum, Q
-from decimal import Decimal
-from .models import Account, JournalEntry, Invoice, Payment
-
-from django.shortcuts import render
-from django.db.models import Sum, F
-from django.db.models.functions import Coalesce
-from decimal import Decimal
-from students.models import Student
-from .models import Invoice, Payment, Account
-
-
-
-from decimal import Decimal
 from datetime import date
+from decimal import Decimal
+
 from django.shortcuts import render, redirect, get_object_or_404
+from django.views.generic import TemplateView
 from django.contrib import messages
+from django.contrib.auth.mixins import UserPassesTestMixin
 from django.db import transaction, models
-from django.db.models import Sum, F
+from django.db.models import Sum, F, Q, Value, DecimalField
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
-from .models import FeeStructure, Invoice, FeeLineItem, FeeCategory, Payment, Account
 from students.models import Student, Classroom
+from .models import Account, Invoice, JournalEntry, JournalItem, Payment, FeeStructure, FeeLineItem, FeeCategory
+
+from django.contrib.auth.mixins import UserPassesTestMixin
+
+class FinanceDashboardView(UserPassesTestMixin, TemplateView):
+    def test_func(self):
+        # Only allow if the user's role has 'can_manage_finance' set to True
+        return self.request.user.customuser.role.can_manage_finance
+
 
 def finance_dashboard(request):
     school = request.school
     invoices = Invoice.objects.filter(school=school)
 
-    # Expected = sum of new charges only (prevents arrears multiplication)
-    total_expected = invoices.aggregate(total=Coalesce(Sum('current_fees'), Decimal('0')))['total']
-    total_collected = invoices.aggregate(total=Coalesce(Sum('paid_amount'), Decimal('0')))['total']
+    # === Fee Collection Metrics ===
+    total_expected = invoices.aggregate(
+        total=Coalesce(Sum('current_fees'), Decimal('0'))
+    )['total']
+
+    total_collected = invoices.aggregate(
+        total=Coalesce(Sum('paid_amount'), Decimal('0'))
+    )['total']
+
     balance = total_expected - total_collected
 
     collection_rate = 0
     if total_expected > 0:
         collection_rate = round((total_collected / total_expected) * 100, 1)
 
-    # Student Ledger with corrected balance logic
+    # === Chart of Accounts Based Financials ===
+    total_income = Account.objects.filter(
+        school=school,
+        account_type='Income'
+    ).aggregate(total=Coalesce(Sum('balance'), Decimal('0')))['total']
+
+    total_expenses = Account.objects.filter(
+        school=school,
+        account_type='Expense'
+    ).aggregate(total=Coalesce(Sum('balance'), Decimal('0')))['total']
+
+    net_profit = total_income - total_expenses
+
+    # === Student Ledger (FIXED QUERY) ===
     all_students = Student.objects.filter(
-        school=school, is_active=True
-    ).select_related('classroom').annotate(
+        school=school, 
+        is_active=True
+    ).select_related(
+        'class_stream__classroom', # Changed from 'classroom' to follow the junction
+        'class_stream__stream'     # Optional: added for better display
+    ).annotate(
         total_billed=Coalesce(Sum('invoices__current_fees'), Decimal('0')),
         total_paid=Coalesce(Sum('invoices__paid_amount'), Decimal('0')),
         calc_balance=F('total_billed') - F('total_paid')
@@ -83,10 +71,16 @@ def finance_dashboard(request):
         'total_collected': total_collected,
         'balance': balance,
         'collection_rate': collection_rate,
+        'total_income': total_income,
+        'total_expenses': total_expenses,
+        'net_profit': net_profit,
         'all_students': all_students,
         'today': timezone.now(),
-        'recent_payments': Payment.objects.filter(school=school).select_related('invoice__student').order_by('-date_paid')[:10],
+        'recent_payments': Payment.objects.filter(school=school)
+                            .select_related('invoice__student__class_stream__classroom') # Fixed path here too
+                            .order_by('-date_paid')[:10],
     }
+
     return render(request, 'finance/dashboard.html', context)
 
 
@@ -219,11 +213,14 @@ from datetime import date  # Change this to 'from datetime import date' for clea
 from .models import FeeStructure, Invoice, FeeLineItem, FeeCategory
 from students.models import Student, Classroom
 
+from django.db import models
+from django.db.models import Sum, F
+from django.db.models.functions import Coalesce
+from decimal import Decimal
+from datetime import date
+
 @transaction.atomic
 def run_bulk_billing(request):
-    """
-    Bulk billing with proper arrears carry-forward + detailed FeeLineItems.
-    """
     if request.method == "POST":
         classroom_id = request.POST.get('classroom')
         term = request.POST.get('term')
@@ -235,7 +232,7 @@ def run_bulk_billing(request):
 
         target_classroom = get_object_or_404(Classroom, id=classroom_id, school=request.school)
 
-        # 1. Fetch fee structures for this class/term/year
+        # 1. Fetch fee structures
         structures = FeeStructure.objects.filter(
             classroom_id=classroom_id, 
             term=term, 
@@ -246,28 +243,26 @@ def run_bulk_billing(request):
             messages.error(request, f"No fee structure defined for {target_classroom.name} in Term {term} {year}.")
             return redirect('finance:bulk_bill')
 
-        # 2. Create fee map for quick lookup (Day vs Boarding)
+        # 2. Map structures by section (Day/Boarding)
         fee_map = {fs.section.strip().lower(): fs for fs in structures}
 
-        # 3. Get active students in that class
+        # 3. Use the corrected filter: class_stream__classroom
         students = Student.objects.filter(
-            classroom=target_classroom,
+            class_stream__classroom=target_classroom,
             school=request.school,
             is_active=True
         ).prefetch_related('invoices')
 
         count = 0
-
         for student in students:
+            # Normalize section lookup
             section_key = (student.section or "day").strip().lower()
             structure = fee_map.get(section_key)
 
             if not structure:
-                continue  # Skip if no fee structure matches the student's section
+                continue 
 
-            current_term_fees = structure.total_fees
-
-            # 4. Calculate arrears (Previous balance)
+            # 4. Arrears calculation
             previous_unpaid = student.invoices.exclude(
                 term=term, year=year
             ).aggregate(
@@ -278,62 +273,47 @@ def run_bulk_billing(request):
                 )
             )['unpaid']
 
-            # 5. Create or update the invoice
+            # 5. Create/Update Invoice
             invoice, created = Invoice.objects.update_or_create(
                 student=student,
                 term=term,
                 year=year,
                 school=request.school,
                 defaults={
-                    'current_fees': current_term_fees,
+                    'current_fees': structure.total_fees, # Matches structure sum
                     'previous_balance': previous_unpaid,
                 }
             )
 
-            # 6. Rebuild detailed FeeLineItems
+            # 6. Clear old items to avoid duplicates on re-run
             invoice.invoice_items.all().delete()
 
-            # Add Tuition line item from structure or default category
-            tuition_item = structure.template_items.filter(category__name__icontains="tuition").first()
-            tuition_category = tuition_item.category if tuition_item else FeeCategory.objects.filter(
-                name__icontains="tuition", 
-                school=request.school
-            ).first()
-
-            if tuition_category:
-                FeeLineItem.objects.create(
-                    invoice=invoice,
-                    category=tuition_category,
-                    amount=structure.tuition_amount
-                )
-
-            # Add all other individual fee items from the structure
-            for fee_item in structure.template_items.all():
-                FeeLineItem.objects.create(
+            # 7. Add all items from the template structure
+            # Note: Ensure your FeeStructure template actually includes a "Tuition" category item
+            line_items = [
+                FeeLineItem(
                     invoice=invoice,
                     category=fee_item.category,
                     amount=fee_item.amount
-                )
+                ) for fee_item in structure.template_items.all()
+            ]
+            
+            if line_items:
+                FeeLineItem.objects.bulk_create(line_items)
 
-            # Update final balances
-            invoice.sync_paid_amount()
+            # Update final total_amount (usually current_fees + previous_balance)
+            invoice.save() 
             count += 1
 
-        messages.success(request, 
-            f"Successfully processed {count} invoices for {target_classroom.name}."
-        )
+        messages.success(request, f"Processed {count} invoices for {target_classroom.name}.")
         return redirect('finance:dashboard')
 
-    # --- GET REQUEST LOGIC ---
-    # This part ensures 'classrooms' and 'current_year' are sent to your template
+    # GET logic
     classrooms = Classroom.objects.filter(school=request.school).order_by('name')
-    current_year = date.today().year  # Much cleaner
-
     context = {
         'classrooms': classrooms,
-        'current_year': current_year,
+        'current_year': date.today().year,
     }
-
     return render(request, 'finance/bulk_bill.html', context)
 
 
@@ -385,10 +365,17 @@ from .utils import send_payment_receipt_email  # Ensure this matches your file s
 #         'invoice': invoice
 #     })
 
-def receipt_detail(request, payment_id):
-    payment = get_object_or_404(Payment, id=payment_id, school=request.school)
-    return render(request, 'finance/receipt.html', {'payment': payment})
+from django.shortcuts import render, get_object_or_404
+from .models import Payment
 
+def receipt_detail(request, payment_id):
+    # select_related fetches the invoice and student in one query
+    payment = get_object_or_404(
+        Payment.objects.select_related('invoice__student__class_stream__classroom', 'school'), 
+        id=payment_id, 
+        school=request.school
+    )
+    return render(request, 'finance/receipt.html', {'payment': payment})
 
 
 import logging
@@ -569,6 +556,14 @@ import uuid
 from .models import Invoice, Payment, Account
 from .utils import send_payment_receipt_email
 
+import uuid
+from decimal import Decimal
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.db import transaction
+from .models import Invoice, Account, Payment
+# Ensure your utility import is correct
+from .utils import send_payment_receipt_email 
 
 def record_payment(request, invoice_id):
     # 1. Tenant Resolution
@@ -589,6 +584,7 @@ def record_payment(request, invoice_id):
             messages.warning(request, "The requested invoice was not found.")
         return redirect('finance:dashboard')
 
+    # 3. Handle Form Submission (POST)
     if request.method == "POST":
         try:
             with transaction.atomic():
@@ -599,11 +595,11 @@ def record_payment(request, invoice_id):
 
                 if amount_val <= 0:
                     messages.error(request, "Please enter a valid payment amount greater than zero.")
-                    return render(request, 'finance/record_payment.html', {'invoice': invoice})
+                    return redirect('finance:record_payment', invoice_id=invoice.id)
 
                 if amount_val > invoice.balance:
                     messages.error(request, f"Overpayment detected! Remaining balance is UGX {invoice.balance:,.0f}.")
-                    return render(request, 'finance/record_payment.html', {'invoice': invoice})
+                    return redirect('finance:record_payment', invoice_id=invoice.id)
 
                 target_account = get_object_or_404(Account, id=account_id, school=active_school)
 
@@ -625,58 +621,95 @@ def record_payment(request, invoice_id):
                 target_account.balance += amount_val
                 target_account.save()
 
-            # Send receipt email
-            send_payment_receipt_email(request, payment)
+            # Attempt to send receipt email (wrapped to prevent crash on mail error)
+            try:
+                send_payment_receipt_email(request, payment)
+            except Exception as e:
+                print(f"Receipt email failed: {e}")
 
             messages.success(request, f"Successfully recorded UGX {amount_val:,.0f} for {invoice.student.get_full_name()}.")
-            return redirect('finance:dashboard')
+            
+            # Redirect to the receipt detail after successful save
+            return redirect('finance:receipt_detail', payment_id=payment.id)
 
         except Exception as e:
             messages.error(request, f"Transaction Failed: {str(e)}")
             return redirect('finance:record_payment', invoice_id=invoice.id)
 
-    # GET request - Show payment form
+    # 4. Handle Page View (GET)
     accounts = Account.objects.filter(
         school=active_school, 
         account_type__in=['Asset', 'Income']
     ).order_by('name')
     
+    payments = Payment.objects.filter(invoice=invoice).order_by('-created_at')
+    
     context = {
         'invoice': invoice,
         'accounts': accounts,
         'remaining_balance': invoice.balance,
-        'student': invoice.student
+        'student': invoice.student,
+         
     }
+    
+    # This must be a RENDER, not a REDIRECT, to show the form
     return render(request, 'finance/record_payment.html', context)
-
+   
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from .models import Account
 
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from .models import Account
+
 def account_list(request):
-    """ View to manage the Chart of Accounts """
     accounts = Account.objects.filter(school=request.school).order_by('account_type', 'code')
-    
+
     if request.method == "POST":
-        name = request.POST.get('name')
+        account_id = request.POST.get('account_id')  # For editing
         code = request.POST.get('code')
-        acc_type = request.POST.get('account_type')
+        name = request.POST.get('name')
+        account_type = request.POST.get('account_type')
         opening_balance = request.POST.get('opening_balance', 0)
 
-        # Create the account tied to this school
-        Account.objects.create(
-            school=request.school,
-            name=name,
-            code=code,
-            account_type=acc_type,
-            balance=opening_balance
-        )
-        messages.success(request, f"Account '{name}' created successfully.")
+        try:
+            if account_id:  # Edit existing account
+                account = get_object_or_404(Account, id=account_id, school=request.school)
+                # Check if code is being changed to one that already exists
+                if code != account.code and Account.objects.filter(school=request.school, code=code).exists():
+                    messages.error(request, f"Account code '{code}' already exists.")
+                else:
+                    account.code = code
+                    account.name = name
+                    account.account_type = account_type
+                    account.balance = opening_balance
+                    account.save()
+                    messages.success(request, f"Account '{name}' updated successfully.")
+            else:  # Create new account
+                if Account.objects.filter(school=request.school, code=code).exists():
+                    messages.error(request, f"Account code '{code}' already exists. Please use a unique code.")
+                else:
+                    Account.objects.create(
+                        school=request.school,
+                        code=code,
+                        name=name,
+                        account_type=account_type,
+                        balance=opening_balance
+                    )
+                    messages.success(request, f"Account '{name}' created successfully.")
+        except Exception as e:
+            messages.error(request, f"Error: {str(e)}")
+
         return redirect('finance:account_list')
 
-    return render(request, 'finance/account_list.html', {'accounts': accounts})
-
-
+    context = {
+        'accounts': accounts,
+        'total_assets': accounts.filter(account_type='Asset').aggregate(Sum('balance'))['balance__sum'] or 0,
+        'total_income': accounts.filter(account_type='Income').aggregate(Sum('balance'))['balance__sum'] or 0,
+        'total_expenses': accounts.filter(account_type='Expense').aggregate(Sum('balance'))['balance__sum'] or 0,
+    }
+    return render(request, 'finance/account_list.html', context)
 
 
 from django.utils import timezone
@@ -698,23 +731,33 @@ from django.db.models import Sum
 from .models import Payment
 # Ensure you have these imports if not already there
 
+from django.db.models import Sum
+from django.utils import timezone
+from django.shortcuts import render
+
 def daily_collection_report(request):
     start_date_str = request.GET.get('start_date')
     end_date_str = request.GET.get('end_date')
     
     today = timezone.localtime(timezone.now()).date()
+    
+    # Use provided dates or default to today
     start_date = start_date_str if start_date_str else today
     end_date = end_date_str if end_date_str else today
 
-    # Standardized query
+    # Standardized query - ensure status matches your Payment model
     payments = Payment.objects.filter(
         school=request.school, 
         date_paid__date__range=[start_date, end_date],
         status='Completed'
-    ).select_related('invoice', 'invoice__student', 'invoice__student__classroom')
+    ).select_related(
+        'invoice__student__class_stream__classroom', # Follow the relationship path
+        'invoice__student'
+    ).order_by('-date_paid')
 
-    # FIX: Use amount_paid and payment_method
     total_collected = payments.aggregate(Sum('amount_paid'))['amount_paid__sum'] or 0
+    
+    # Grouping by payment_method to match your model field
     summary_by_method = payments.values('payment_method').annotate(total=Sum('amount_paid'))
 
     return render(request, 'finance/daily_report.html', {
@@ -723,7 +766,7 @@ def daily_collection_report(request):
         'summary_by_method': summary_by_method,
         'start_date': start_date,
         'end_date': end_date,
-        'today': today,  # <-- ADD THIS LINE
+        'today': today,
     })
 import openpyxl
 from django.http import HttpResponse
@@ -780,9 +823,16 @@ from django.shortcuts import render, get_object_or_404
 from django.utils import timezone
 from .models import Invoice, Payment
 from students.models import Student 
+from django.shortcuts import render, get_object_or_404
+from django.utils import timezone
+
+
+from django.utils import timezone
 
 def student_statement(request, student_id):
     student = get_object_or_404(Student, id=student_id, school=request.school)
+    
+    # Prefetch related data to avoid N+1 database queries
     invoices = Invoice.objects.filter(student=student, school=request.school).order_by('created_at')
     payments = Payment.objects.filter(invoice__student=student, school=request.school).order_by('date_paid')
 
@@ -790,38 +840,40 @@ def student_statement(request, student_id):
 
     # 1. Add Invoices (Debits) 
     for inv in invoices:
-        raw_date = inv.created_at or timezone.now()
-        entry_date = raw_date.date() if hasattr(raw_date, 'date') else raw_date
-        
+        # Use datetime for sorting, but store date for display
+        dt = inv.created_at or timezone.now()
         ledger.append({
-            'date': entry_date, 
+            'sort_key': dt, # Keep full timestamp for precise sorting
+            'date': dt.date() if hasattr(dt, 'date') else dt, 
             'description': f"Fees Invoice - {inv.term} {inv.year}",
-            'reference': getattr(inv, 'invoice_number', 'INV-SYS'),
-            # FIX: Use current_fees to avoid double-counting the arrears
+            'reference': getattr(inv, 'invoice_number', f"INV-{inv.id}"),
             'debit': inv.current_fees, 
             'credit': 0,
+            'is_payment': False
         })
     
     # 2. Add Payments (Credits)
     for pay in payments:
-        raw_date = pay.date_paid or timezone.now()
-        entry_date = raw_date.date() if hasattr(raw_date, 'date') else raw_date
-        
+        dt = pay.date_paid or timezone.now()
+        # If date_paid is a date object, we might need to combine it with time for sorting
+        sort_dt = timezone.make_aware(timezone.datetime.combine(dt, timezone.datetime.min.time())) if not hasattr(dt, 'hour') else dt
+
         ledger.append({
-            'date': entry_date,
-            'description': f"Fee Payment - {pay.payment_method}",
-            'reference': pay.transaction_id or pay.receipt_number,
+            'sort_key': sort_dt,
+            'date': dt,
+            'description': f"Fee Payment ({pay.get_payment_method_display if hasattr(pay, 'get_payment_method_display') else pay.payment_method})",
+            'reference': pay.transaction_id or pay.receipt_number or f"PAY-{pay.id}",
             'debit': 0,
             'credit': pay.amount_paid,
+            'is_payment': True
         })
 
-    # 3. Sort by date
-    ledger.sort(key=lambda x: x['date'])
+    # 3. Sort by the full timestamp (sort_key)
+    ledger.sort(key=lambda x: x['sort_key'])
     
     # 4. Calculate Running Balance
     running_total = 0
     for entry in ledger:
-        # Each row adds its new debit and subtracts its credit to the existing total
         running_total += (entry['debit'] - entry['credit'])
         entry['running_balance'] = running_total
 
@@ -831,6 +883,9 @@ def student_statement(request, student_id):
         'final_balance': running_total,
         'today': timezone.now().date(),
     })
+
+
+
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from students.models import Classroom, Stream
@@ -981,8 +1036,57 @@ from .forms import FeeStructureForm
 from students.forms import ClassroomForm, StreamForm
 
 
+from django.db.models import Sum, F
+from django.shortcuts import render
+ # Adjust based on your actual model names
+
+from django.db.models import Sum, F
+from django.shortcuts import render
+from .models import Invoice
+
+from django.shortcuts import render
+from django.db.models import Sum, Count, F, Q
+from django.db.models.functions import Coalesce
+from decimal import Decimal
 
 
+def class_standing_report(request):
+    # Filter by the current school (tenant)
+    school = request.user.school 
+    
+    # We query Classrooms and pull student/invoice data through relationships
+    report_data = Classroom.objects.filter(school=school).annotate(
+        # Count unique students in this class
+        student_count=Count('students', distinct=True),
+        
+        # Sum total_amount from all invoices belonging to students in this class
+        total_expected=Coalesce(
+            Sum('students__invoices__total_amount', filter=Q(students__school=school)), 
+            Decimal('0')
+        ),
+        
+        # Sum paid_amount from those same invoices
+        total_collected=Coalesce(
+            Sum('students__invoices__paid_amount', filter=Q(students__school=school)), 
+            Decimal('0')
+        )
+    ).annotate(
+        # Calculate balance and percentage in the database
+        total_balance=F('total_expected') - F('total_collected')
+    )
+
+    # Calculate percentages in Python to handle division by zero safely
+    for item in report_data:
+        if item.total_expected > 0:
+            item.collection_percentage = round((item.total_collected / item.total_expected) * 100, 1)
+        else:
+            item.collection_percentage = 0
+
+    context = {
+        'report_data': report_data,
+        'currency': "UGX", # Or your preferred currency
+    }
+    return render(request, 'finance/class_standing.html', context)
 
 from django.shortcuts import redirect
 from django.contrib import messages
@@ -1239,3 +1343,340 @@ def record_expense(request):
     return render(request, 'finance/record_expense.html', {
         'expense_accounts': expense_accounts
     })
+
+
+# finance/views/webhook.py
+import hashlib
+import json
+import logging
+from decimal import Decimal
+from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.db import transaction
+from django.utils import timezone
+from django.conf import settings
+
+from .models import Payment, Invoice, Account
+from students.models import Student
+
+logger = logging.getLogger(__name__)
+
+def verify_schoolpay_signature(signature, receipt_number):
+    api_password = getattr(settings, 'SCHOOLPAY_API_PASSWORD', None)
+    if not api_password or not receipt_number:
+        return False
+    data = api_password + str(receipt_number)
+    return hashlib.sha256(data.encode('utf-8')).hexdigest() == signature
+
+
+@csrf_exempt
+@transaction.atomic
+def schoolpay_webhook(request):
+    if request.method != 'POST':
+        return HttpResponse(status=405)
+
+    try:
+        payload = json.loads(request.body)
+        signature = payload.get('signature')
+        payment_data = payload.get('payment', {})
+
+        if not signature or not payment_data.get('schoolpayReceiptNumber'):
+            return HttpResponse(status=400)
+
+        receipt_number = payment_data['schoolpayReceiptNumber']
+        amount = Decimal(payment_data.get('amount', 0))
+
+        # Signature Check
+        if not verify_schoolpay_signature(signature, receipt_number):
+            logger.error(f"Invalid signature for receipt {receipt_number}")
+            return HttpResponse(status=403)
+
+        school = getattr(request, 'school', None)
+        student_code = payment_data.get('studentPaymentCode')
+        reg_number = payment_data.get('studentRegistrationNumber')
+
+        # Find Student
+        student = None
+        if student_code:
+            student = Student.objects.filter(studentPaymentCode=student_code).first()
+        if not student and reg_number:
+            student = Student.objects.filter(admission_number=reg_number).first()
+
+        if not student:
+            logger.warning(f"Student not found: {student_code or reg_number}")
+            return HttpResponse(status=200)
+
+        # Find or Create Invoice
+        invoice = Invoice.objects.filter(student=student, school=school).order_by('-created_at').first()
+        if not invoice:
+            invoice = Invoice.objects.create(
+                student=student,
+                school=school,
+                term="1",
+                year=timezone.now().year,
+                current_fees=amount,
+                previous_balance=0,
+                total_amount=amount,
+            )
+
+        # Get Account
+        account = Account.objects.filter(school=school, account_type='Asset', is_active=True).first()
+
+        # Create Payment
+        Payment.objects.create(
+            school=school,
+            invoice=invoice,
+            amount_paid=amount,
+            payment_method='Mobile Money',
+            receipt_number=receipt_number,
+            transaction_id=payment_data.get('sourceChannelTransactionId') or receipt_number,
+            depositor=payment_data.get('sourceChannelTransDetail', student.get_full_name()),
+            phone_number=student.guardian_phone,
+            status='Completed',
+            account=account,
+            recorded_by=None,   # Webhook payment
+        )
+
+        logger.info(f"✅ SchoolPay Success: {receipt_number} | UGX {amount} | Student: {student}")
+        return HttpResponse(status=200)
+
+    except Exception as e:
+        logger.error(f"SchoolPay webhook failed: {str(e)}", exc_info=True)
+        return HttpResponse(status=200)
+
+
+
+########################################################################################################
+import io
+from decimal import Decimal
+from django.shortcuts import render
+from django.db.models import Sum, F, ExpressionWrapper, DecimalField, Q, Count
+from django.db.models.functions import Cast, Coalesce
+from django.http import HttpResponse
+from django.contrib import messages
+from django.utils import timezone
+from django.core.paginator import Paginator
+
+# Export Imports
+import openpyxl
+from openpyxl.styles import Font, Alignment, PatternFill
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import landscape, A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+
+from .models import Invoice
+from students.models import Classroom, ClassStream
+
+def get_financial_stats(request):
+    school = request.user.school
+    classroom_id = request.GET.get('classroom')
+    sort_by = request.GET.get('sort', 'class_name')
+
+    filters = Q(school=school)
+    if classroom_id:
+        filters &= Q(classroom_id=classroom_id)
+
+    # Note: We use .select_related to avoid separate DB hits for class/stream names in the loop
+    query = ClassStream.objects.filter(filters).select_related('classroom', 'stream', 'class_teacher').annotate(
+        class_name=F('classroom__name'),
+        stream_name=F('stream__name'),
+        # This Count uses the 'related_name' we just set in the model
+        total_students_count=Count('students', distinct=True),
+        total_expected=Coalesce(
+            Sum('students__invoices__total_amount'), 
+            Value(0, output_field=DecimalField())
+        ),
+        total_paid=Coalesce(
+            Sum('students__invoices__paid_amount'), 
+            Value(0, output_field=DecimalField())
+        ),
+    )
+
+    results = []
+    grand_expected = Decimal('0.00')
+    grand_paid = Decimal('0.00')
+
+    for item in query:
+        # We access the annotated fields directly
+        expected = item.total_expected
+        paid = item.total_paid
+        balance = expected - paid
+        
+        # Safe division for percentage
+        percent = 0
+        if expected > 0:
+            percent = round((float(paid) * 100 / float(expected)), 2)
+        
+        results.append({
+            'class_name': item.class_name,
+            'stream_name': item.stream_name,
+            'total_students': item.total_students_count,
+            'total_expected': expected,
+            'total_paid': paid,
+            'total_balance': balance,
+            'pay_percent': percent,
+            'teacher': item.class_teacher.get_full_name if item.class_teacher else "N/A"
+        })
+        grand_expected += expected
+        grand_paid += paid
+    # --- Sorting Logic ---
+    if sort_by == 'highest_collection':
+        results = sorted(results, key=lambda x: x['pay_percent'], reverse=True)
+    elif sort_by == 'highest_balance':
+        results = sorted(results, key=lambda x: x['total_balance'], reverse=True)
+    else:
+        results = sorted(results, key=lambda x: (x['class_name'], x['stream_name']))
+
+    summary = {
+        'grand_expected': grand_expected,
+        'grand_paid': grand_paid,
+        'grand_balance': grand_expected - grand_paid,
+        'overall_percent': round((grand_paid * 100 / grand_expected), 2) if grand_expected > 0 else 0
+    }
+
+    return results, summary
+
+def financial_report_view(request):
+    results, summary = get_financial_stats(request)
+    
+    # Pagination
+    paginator = Paginator(results, 15)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'page_obj': page_obj,
+        'summary': summary,
+        'classrooms': Classroom.objects.filter(school=request.user.school),
+        'today': timezone.now(),
+    }
+    return render(request, 'finance/class_standing.html', context)
+
+# --- EXPORT EXCEL ---
+import openpyxl
+from django.http import HttpResponse
+from django.utils import timezone
+from openpyxl.styles import Font, PatternFill
+from .models import Payment  # Ensure correct import based on your structure
+
+def export_finance_excel(request):
+
+    """
+    Exports the payment collections report to Excel with a Total row at the bottom.
+    """
+    # 1. Fetch payments
+    payments = Payment.objects.filter(school=request.school).select_related(
+        'invoice__student__class_stream__classroom',
+        'invoice__student__class_stream__stream',
+        'account'
+    ).order_by('-date_paid')
+
+    # 2. Setup Excel Workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Collection_Report"
+
+    # Styling
+    header_fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
+    header_font = Font(color="FFFFFF", bold=True)
+    total_font = Font(bold=True)
+
+    # 3. Headers
+    headers = ['Date', 'Student Name', 'Class', 'Stream', 'Method', 'Account', 'Amount (UGX)', 'Receipt']
+    ws.append(headers)
+
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center')
+
+    # 4. Populate rows and track the total
+    grand_total = 0
+    for p in payments:
+        student = p.invoice.student
+        class_name = "N/A"
+        stream_name = "N/A"
+
+        if student.class_stream:
+            class_name = student.class_stream.classroom.short_name
+            stream_name = student.class_stream.stream.name
+        
+        amount = float(p.amount_paid)
+        grand_total += amount
+
+        ws.append([
+            p.date_paid.strftime('%Y-%m-%d') if p.date_paid else "N/A",
+            f"{student.first_name} {student.last_name}",
+            class_name,
+            stream_name,
+            p.payment_method,
+            p.account.name if p.account else "N/A",
+            amount,
+            p.receipt_number
+        ])
+
+    # 5. Add the Total Row
+    ws.append([]) # Blank spacer row
+    
+    # We place "TOTAL" in the 'Account' column (6th) and the sum in 'Amount' column (7th)
+    total_row_index = ws.max_row
+    ws.cell(row=total_row_index, column=6, value="GRAND TOTAL:").font = total_font
+    ws.cell(row=total_row_index, column=7, value=grand_total).font = total_font
+
+    # 6. Auto-adjust column width
+    for col in ws.columns:
+        max_length = 0
+        column = col[0].column_letter
+        for cell in col:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+        ws.column_dimensions[column].width = max_length + 3
+
+    # 7. Return the file
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    filename = f"Collection_Report_{timezone.now().strftime('%Y-%m-%d')}.xlsx"
+    response['Content-Disposition'] = f'attachment; filename={filename}'
+    
+    wb.save(response)
+    return response
+# --- EXPORT PDF ---
+def export_finance_pdf(request):
+    results, summary = get_financial_stats(request)
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4))
+    elements = []
+    
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('Title', parent=styles['Heading1'], alignment=1, spaceAfter=20)
+    
+    elements.append(Paragraph(f"{request.user.school.name} - Financial Report", title_style))
+    
+    data = [['Class', 'Stream', 'Students', 'Expected', 'Paid', 'Balance', '%']]
+    for item in results:
+        data.append([
+            item['class_name'], item['stream_name'], item['total_students'],
+            f"{item['total_expected']:,}", f"{item['total_paid']:,}", 
+            f"{item['total_balance']:,}", f"{item['pay_percent']}%"
+        ])
+
+    table = Table(data, repeatRows=1)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.whitesmoke),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('ALIGN', (2, 0), (-1, -1), 'CENTER'),
+    ]))
+    
+    elements.append(table)
+    doc.build(elements)
+    
+    buffer.seek(0)
+    response = HttpResponse(buffer, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename=Financial_Report.pdf'
+    return response

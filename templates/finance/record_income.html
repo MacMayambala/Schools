@@ -2,53 +2,118 @@
 {% load static %}
 
 {% block content %}
-<div class="container py-5">
+<div class="container-fluid p-0">
+    <!-- Header Section -->
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <div>
+            <h4 class="fw-bold mb-1" style="color: var(--primary);">
+                <i class="fas fa-hand-holding-dollar me-2"></i>Finance Ledger
+            </h4>
+            <p class="text-muted small mb-0">Record non-invoice income (e.g., grants, donations, or canteen sales).</p>
+        </div>
+        <a href="{% url 'finance:dashboard' %}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+            <i class="fas fa-arrow-left me-1"></i> Back to Finance
+        </a>
+    </div>
+
     <div class="row justify-content-center">
-        <div class="col-lg-6">
-            <div class="card shadow-sm border-0 rounded-4">
-                <div class="card-header bg-success text-white border-0 py-4">
-                    <h4 class="mb-0 fw-bold">
-                        <i class="fas fa-plus-circle me-2"></i> Record Income
-                    </h4>
-                </div>
-                <div class="card-body p-5">
+        <div class="col-xl-7 col-lg-9">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <!-- Branding Accent -->
+                <div style="background-color: var(--primary); height: 6px;"></div>
+                
+                <div class="card-body p-4 p-md-5">
+                    <div class="d-flex align-items-center gap-3 mb-4">
+                        <div class="bg-success-subtle p-3 rounded-3">
+                            <i class="fas fa-plus-circle fa-2x text-success"></i>
+                        </div>
+                        <div>
+                            <h4 class="fw-bold mb-0">Record Income</h4>
+                            <small class="text-muted">Direct entry into the general ledger</small>
+                        </div>
+                    </div>
+
                     <form method="POST">
                         {% csrf_token %}
 
-                        <div class="mb-4">
-                            <label class="form-label fw-semibold">Income Account</label>
-                            <select name="account" class="form-select form-select-lg" required>
-                                <option value="">-- Select Income Account --</option>
-                                {% for acc in income_accounts %}
-                                <option value="{{ acc.id }}">{{ acc.code }} - {{ acc.name }}</option>
-                                {% endfor %}
-                            </select>
+                        <div class="row g-4">
+                            <!-- Income Account -->
+                            <div class="col-12">
+                                <label class="form-label fw-bold small text-uppercase text-muted">Income Account</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0"><i class="fas fa-file-invoice text-muted"></i></span>
+                                    <select name="account" class="form-select border-start-0" required style="height: 50px;">
+                                        <option value="">-- Select Income Account --</option>
+                                        {% for acc in income_accounts %}
+                                        <option value="{{ acc.id }}">{{ acc.code }} - {{ acc.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Amount -->
+                            <div class="col-12">
+                                <label class="form-label fw-bold small text-uppercase text-muted">Amount (UGX)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0 fw-bold text-muted small">UGX</span>
+                                    <input type="number" name="amount" class="form-control border-start-0 fw-bold" 
+                                           placeholder="0.00" step="0.01" required style="height: 50px; font-size: 1.1rem;">
+                                </div>
+                            </div>
+
+                            <!-- Description -->
+                            <div class="col-12">
+                                <label class="form-label fw-bold small text-uppercase text-muted">Description / Particulars</label>
+                                <textarea name="description" class="form-control" rows="3" 
+                                          placeholder="e.g. Canteen revenue for June, School donation from alumni..." required></textarea>
+                            </div>
                         </div>
 
-                        <div class="mb-4">
-                            <label class="form-label fw-semibold">Amount (UGX)</label>
-                            <input type="number" name="amount" class="form-control form-control-lg" 
-                                   placeholder="0.00" step="0.01" required>
-                        </div>
-
-                        <div class="mb-4">
-                            <label class="form-label fw-semibold">Description</label>
-                            <textarea name="description" class="form-control" rows="3" 
-                                      placeholder="e.g. School fees collection, Donation, etc."></textarea>
-                        </div>
-
-                        <div class="d-grid gap-2 mt-5">
-                            <button type="submit" class="btn btn-success btn-lg py-3 fw-bold">
-                                <i class="fas fa-save me-2"></i> Record Income
+                        <!-- Action Buttons -->
+                        <div class="d-flex flex-column flex-md-row gap-3 mt-5">
+                            <button type="submit" class="btn btn-primary px-5 py-2 rounded-pill fw-bold shadow-sm order-md-2">
+                                <i class="fas fa-save me-2"></i>Save Transaction
                             </button>
-                            <a href="{% url 'finance:dashboard' %}" class="btn btn-outline-secondary btn-lg py-3">
+                            <a href="{% url 'finance:dashboard' %}" class="btn btn-light px-4 py-2 rounded-pill fw-bold border order-md-1">
                                 Cancel
                             </a>
                         </div>
                     </form>
                 </div>
             </div>
+
+            <!-- Footer Note -->
+            <div class="mt-4 p-3 rounded-4 bg-primary-soft border border-primary-subtle d-flex align-items-center gap-3">
+                <i class="fas fa-shield-halved text-primary fs-4"></i>
+                <p class="small text-muted mb-0">
+                    <strong>Note:</strong> All income recorded here will automatically update your <strong>Total Revenue</strong> and be reflected in the <strong>Net Profit</strong> calculations.
+                </p>
+            </div>
         </div>
     </div>
 </div>
+
+<style>
+    .bg-primary-soft { background-color: var(--primary-soft) !important; }
+    .bg-success-subtle { background-color: #e7f5ed !important; }
+    
+    .btn-primary { 
+        background-color: var(--primary) !important; 
+        border-color: var(--primary) !important; 
+    }
+    .btn-primary:hover { 
+        filter: brightness(0.9);
+        transform: translateY(-1px);
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 0.25rem rgba(46, 139, 87, 0.1);
+    }
+
+    .input-group-text {
+        border-color: #dee2e6;
+        color: #6c757d;
+    }
+</style>
 {% endblock %}

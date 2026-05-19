@@ -1,10 +1,9 @@
 {% extends 'base.html' %}
 {% load humanize %}
 
-{% block title %}Report | {{ student.get_full_name }}{% endblock %}
+{% block title %}Report Card | {{ student.get_full_name }}{% endblock %}
 
 {% block content %}
-
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 
 <div class="report-wrapper">
@@ -33,7 +32,7 @@
     <div class="report-card" id="printableReport">
 
         <!-- Watermark -->
-        <div class="watermark" aria-hidden="true">{{ school.motto|default:"Excellence" }}</div>
+        <div class="watermark" aria-hidden="true">{{ school.motto|default:"Excellence & Discipline" }}</div>
 
         <!-- Decorative top bar -->
         <div class="top-accent">
@@ -65,9 +64,7 @@
                     {% if student.photo %}
                         <img src="{{ student.photo.url }}" alt="Student" class="student-photo">
                     {% else %}
-                        <div class="photo-placeholder">
-                            {{ student.get_full_name|slice:":1"|upper }}
-                        </div>
+                        <div class="photo-placeholder">{{ student.first_name|slice:":1"|upper }}</div>
                     {% endif %}
                 </div>
             </header>
@@ -81,7 +78,7 @@
                 <div class="meta-divider"></div>
                 <div class="meta-cell">
                     <span class="meta-label">Class</span>
-                    <span class="meta-value">{{ student.classroom }}</span>
+                    <span class="meta-value">{{ student.class_stream.classroom.short_name}} {{ student.class_stream.stream.name }}</span>
                 </div>
                 <div class="meta-divider"></div>
                 <div class="meta-cell">
@@ -91,7 +88,7 @@
                 <div class="meta-divider"></div>
                 <div class="meta-cell">
                     <span class="meta-label">Rank</span>
-                    <span class="meta-value">{{ rank }}<span class="meta-sub"> / {{ total_students }}</span></span>
+                    <span class="meta-value">{{ rank|default:"-" }}<span class="meta-sub"> / {{ total_students }}</span></span>
                 </div>
             </div>
 
@@ -119,32 +116,51 @@
                         </td>
                         <td class="remark-cell">{{ item.grade_remark|default:"&mdash;" }}</td>
                     </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-center py-4 text-muted">No academic records found for this term.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
 
-            <!-- LOWER SECTION -->
+            <!-- LOWER SECTION (Requirements Focus) -->
             <div class="lower-grid">
-
                 <div class="requirements-box">
                     <div class="box-title">
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                        Requirements &mdash; Term {{ target_term }}
+                        Requirements &mdash; Term {{ target_term|default:"Next" }}
                     </div>
                     <div class="box-content">
-                        {% if requirements %}
-                            {{ requirements.items }}
-                        {% else %}
-                            Standard school requirements apply. Please contact the class teacher for details.
-                        {% endif %}
+                        <!-- Fees & Financials -->
+                        <div class="req-item">
+                            <span class="req-label">Opening Date:</span>
+                            <span class="req-val">{{ opening_date|default:"To be announced" }}</span>
+                        </div>
+                        <div class="req-item">
+                            <span class="req-label">Next Term Fees:</span>
+                            <span class="req-val">{% if next_fees %}UGX {{ next_fees|intcomma }}{% else %}Contact Bursar{% endif %}</span>
+                        </div>
+                        
+                        <div class="req-divider"></div>
+                        
+                        <!-- Physical Requirements -->
+                        <div class="req-label">Required Items:</div>
+                        <div class="items-text">
+                            {% if requirements %}
+                                {% if requirements.get_items %}
+                                    {{ requirements.get_items|linebreaksbr }}
+                                {% else %}
+                                    {{ requirements|linebreaksbr }}
+                                {% endif %}
+                            {% else %}
+                                Standard school requirements apply. Please ensure all personal effects and stationery are replenished.
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
-
                 <div class="division-box">
                     <div class="division-label">Final Division</div>
-                    <div class="division-value">{{ division|upper }}</div>
+                    <div class="division-value">{{ division|default:"-"|upper }}</div>
                 </div>
-
             </div>
 
             <!-- COMMENTS -->
@@ -152,11 +168,11 @@
                 <div class="box-title">Official Comments</div>
                 <div class="comment-row">
                     <span class="comment-author">Class Teacher</span>
-                    <span class="comment-text">&ldquo;{{ teacher_comment }}&rdquo;</span>
+                    <span class="comment-text">&ldquo;{{ teacher_comment|default:"Good effort this term." }}&rdquo;</span>
                 </div>
                 <div class="comment-row">
                     <span class="comment-author">Headteacher</span>
-                    <span class="comment-text">&ldquo;{{ headteacher_comment|default:'Good progress made this term.' }}&rdquo;</span>
+                    <span class="comment-text">&ldquo;{{ headteacher_comment|default:"Promising progress made." }}&rdquo;</span>
                 </div>
             </div>
 
@@ -187,8 +203,7 @@
         </div>
 
     </div><!-- /report-card -->
-</div><!-- /report-wrapper -->
-
+</div>
 
 <style>
 /* ============================================================
@@ -196,17 +211,12 @@
    ============================================================ */
 @media print {
     body * { visibility: hidden; }
-    #printableReport,
-    #printableReport * { visibility: visible; }
+    #printableReport, #printableReport * { visibility: visible; }
     #printableReport {
-        position: fixed;
-        top: 0; left: 0;
-        width: 210mm !important;
-        height: 297mm !important;
-        margin: 0 !important;
-        box-shadow: none !important;
-        border-radius: 0 !important;
-        overflow: hidden !important;
+        position: fixed; top: 0; left: 0;
+        width: 210mm !important; height: 297mm !important;
+        margin: 0 !important; box-shadow: none !important;
+        border-radius: 0 !important; overflow: hidden !important;
     }
     body, html { margin: 0 !important; padding: 0 !important; background: white !important; }
     * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -218,383 +228,118 @@
    WRAPPER & CARD
    ============================================================ */
 .report-wrapper {
-    font-family: 'DM Sans', Helvetica, sans-serif;
-    background: #eae6e0;
-    min-height: 100vh;
-    padding: 36px 20px 110px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    font-family: 'DM Sans', sans-serif;
+    background: #eae6e0; min-height: 100vh;
+    padding: 36px 20px 110px; display: flex;
+    flex-direction: column; align-items: center;
 }
 
 .report-card {
-    width: 210mm;
-    min-height: 297mm;
-    max-height: 297mm;
-    background: #fff;
-    overflow: hidden;
-    border-radius: 3px;
-    box-shadow: 0 6px 48px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.08);
-    position: relative;
-    display: flex;
-    flex-direction: column;
+    width: 210mm; height: 297mm;
+    background: #fff; overflow: hidden;
+    border-radius: 3px; position: relative;
+    box-shadow: 0 6px 48px rgba(0,0,0,0.18);
+    display: flex; flex-direction: column;
 }
 
-/* ============================================================
-   ACCENT BARS
-   ============================================================ */
-.top-accent, .bottom-accent {
-    display: flex;
-    height: 6px;
-    flex-shrink: 0;
-}
+/* Accents */
+.top-accent, .bottom-accent { display: flex; height: 6px; flex-shrink: 0; }
 .accent-block { flex: 1; }
 .accent-dark  { background: #1a1a2e; }
 .accent-mid   { background: #b8860b; }
 .accent-light { background: #d4a017; }
 
-/* ============================================================
-   WATERMARK
-   ============================================================ */
+/* Watermark */
 .watermark {
-    position: absolute;
-    top: 50%; left: 50%;
+    position: absolute; top: 50%; left: 50%;
     transform: translate(-50%, -50%) rotate(-30deg);
     font-family: 'Playfair Display', serif;
-    font-size: 64pt;
-    font-weight: 900;
-    color: rgba(0,0,0,0.027);
-    pointer-events: none;
-    white-space: nowrap;
-    z-index: 0;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    font-size: 64pt; font-weight: 900;
+    color: rgba(0,0,0,0.027); z-index: 0;
+    text-transform: uppercase; white-space: nowrap;
 }
 
-/* ============================================================
-   REPORT BODY
-   ============================================================ */
 .report-body {
-    padding: 9mm 12mm 8mm;
-    position: relative;
-    z-index: 1;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 7px;
+    padding: 9mm 12mm; position: relative;
+    z-index: 1; flex: 1; display: flex;
+    flex-direction: column; gap: 8px;
 }
 
-/* ============================================================
-   HEADER
-   ============================================================ */
+/* Header */
 .report-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding-bottom: 8px;
-    border-bottom: 2.5px solid #1a1a2e;
+    display: flex; align-items: center; gap: 8px;
+    padding-bottom: 8px; border-bottom: 2.5px solid #1a1a2e;
 }
-
 .header-logo { width: 70px; flex-shrink: 0; }
-
 .logo-img { max-height: 65px; max-width: 70px; object-fit: contain; }
-
 .logo-monogram {
-    width: 60px; height: 60px;
-    background: #1a1a2e;
-    color: #d4a017;
-    font-family: 'Playfair Display', serif;
+    width: 60px; height: 60px; background: #1a1a2e;
+    color: #d4a017; font-family: 'Playfair Display', serif;
     font-size: 1.3rem; font-weight: 900;
-    display: flex; align-items: center; justify-content: center;
-    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center; border-radius: 4px;
 }
-
 .header-center { flex: 1; text-align: center; }
+.school-name { font-family: 'Playfair Display', serif; font-size: 1.4rem; font-weight: 900; color: #1a1a2e; }
+.school-address { font-size: 0.6rem; color: #777; text-transform: uppercase; margin: 2px 0 5px; }
+.report-badge { display: inline-block; background: #1a1a2e; color: #d4a017; font-size: 0.58rem; padding: 3px 12px; border-radius: 2px; text-transform: uppercase; font-weight: 600; }
+.term-pill { margin-top: 4px; font-size: 0.63rem; font-weight: 600; color: #b8860b; text-transform: uppercase; }
+.student-photo { width: 68px; height: 85px; object-fit: cover; border: 2px solid #1a1a2e; }
+.photo-placeholder { width: 68px; height: 85px; background: #f0ede8; border: 2px solid #1a1a2e; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; color: #1a1a2e; font-family: 'Playfair Display'; }
 
-.school-name {
-    font-family: 'Playfair Display', serif;
-    font-size: 1.4rem; font-weight: 900;
-    color: #1a1a2e;
-    letter-spacing: 0.04em; line-height: 1.1;
-}
-
-.school-address {
-    font-size: 0.6rem; font-weight: 500;
-    color: #777; margin: 2px 0 5px;
-    text-transform: uppercase; letter-spacing: 0.07em;
-}
-
-.report-badge {
-    display: inline-block;
-    background: #1a1a2e; color: #d4a017;
-    font-size: 0.58rem; font-weight: 600;
-    letter-spacing: 0.14em; text-transform: uppercase;
-    padding: 3px 12px; border-radius: 2px;
-}
-
-.term-pill {
-    margin-top: 4px;
-    font-size: 0.63rem; font-weight: 600;
-    color: #b8860b; letter-spacing: 0.08em; text-transform: uppercase;
-}
-
-.header-photo { width: 70px; flex-shrink: 0; display: flex; justify-content: flex-end; }
-
-.student-photo {
-    width: 68px; height: 85px;
-    object-fit: cover;
-    border: 2px solid #1a1a2e; border-radius: 2px;
-}
-
-.photo-placeholder {
-    width: 68px; height: 85px;
-    background: #f0ede8; border: 2px solid #1a1a2e; border-radius: 2px;
-    display: flex; align-items: center; justify-content: center;
-    font-family: 'Playfair Display', serif;
-    font-size: 1.8rem; font-weight: 900; color: #1a1a2e;
-}
-
-/* ============================================================
-   META STRIP
-   ============================================================ */
-.meta-strip {
-    display: flex;
-    border: 1.5px solid #1a1a2e;
-    border-radius: 3px; overflow: hidden;
-    background: #faf9f7;
-}
-
+/* Meta Strip */
+.meta-strip { display: flex; border: 1.5px solid #1a1a2e; border-radius: 3px; background: #faf9f7; }
 .meta-cell { display: flex; flex-direction: column; padding: 5px 10px; flex: 1; }
 .meta-wide { flex: 2.5; }
-.meta-divider { width: 1.5px; background: #1a1a2e; flex-shrink: 0; }
-
-.meta-label {
-    font-size: 0.53rem; font-weight: 600;
-    text-transform: uppercase; letter-spacing: 0.1em; color: #aaa;
-}
-
-.meta-value {
-    font-size: 0.76rem; font-weight: 700; color: #1a1a2e; margin-top: 1px;
-}
-
-.meta-sub { font-weight: 400; font-size: 0.63rem; color: #999; }
+.meta-divider { width: 1.5px; background: #1a1a2e; }
+.meta-label { font-size: 0.53rem; font-weight: 600; text-transform: uppercase; color: #aaa; }
+.meta-value { font-size: 0.76rem; font-weight: 700; color: #1a1a2e; }
 .highlight-val { color: #b8860b; }
 
-/* ============================================================
-   MARKS TABLE
-   ============================================================ */
-.marks-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.7rem;
-    border: 1.5px solid #1a1a2e;
-    border-radius: 3px; overflow: hidden;
-}
-
-.marks-table thead tr { background: #1a1a2e; }
-
-.marks-table th {
-    color: #d4a017;
-    font-size: 0.58rem; font-weight: 600;
-    letter-spacing: 0.1em; text-transform: uppercase;
-    padding: 6px 8px; border: none; text-align: center;
-}
-
+/* Table */
+.marks-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; border: 1.5px solid #1a1a2e; }
+.marks-table th { background: #1a1a2e; color: #d4a017; font-size: 0.58rem; padding: 6px 8px; text-transform: uppercase; text-align: center; }
 .col-subject { text-align: left !important; width: 26%; }
-.col-num  { width: 8%; }
-.col-total { width: 9%; }
-.col-grade { width: 10%; }
-.col-remark { text-align: left !important; }
-
-.marks-table td {
-    padding: 5px 8px; border: none;
-    border-bottom: 1px solid #ede9e0;
-    text-align: center; color: #1a1a2e;
-}
-
-.row-even td { background: #fff; }
-.row-odd td  { background: #faf9f7; }
-
-.subject-name {
-    text-align: left !important;
-    font-weight: 600; font-size: 0.68rem; letter-spacing: 0.02em;
-}
-
-.num-cell { font-variant-numeric: tabular-nums; }
-
-.total-cell {
-    font-weight: 700;
-    background: #fffbee !important;
-    color: #b8860b;
-}
-
-.grade-badge {
-    display: inline-block;
-    padding: 1px 7px; border-radius: 10px;
-    font-size: 0.6rem; font-weight: 700; letter-spacing: 0.05em;
-    background: #e8e4dc; color: #1a1a2e;
-}
-
+.marks-table td { padding: 5px 8px; text-align: center; color: #1a1a2e; border-bottom: 1px solid #ede9e0; }
+.subject-name { text-align: left !important; font-weight: 600; font-size: 0.68rem; }
+.total-cell { font-weight: 700; background: #fffbee !important; color: #b8860b; }
+.grade-badge { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 0.6rem; font-weight: 700; background: #e8e4dc; }
 .grade-d1 { background: #d4edda; color: #1a5c30; }
-.grade-d2 { background: #cce5ff; color: #0c3c6e; }
-.grade-c3, .grade-c4 { background: #fff3cd; color: #856404; }
-.grade-c5, .grade-c6 { background: #fde8b0; color: #7a5000; }
-.grade-p7, .grade-p8 { background: #ffe5d0; color: #7a3000; }
 .grade-f9 { background: #f8d7da; color: #7a1b20; }
+.remark-cell { text-align: left !important; color: #888; font-size: 0.63rem; font-style: italic; }
 
-.remark-cell {
-    text-align: left !important;
-    color: #888; font-size: 0.63rem; font-style: italic;
-}
-
-/* ============================================================
-   LOWER GRID
-   ============================================================ */
+/* Lower Grid & Requirements */
 .lower-grid { display: flex; gap: 8px; }
+.requirements-box { flex: 1.6; border: 1.5px solid #1a1a2e; padding: 7px 9px; background: #fff; }
+.req-item { display: flex; justify-content: space-between; margin-bottom: 2px; }
+.req-label { font-size: 0.6rem; font-weight: 700; color: #1a1a2e; }
+.req-val { font-size: 0.6rem; color: #444; }
+.req-divider { height: 1px; background: #eee; margin: 4px 0; }
+.items-text { font-size: 0.6rem; color: #666; line-height: 1.4; margin-top: 3px; }
 
-.requirements-box {
-    flex: 1.6;
-    border: 1.5px solid #1a1a2e;
-    border-radius: 3px; padding: 7px 9px; background: #fff;
-}
+.division-box { flex: 1; border: 1.5px solid #1a1a2e; background: #1a1a2e; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px; }
+.division-label { font-size: 0.53rem; color: #d4a017; text-transform: uppercase; font-weight: 600; }
+.division-value { font-family: 'Playfair Display', serif; font-size: 1.05rem; font-weight: 900; color: #fff; }
 
-.division-box {
-    flex: 1;
-    border: 1.5px solid #1a1a2e; border-radius: 3px;
-    background: #1a1a2e;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    padding: 8px; text-align: center;
-}
+.box-title { font-size: 0.58rem; font-weight: 700; text-transform: uppercase; color: #1a1a2e; border-bottom: 1px solid #e8e4dc; padding-bottom: 4px; margin-bottom: 5px; display: flex; align-items: center; gap: 5px; }
 
-.division-label {
-    font-size: 0.53rem; font-weight: 600;
-    text-transform: uppercase; letter-spacing: 0.12em;
-    color: #d4a017; margin-bottom: 4px;
-}
+/* Comments & Signatures */
+.comments-box { border: 1.5px solid #1a1a2e; padding: 7px 9px; background: #fff; }
+.comment-row { display: flex; gap: 10px; font-size: 0.65rem; padding: 2px 0; }
+.comment-author { font-weight: 700; min-width: 82px; text-transform: uppercase; font-size: 0.6rem; color: #1a1a2e; }
+.comment-text { color: #444; font-style: italic; }
 
-.division-value {
-    font-family: 'Playfair Display', serif;
-    font-size: 1.05rem; font-weight: 900; color: #fff; line-height: 1;
-}
+.signatures { display: flex; justify-content: space-between; align-items: flex-end; margin-top: auto; }
+.sig-line { width: 120px; border-bottom: 1.5px solid #1a1a2e; margin: 0 auto 4px; }
+.sig-label { font-size: 0.56rem; font-weight: 600; text-transform: uppercase; color: #777; text-align: center; }
+.stamp-ring { width: 68px; height: 68px; border: 2px dashed #b8860b; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.46rem; color: #d4a017; font-weight: 700; text-align: center; }
 
-/* ============================================================
-   BOX TITLE (shared)
-   ============================================================ */
-.box-title {
-    font-size: 0.58rem; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.1em; color: #1a1a2e;
-    border-bottom: 1px solid #e8e4dc;
-    padding-bottom: 4px; margin-bottom: 5px;
-    display: flex; align-items: center; gap: 5px;
-}
-
-.box-content { font-size: 0.63rem; color: #444; line-height: 1.5; }
-
-/* ============================================================
-   COMMENTS
-   ============================================================ */
-.comments-box {
-    border: 1.5px solid #1a1a2e;
-    border-radius: 3px; padding: 7px 9px; background: #fff;
-}
-
-.comment-row {
-    display: flex; gap: 10px; align-items: baseline;
-    font-size: 0.65rem; padding: 2px 0;
-}
-
-.comment-author {
-    font-weight: 700; color: #1a1a2e;
-    white-space: nowrap; min-width: 82px;
-    font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em;
-}
-
-.comment-text { color: #444; font-style: italic; line-height: 1.4; }
-
-/* ============================================================
-   SIGNATURES
-   ============================================================ */
-.signatures {
-    display: flex; justify-content: space-between; align-items: flex-end;
-    margin-top: auto; padding-top: 4px;
-}
-
-.sig-block { flex: 1; text-align: center; }
-
-.sig-line {
-    width: 120px; border-bottom: 1.5px solid #1a1a2e;
-    margin: 0 auto 4px;
-}
-
-.sig-label {
-    font-size: 0.56rem; font-weight: 600;
-    text-transform: uppercase; letter-spacing: 0.1em; color: #777;
-}
-
-.stamp-block { display: flex; justify-content: center; }
-
-.stamp-ring {
-    width: 68px; height: 68px;
-    border: 2px dashed #b8860b; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 0.46rem; font-weight: 700;
-    letter-spacing: 0.05em; color: #d4a017;
-    text-transform: uppercase; text-align: center; line-height: 1.5;
-}
-
-/* ============================================================
-   FLOATING ACTION BAR
-   ============================================================ */
-.action-bar {
-    position: fixed; bottom: 24px; left: 50%;
-    transform: translateX(-50%); z-index: 1000;
-}
-
-.action-bar-inner {
-    display: flex; align-items: center; gap: 16px;
-    background: #1a1a2e; border-radius: 50px;
-    padding: 10px 10px 10px 20px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.28);
-}
-
-.action-label {
-    font-size: 0.7rem; font-weight: 500;
-    color: rgba(255,255,255,0.55);
-    display: flex; align-items: center; gap: 6px; white-space: nowrap;
-    font-family: 'DM Sans', sans-serif;
-}
-
-.dot {
-    width: 6px; height: 6px;
-    background: #d4a017; border-radius: 50%;
-    display: inline-block; flex-shrink: 0;
-}
-
-.action-buttons { display: flex; gap: 6px; }
-
-.action-btn {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 7px 16px; border-radius: 50px;
-    font-size: 0.7rem; font-weight: 600;
-    font-family: 'DM Sans', sans-serif;
-    cursor: pointer; text-decoration: none;
-    border: 1.5px solid transparent;
-    transition: all 0.15s; letter-spacing: 0.02em;
-}
-
-.btn-outline-action {
-    background: transparent;
-    border-color: rgba(255,255,255,0.2); color: #fff;
-}
-
-.btn-outline-action:hover { border-color: rgba(255,255,255,0.55); }
-
-.btn-solid-action {
-    background: #d4a017; border-color: #d4a017; color: #1a1a2e;
-}
-
-.btn-solid-action:hover { background: #e5b020; color: #1a1a2e; }
+/* Action Bar */
+.action-bar { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 1000; }
+.action-bar-inner { display: flex; align-items: center; gap: 16px; background: #1a1a2e; border-radius: 50px; padding: 10px 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.28); }
+.action-label { font-size: 0.7rem; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 6px; }
+.dot { width: 6px; height: 6px; background: #d4a017; border-radius: 50%; }
+.action-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; border-radius: 50px; font-size: 0.7rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: 0.2s; }
+.btn-outline-action { background: transparent; border: 1.5px solid rgba(255,255,255,0.2); color: #fff; }
+.btn-solid-action { background: #d4a017; color: #1a1a2e; border: 1.5px solid #d4a017; }
 </style>
-
 {% endblock %}

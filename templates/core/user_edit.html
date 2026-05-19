@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <!-- Header Section -->
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <div>
+            <h4 class="fw-bold mb-1" style="color: var(--primary);">
+                <i class="fas fa-user-gear me-2"></i>Edit Staff Profile
+            </h4>
+            <p class="text-muted small mb-0">Managing permissions and details for <strong>{{ custom_user.user.get_full_name|default:custom_user.user.username }}</strong></p>
+        </div>
+        <a href="{% url 'core:user_list' %}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+            <i class="fas fa-arrow-left me-1"></i> Back to List
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-xl-8">
+            <!-- We use a standard div here because 'app-card' is already applied in base.html -->
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="card-header bg-white border-bottom py-3">
+                    <span class="badge bg-primary-soft text-primary px-3 py-2 rounded-pill">
+                        Account ID: #{{ custom_user.user.id }}
+                    </span>
+                </div>
+                
+                <div class="card-body p-4 p-md-5">
+                    <form method="POST">
+                        {% csrf_token %}
+
+                        <div class="row g-4">
+                            <!-- Role Selection -->
+                            <div class="col-md-12 mb-2">
+                                <label class="form-label fw-bold text-dark small text-uppercase">Assigned System Role</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0"><i class="fas fa-shield-halved text-primary"></i></span>
+                                    <select name="role" class="form-select border-start-0" style="height: 50px;">
+                                        {% for group in groups %}
+                                        <option value="{{ group.id }}" {% if group.id == custom_user.user.groups.all.0.id %}selected{% endif %}>
+                                            {{ group.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="form-text mt-2">Roles determine which menus and actions this user can access.</div>
+                            </div>
+
+                            <!-- Phone Number -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold text-dark small text-uppercase">Phone Number</label>
+                                <input type="text" name="phone" class="form-control" placeholder="+256..." 
+                                       value="{{ custom_user.phone }}" style="height: 50px;">
+                            </div>
+
+                            <!-- Position -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold text-dark small text-uppercase">Position / Title</label>
+                                <input type="text" name="position" class="form-control" placeholder="e.g. Senior Bursar" 
+                                       value="{{ custom_user.position }}" style="height: 50px;">
+                            </div>
+
+                            <!-- Status Toggle -->
+                            <div class="col-md-12">
+                                <div class="p-3 rounded-3 border {% if custom_user.is_active %}bg-success-subtle border-success-subtle{% else %}bg-light{% endif %}">
+                                    <div class="form-check form-switch m-0">
+                                        <input type="checkbox" name="is_active" class="form-check-input" 
+                                               id="is_active" {% if custom_user.is_active %}checked{% endif %}>
+                                        <label class="form-check-label fw-bold ms-2" for="is_active">
+                                            Account Status: {% if custom_user.is_active %}Active{% else %}Deactivated{% endif %}
+                                        </label>
+                                    </div>
+                                    <small class="text-muted d-block mt-1 ms-4 ps-2">Inactive users cannot log in to the portal.</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex gap-3 mt-5">
+                            <button type="submit" class="btn btn-primary px-5 py-2 rounded-pill fw-bold shadow-sm">
+                                <i class="fas fa-check-circle me-2"></i>Update Staff Member
+                            </button>
+                            <a href="{% url 'core:user_list' %}" class="btn btn-light px-4 py-2 rounded-pill fw-bold border">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Helper Info -->
+        <div class="col-xl-4 d-none d-xl-block">
+            <div class="card border-0 bg-primary-soft rounded-4 p-4">
+                <h6 class="fw-bold text-primary mb-3">Security Note</h6>
+                <p class="small text-muted mb-0">
+                    Updating a user's role will immediately change their access rights across the platform. 
+                    All administrative changes are logged in the <strong>Audit Trail</strong> for accountability.
+                </p>
+                <hr class="my-3 opacity-10">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="bg-white rounded-circle p-2 text-primary">
+                        <i class="fas fa-history"></i>
+                    </div>
+                    <div>
+                        <small class="d-block text-dark fw-bold">Last Updated</small>
+                        <small class="text-muted">{{ custom_user.user.date_joined|date:"M d, Y" }}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Styling to match your base.html primary color */
+    .btn-primary {
+        background-color: var(--primary) !important;
+        border-color: var(--primary) !important;
+    }
+    .btn-primary:hover {
+        background-color: var(--ola-green) !important;
+        filter: brightness(0.9);
+    }
+    .bg-primary-soft {
+        background-color: var(--primary-soft) !important;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 0.25rem rgba(46, 139, 87, 0.15);
+    }
+    .form-check-input:checked {
+        background-color: var(--primary);
+        border-color: var(--primary);
+    }
+</style>
+{% endblock %}

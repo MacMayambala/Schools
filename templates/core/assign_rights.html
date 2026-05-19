@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <!-- Header Section -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <h3 class="fw-bold mb-1" style="color: var(--primary); letter-spacing: -0.5px;">
+                <i class="fas fa-user-shield me-2"></i>Access Control
+            </h3>
+            <p class="text-muted small mb-0">Assign system permissions and administrative roles to staff members.</p>
+        </div>
+        
+        <div class="input-group rounded-pill overflow-hidden border shadow-sm" style="max-width: 350px; height: 45px;">
+            <span class="input-group-text bg-white border-0"><i class="fas fa-search text-muted"></i></span>
+            <input type="text" id="userSearch" onkeyup="filterUsers()" 
+                   class="form-control border-0 shadow-none" placeholder="Search staff or username...">
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="row g-4">
+        <!-- User List Column -->
+        <div class="col-lg-12">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="table-responsive" style="max-height: 70vh;">
+                    <table class="table table-hover align-middle mb-0" id="userTable">
+                        <thead class="bg-light sticky-top">
+                            <tr class="small text-uppercase text-muted">
+                                <th class="ps-4 py-3">Staff Member</th>
+                                <th class="py-3">Current Role</th>
+                                <th class="py-3">Permissions</th>
+                                <th class="py-3">Status</th>
+                                <th class="text-end pe-4 py-3">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="border-0">
+                            {% for user in staff_users %}
+                            <tr class="user-row">
+                                <td class="ps-4">
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar-rights me-3">{{ user.first_name|first }}{{ user.last_name|first }}</div>
+                                        <div>
+                                            <div class="fw-bold text-dark mb-0">{{ user.get_full_name }}</div>
+                                            <small class="text-muted">@{{ user.username }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if user.is_superuser %}
+                                        <span class="badge bg-dark rounded-pill px-3">Super Admin</span>
+                                    {% elif user.is_staff %}
+                                        <span class="badge bg-primary-soft text-primary border border-primary-subtle rounded-pill px-3">Staff</span>
+                                    {% else %}
+                                        <span class="badge bg-light text-muted border rounded-pill px-3">Standard User</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small class="text-muted">
+                                        {{ user.user_permissions.count }} direct rights, {{ user.groups.count }} groups
+                                    </small>
+                                </td>
+                                <td>
+                                    {% if user.is_active %}
+                                        <span class="text-success small fw-bold"><i class="fas fa-circle me-1" style="font-size: 8px;"></i> Active</span>
+                                    {% else %}
+                                        <span class="text-danger small fw-bold"><i class="fas fa-circle me-1" style="font-size: 8px;"></i> Suspended</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end pe-4">
+                                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-bold" 
+                                            data-bs-toggle="modal" data-bs-target="#rightsModal{{ user.id }}">
+                                        Manage Rights
+                                    </button>
+                                </td>
+                            </tr>
+
+                            <!-- Permission Modal for this User -->
+                            <div class="modal fade" id="rightsModal{{ user.id }}" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog modal-lg modal-dialog-centered">
+                                    <div class="modal-content border-0 shadow-lg rounded-4">
+                                        <div class="modal-header border-0 p-4 pb-0">
+                                            <h5 class="fw-bold mb-0">Permissions: {{ user.get_full_name }}</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <form method="POST" action="{% url 'core:update_rights' user.id %}">
+                                            {% csrf_token %}
+                                            <div class="modal-body p-4">
+                                                <p class="text-muted small mb-4">Toggle the modules this user is allowed to access and modify.</p>
+                                                
+                                                <div class="row g-3">
+                                                    <!-- Admin Status -->
+                                                    <div class="col-12 mb-3">
+                                                        <div class="p-3 rounded-3 border bg-light d-flex justify-content-between align-items-center">
+                                                            <div>
+                                                                <h6 class="fw-bold mb-0">Staff Status</h6>
+                                                                <small class="text-muted">Allows the user to log into this admin portal.</small>
+                                                            </div>
+                                                            <div class="form-check form-switch">
+                                                                <input class="form-check-input custom-switch" type="checkbox" name="is_staff" 
+                                                                       {% if user.is_staff %}checked{% endif %}>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Permission Categories -->
+                                                    {% for group in permission_groups %}
+                                                    <div class="col-md-6">
+                                                        <h6 class="fw-bold small text-uppercase text-muted mb-2" style="letter-spacing: 1px;">
+                                                            {{ group.name }} Module
+                                                        </h6>
+                                                        <div class="list-group list-group-flush border rounded-3 overflow-hidden">
+                                                            {% for perm in group.permissions %}
+                                                            <label class="list-group-item d-flex justify-content-between align-items-center py-2">
+                                                                <span class="small">{{ perm.name }}</span>
+                                                                <div class="form-check">
+                                                                    <input class="form-check-input" type="checkbox" name="perms" value="{{ perm.id }}"
+                                                                           {% if perm in user.user_permissions.all %}checked{% endif %}>
+                                                                </div>
+                                                            </label>
+                                                            {% endfor %}
+                                                        </div>
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer border-0 p-4 pt-0 mt-3">
+                                                <button type="button" class="btn btn-light rounded-pill px-4 fw-bold" data-bs-dismiss="modal">Cancel</button>
+                                                <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold">Update Permissions</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Custom Styling to match your base */
+    .avatar-rights {
+        width: 42px; height: 42px; background: var(--primary-soft); color: var(--primary);
+        border-radius: 10px; display: flex; align-items: center; justify-content: center;
+        font-weight: 800; font-size: 0.9rem;
+    }
+    
+    .bg-primary-soft { background-color: var(--primary-soft) !important; }
+    
+    .user-row:hover { background-color: rgba(46, 139, 87, 0.02) !important; }
+    
+    .custom-switch {
+        width: 3rem !important;
+        height: 1.5rem !important;
+        cursor: pointer;
+    }
+
+    .custom-switch:checked {
+        background-color: var(--primary) !important;
+        border-color: var(--primary) !important;
+    }
+
+    .form-check-input:checked {
+        background-color: var(--primary);
+        border-color: var(--primary);
+    }
+
+    .list-group-item:hover {
+        background-color: #f8fafc;
+    }
+
+    .modal-lg { max-width: 800px; }
+</style>
+
+<script>
+    function filterUsers() {
+        const search = document.getElementById('userSearch').value.toLowerCase();
+        const rows = document.querySelectorAll('.user-row');
+        rows.forEach(row => {
+            const text = row.innerText.toLowerCase();
+            row.style.display = text.includes(search) ? '' : 'none';
+        });
+    }
+</script>
+{% endblock %}

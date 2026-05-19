@@ -18,13 +18,12 @@ class StudentListView(ListView):
     model = Student
     template_name = 'students/student_list.html'
     context_object_name = 'students'
-     # Increased for better administrative overview
 
     def get_queryset(self):
         # 1. Base Queryset with Multi-Tenant isolation
-        # Optimization: select_related performs a SQL JOIN for foreign keys
+        # FIX: Updated select_related to use the new relationship path
         queryset = Student.objects.filter(school=self.request.school)\
-            .select_related('classroom', 'stream')\
+            .select_related('class_stream__classroom')\
             .prefetch_related('invoices')\
             .order_by('-date_enrolled')
 
@@ -38,29 +37,22 @@ class StudentListView(ListView):
                 Q(first_name__icontains=query) | 
                 Q(last_name__icontains=query) | 
                 Q(admission_number__icontains=query) |
-                Q(guardian_phone__icontains=query) # Added phone search for easier lookups
+                Q(guardian_phone__icontains=query)
             )
 
         # 4. Apply Classroom Filter
+        # FIX: Filter through class_stream to reach the classroom_id
         if class_id:
-            queryset = queryset.filter(classroom_id=class_id)
+            queryset = queryset.filter(class_stream__classroom_id=class_id)
 
         return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        
-        # Pull filters for the dropdowns
         context['classrooms'] = Classroom.objects.filter(school=self.request.school)
-        
-        # Send current filter values back to template to keep inputs populated
         context['query'] = self.request.GET.get('q', '')
         context['selected_class'] = self.request.GET.get('class', '')
-        
         return context
-    
-
-
 
 import pandas as pd
 from django.shortcuts import render, redirect, get_object_or_404

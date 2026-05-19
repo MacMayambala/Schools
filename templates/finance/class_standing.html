@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% load static %}
+{% load humanize %}
+
+{% block content %}
+<style>
+    /* Financial Performance Specific Styles */
+    .report-table thead th { 
+        background: #f8fafc; 
+        color: #475569; 
+        font-weight: 700; 
+        text-transform: uppercase; 
+        font-size: 0.75rem; 
+        letter-spacing: 0.5px;
+        padding: 1.25rem 1rem;
+        border: none;
+    }
+    .report-table tbody td { padding: 1.25rem 1rem; vertical-align: middle; border-bottom: 1px solid #e2e8f0; }
+    .status-pill { padding: 6px 14px; border-radius: 99px; font-size: 0.75rem; font-weight: 700; }
+    .bg-excellent { background: #dcfce7; color: #15803d; }
+    .bg-good { background: #dbeafe; color: #1d4ed8; }
+    .bg-average { background: #fef9c3; color: #a16207; }
+    .bg-poor { background: #fee2e2; color: #b91c1c; }
+    
+    .chart-container { position: relative; height: 300px; width: 100%; }
+    .filter-section { background: #ffffff; border-radius: 18px; padding: 1.5rem; margin-bottom: 2rem; border: 1px solid #e2e8f0; }
+    
+    .progress-slim { height: 6px; background: #f1f5f9; border-radius: 10px; overflow: hidden; }
+    .btn-export { border-radius: 12px; font-weight: 600; transition: all 0.2s; }
+</style>
+
+<!-- Page Header -->
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+    <div>
+        <h3 class="fw-800 mb-1" style="letter-spacing: -1px;">Financial Standing</h3>
+        <p class="text-muted small mb-0">Detailed breakdown based on Class Streams and Sections.</p>
+    </div>
+    <div class="d-flex gap-2 no-print">
+        <a href="{% url 'finance:export_finance_excel' %}?{{ request.GET.urlencode }}" class="btn btn-light btn-export border shadow-sm px-3">
+            <i class="fas fa-file-excel text-success me-2"></i>Excel
+        </a>
+        <a href="{% url 'finance:export_pdf' %}?{{ request.GET.urlencode }}" class="btn btn-light btn-export border shadow-sm px-3">
+            <i class="fas fa-file-pdf text-danger me-2"></i>PDF
+        </a>
+        <button onclick="window.print()" class="btn btn-light btn-export border shadow-sm px-3">
+            <i class="fas fa-print me-2"></i>Print
+        </button>
+    </div>
+</div>
+
+<!-- Dynamic Filters -->
+<div class="filter-section no-print">
+    <form method="GET" id="dynamicFilterForm" class="row g-3 align-items-end">
+        <div class="col-md-5">
+            <label class="form-label small fw-bold text-muted">Filter by Class Level</label>
+            <!-- Auto-submits on change -->
+            <select name="classroom" class="form-select border-0 bg-light shadow-sm rounded-3" onchange="this.form.submit()">
+                <option value="">All Classes</option>
+                {% for c in classrooms %}
+                    <option value="{{ c.id }}" {% if request.GET.classroom == c.id|slugify %}selected{% endif %}>{{ c.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-5">
+            <label class="form-label small fw-bold text-muted">Sort By</label>
+            <select name="sort" class="form-select border-0 bg-light shadow-sm rounded-3" onchange="this.form.submit()">
+                <option value="class_name" {% if request.GET.sort == 'class_name' %}selected{% endif %}>Alphabetical</option>
+                <option value="highest_collection" {% if request.GET.sort == 'highest_collection' %}selected{% endif %}>Highest Collection %</option>
+                <option value="highest_balance" {% if request.GET.sort == 'highest_balance' %}selected{% endif %}>Highest Arrears</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <a href="." class="btn btn-outline-secondary w-100 rounded-3 py-2 border-0 shadow-sm">
+                <i class="fas fa-redo me-2"></i>Reset
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Analytics Row -->
+<div class="row mb-4 g-4 no-print">
+    <div class="col-xl-8">
+        <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
+            <h6 class="fw-800 text-uppercase small mb-4" style="color: #64748b; letter-spacing: 1px;">Collection by Stream</h6>
+            <div class="chart-container">
+                <canvas id="financeBarChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-4">
+        <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
+            <h6 class="fw-800 text-uppercase small mb-4" style="color: #64748b; letter-spacing: 1px;">Overall Ratio</h6>
+            <div class="chart-container d-flex align-items-center justify-content-center">
+                <canvas id="financePieChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Performance Table -->
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="table-responsive">
+        <table class="table report-table mb-0">
+            <thead>
+                <tr>
+                    <th>Stream & Teacher</th>
+                    <th class="text-center">Students</th>
+                    <th>Expected</th>
+                    <th>Collected</th>
+                    <th>Balance</th>
+                    <th>Collection %</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in page_obj %}
+                <tr>
+                    <td>
+                        <span class="fw-800 text-dark d-block">{{ item.class_name }} {{ item.stream_name }}</span>
+                        <span class="text-muted small">Teacher: {{ item.teacher }}</span>
+                    </td>
+                    <td class="text-center">
+                        <span class="fw-700">{{ item.total_students }}</span>
+                    </td>
+                    <td><span class="fw-700">{{ item.total_expected|intcomma }}</span></td>
+                    <td><span class="fw-700 text-success">{{ item.total_paid|intcomma }}</span></td>
+                    <td><span class="fw-700 text-danger">{{ item.total_balance|intcomma }}</span></td>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="progress-slim flex-grow-1">
+                                <div class="progress-bar bg-primary" style="width: {{ item.pay_percent }}%"></div>
+                            </div>
+                            <span class="fw-800 small">{{ item.pay_percent }}%</span>
+                        </div>
+                    </td>
+                    <td>
+                        {% if item.pay_percent >= 90 %}
+                            <span class="status-pill bg-excellent">EXCELLENT</span>
+                        {% elif item.pay_percent >= 70 %}
+                            <span class="status-pill bg-good">GOOD</span>
+                        {% elif item.pay_percent >= 40 %}
+                            <span class="status-pill bg-average">AVERAGE</span>
+                        {% else %}
+                            <span class="status-pill bg-poor">POOR</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center py-5">
+                        <p class="text-muted fw-600">No financial records found for these classes.</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Pagination -->
+{% if page_obj.has_other_pages %}
+<nav class="mt-4 no-print">
+    <ul class="pagination justify-content-center gap-2">
+        {% if page_obj.has_previous %}
+            <li class="page-item"><a class="page-link border-0 shadow-sm rounded-3 fw-bold text-dark" href="?page={{ page_obj.previous_page_number }}&{{ request.GET.urlencode }}"><i class="fas fa-chevron-left me-2"></i>Prev</a></li>
+        {% endif %}
+        <li class="page-item active"><a class="page-link border-0 shadow-sm rounded-3 fw-800 bg-primary">{{ page_obj.number }}</a></li>
+        {% if page_obj.has_next %}
+            <li class="page-item"><a class="page-link border-0 shadow-sm rounded-3 fw-bold text-dark" href="?page={{ page_obj.next_page_number }}&{{ request.GET.urlencode }}">Next<i class="fas fa-chevron-right ms-2"></i></a></li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const barCtx = document.getElementById('financeBarChart').getContext('2d');
+        new Chart(barCtx, {
+            type: 'bar',
+            data: {
+                labels: [{% for i in page_obj %}"{{ i.class_name }} {{ i.stream_name }}",{% endfor %}],
+                datasets: [{
+                    label: 'Paid',
+                    data: [{% for i in page_obj %}{{ i.total_paid }},{% endfor %}],
+                    backgroundColor: '#10b981',
+                    borderRadius: 6
+                }, {
+                    label: 'Balance',
+                    data: [{% for i in page_obj %}{{ i.total_balance }},{% endfor %}],
+                    backgroundColor: '#ef4444',
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { 
+                    x: { grid: { display: false } },
+                    y: { grid: { color: '#f1f5f9' } }
+                }
+            }
+        });
+
+        const pieCtx = document.getElementById('financePieChart').getContext('2d');
+        new Chart(pieCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Collected', 'Arrears'],
+                datasets: [{
+                    data: [{{ summary.grand_paid|default:0 }}, {{ summary.grand_balance|default:0 }}],
+                    backgroundColor: ['#10b981', '#f1f5f9'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                cutout: '80%',
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -174,3 +174,6 @@ class ClassRequirement(models.Model):
 
     def __str__(self):
         return f"Requirements for {self.classroom.name} - Term {self.term}"
+    @property
+    def get_items(self):
+        return self.items

@@ -7,7 +7,7 @@
     <div class="row justify-content-center">
         <div class="col-lg-10 col-xl-8">
 
-            <!-- Student Info Header -->
+            <!-- Student Info Header (Updated Classroom Logic) -->
             <div class="card border-0 shadow-sm mb-4 rounded-4 overflow-hidden">
                 <div class="card-body p-4 bg-success text-white">
                     <div class="d-flex align-items-center gap-4">
@@ -28,8 +28,14 @@
                             <p class="mb-1 opacity-90">
                                 <i class="fas fa-id-card me-2"></i> {{ invoice.student.admission_number }}
                             </p>
+                            <!-- UPDATED CLASSROOM PATH -->
                             <p class="mb-0 opacity-90">
-                                <i class="fas fa-chalkboard-teacher me-2"></i> {{ invoice.student.classroom|default:"-" }}
+                                <i class="fas fa-chalkboard-teacher me-2"></i> 
+                                {% if invoice.student.class_stream %}
+                                    {{ invoice.student.class_stream.classroom.name }} ({{ invoice.student.class_stream.stream.name }})
+                                {% else %}
+                                    Not Assigned
+                                {% endif %}
                             </p>
                         </div>
                         <div class="text-end">
@@ -78,8 +84,9 @@
                                     <input type="number" name="amount" id="amount" 
                                            class="form-control fw-bold" 
                                            value="{{ invoice.balance|floatformat:0 }}" 
-                                           max="{{ invoice.balance }}" required>
+                                           max="{{ invoice.total_amount }}" required>
                                 </div>
+                                <small class="text-muted">Max payable: UGX {{ invoice.balance|floatformat:0|intcomma }}</small>
                             </div>
 
                             <!-- Payment Method -->
@@ -123,7 +130,7 @@
 
                         <div class="d-grid mt-5">
                             <button type="submit" id="submitBtn" class="btn btn-success btn-lg py-3 fw-bold shadow">
-                                <i class="fas fa-check-circle me-2"></i> Confirm &amp; Post Payment
+                                <i class="fas fa-print me-2"></i> Post Payment & Generate Receipt
                             </button>
                         </div>
                     </form>
@@ -169,7 +176,7 @@
             } else {
                 momoContainer.style.display = 'none';
                 phoneInput.required = false;
-                submitBtn.innerHTML = '<i class="fas fa-check-circle me-2"></i> Confirm &amp; Post Payment';
+                submitBtn.innerHTML = '<i class="fas fa-print me-2"></i> Post Payment & Generate Receipt';
             }
         });
 
@@ -178,7 +185,7 @@
             submitBtn.disabled = true;
             submitBtn.innerHTML = `
                 <span class="spinner-border spinner-border-sm me-2"></span>
-                Processing Payment...
+                Processing & Printing...
             `;
         });
     });

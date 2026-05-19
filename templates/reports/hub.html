@@ -13,20 +13,10 @@
                 </ol>
             </nav>
         </div>
-        <div class="d-flex gap-2">
-            <button onclick="window.print()" class="btn btn-primary rounded-pill px-4 shadow-sm">
-                <i class="fas fa-print me-2"></i> Print System Summary
-            </button>
-        </div>
-    </div>
-
-    <div class="d-none d-print-block text-center mb-5">
-        <h1 class="fw-bold">{{ request.school.name }}</h1>
-        <h4 class="text-muted">Institutional Status Report</h4>
-        <hr>
     </div>
 
     <div class="row g-4">
+        <!-- Existing Cards (Enrollment + Financial Status) remain the same -->
         <div class="col-md-6 col-lg-4">
             <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
                 <div class="d-flex align-items-center gap-3 mb-4">
@@ -43,33 +33,14 @@
 
                 <div class="progress mb-3" style="height: 10px; border-radius: 20px; background: #eee;">
                     {% if total_students > 0 %}
-                        <div class="progress-bar bg-primary" role="progressbar" 
-                             style="width: {% widthratio male_count total_students 100 %}%" 
-                             data-bs-toggle="tooltip" title="Boys"></div>
-                        <div class="progress-bar" role="progressbar" 
-                             style="width: {% widthratio female_count total_students 100 %}%; background-color: #f06292;" 
-                             data-bs-toggle="tooltip" title="Girls"></div>
-                    {% else %}
-                        <div class="progress-bar bg-light" style="width: 100%"></div>
+                        <div class="progress-bar bg-primary" style="width: {% widthratio male_count total_students 100 %}%"></div>
+                        <div class="progress-bar" style="width: {% widthratio female_count total_students 100 %}%; background-color: #f06292;"></div>
                     {% endif %}
                 </div>
 
-                <div class="d-flex justify-content-between small fw-bold mb-4">
-                    <span class="text-primary"><i class="fas fa-mars me-1"></i> Boys: {{ male_count }}</span>
-                    <span style="color: #f06292;"><i class="fas fa-venus me-1"></i> Girls: {{ female_count }}</span>
-                </div>
-
-                <hr class="opacity-10">
-
-                <div class="row text-center mt-3">
-                    <div class="col-6 border-end">
-                        <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 10px;">Day Scholars</small>
-                        <h5 class="fw-bold mb-0">{{ day_scholars }}</h5>
-                    </div>
-                    <div class="col-6">
-                        <small class="text-muted d-block fw-bold text-uppercase" style="font-size: 10px;">Boarders</small>
-                        <h5 class="fw-bold mb-0">{{ boarders }}</h5>
-                    </div>
+                <div class="d-flex justify-content-between small fw-bold">
+                    <span class="text-primary"><i class="fas fa-mars me-1"></i>Boys: {{ male_count }}</span>
+                    <span style="color: #f06292;"><i class="fas fa-venus me-1"></i>Girls: {{ female_count }}</span>
                 </div>
             </div>
         </div>
@@ -83,66 +54,56 @@
                     <h5 class="fw-bold mb-0">Financial Status</h5>
                 </div>
                 
-                <div class="mb-4">
-                    <h3 class="fw-extrabold mb-0 text-success">UGX {{ total_collected|intcomma }}</h3>
-                    <small class="text-muted fw-bold opacity-75">TOTAL COLLECTED TO DATE</small>
-                </div>
+                <h3 class="fw-extrabold text-success mb-1">UGX {{ total_collected|intcomma }}</h3>
+                <small class="text-muted">TOTAL COLLECTED TO DATE</small>
 
-                <div class="list-group list-group-flush small mb-2">
-                    <div class="list-group-item d-flex justify-content-between px-0 bg-transparent py-3">
-                        <span class="text-muted fw-medium"><i class="fas fa-file-invoice me-2"></i>Expected Revenue</span>
-                        <span class="fw-bold">UGX {{ total_revenue|intcomma }}</span>
-                    </div>
-                    <div class="list-group-item d-flex justify-content-between px-0 bg-transparent py-3">
-                        <span class="text-muted fw-medium"><i class="fas fa-hand-holding-dollar me-2"></i>Outstanding Arrears</span>
-                        <span class="fw-bold text-danger">UGX {{ total_arrears|intcomma }}</span>
-                    </div>
-                </div>
-
-                <div class="mt-auto pt-3">
-                    <a href="{% url 'finance:daily_report' %}" class="btn btn-light w-100 rounded-3 small fw-bold no-print">
+                <div class="mt-4">
+                    <a href="{% url 'finance:daily_report' %}" class="btn btn-light w-100 rounded-3">
                         View Collection Logs <i class="fas fa-arrow-right ms-2"></i>
                     </a>
                 </div>
             </div>
         </div>
 
+        <!-- New Class Financial Standing Card -->
         <div class="col-md-12 col-lg-4">
-            <div class="card border-0 bg-dark text-white rounded-4 p-4 h-100">
+            <div class="card border-0 shadow-sm rounded-4 p-4 h-100 bg-dark text-white">
                 <div class="d-flex align-items-center gap-3 mb-4">
-                    <div class="bg-white bg-opacity-10 p-3 rounded-3 text-white">
-                        <i class="fas fa-folder-open fa-lg"></i>
+                    <div class="bg-white bg-opacity-10 p-3 rounded-3">
+                        <i class="fas fa-chart-bar fa-lg"></i>
                     </div>
-                    <h5 class="fw-bold mb-0">Resources</h5>
+                    <h5 class="fw-bold mb-0">Class Performance</h5>
                 </div>
 
-                <div class="row g-3 mb-4">
-                    <div class="col-6">
-                        <div class="p-3 rounded-3 border border-secondary border-opacity-25">
-                            <h4 class="fw-bold mb-0 text-info">{{ total_teachers }}</h4>
-                            <small class="text-muted uppercase fw-bold" style="font-size: 9px;">Teachers</small>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="p-3 rounded-3 border border-secondary border-opacity-25">
-                            <h4 class="fw-bold mb-0 text-warning">{{ total_classes|default:"0" }}</h4>
-                            <small class="text-muted uppercase fw-bold" style="font-size: 9px;">Classrooms</small>
-                        </div>
-                    </div>
-                </div>
+                <p class="opacity-75">Real-time fee collection by class and stream</p>
 
-                <h6 class="fw-bold mb-3 opacity-50 small uppercase">Generate Specialized Reports</h6>
-                <div class="d-grid gap-2 no-print">
-                    <button class="btn btn-outline-light text-start border-0 py-2 small fw-bold">
-                        <i class="fas fa-file-pdf me-2 text-danger"></i> PDF Class Registry
-                    </button>
-                    <button class="btn btn-outline-light text-start border-0 py-2 small fw-bold">
-                        <i class="fas fa-file-excel me-2 text-success"></i> Export Student CSV
-                    </button>
-                    <button class="btn btn-outline-light text-start border-0 py-2 small fw-bold">
-                        <i class="fas fa-envelope-open-text me-2 text-info"></i> SMS Delivery Audit
-                    </button>
-                </div>
+                <a href="{% url 'finance:finance_class_standing' %}" 
+                   class="btn btn-light w-100 rounded-3 py-3 fw-bold mt-auto">
+                    <i class="fas fa-file-invoice-dollar me-2"></i>
+                    View Class Financial Standing
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resources Section -->
+    <div class="mt-5">
+        <h6 class="fw-bold mb-3 text-muted small text-uppercase">Other Reports</h6>
+        <div class="row g-3">
+            <div class="col-md-4">
+                <button class="btn btn-outline-secondary w-100 text-start py-3">
+                    <i class="fas fa-file-pdf text-danger me-2"></i> Full Student Registry (PDF)
+                </button>
+            </div>
+            <div class="col-md-4">
+                <button class="btn btn-outline-secondary w-100 text-start py-3">
+                    <i class="fas fa-file-excel text-success me-2"></i> Export All Students (CSV)
+                </button>
+            </div>
+            <div class="col-md-4">
+                <button class="btn btn-outline-secondary w-100 text-start py-3">
+                    <i class="fas fa-envelope me-2 text-info"></i> SMS Delivery Report
+                </button>
             </div>
         </div>
     </div>
@@ -152,12 +113,10 @@
     .bg-primary-soft { background: rgba(46, 139, 87, 0.1); }
     .bg-success-soft { background: rgba(25, 135, 84, 0.1); }
     .fw-extrabold { font-weight: 800; letter-spacing: -1px; }
-    
+
     @media print {
-        .card { border: 1px solid #eee !important; box-shadow: none !important; }
-        .no-print, #sidebar, .top-navbar, #toggleSidebar, .sticky-stat-wrapper { display: none !important; }
-        #main { margin-left: 0 !important; padding: 0 !important; }
-        body { background: white !important; }
+        .no-print, #sidebar, .top-navbar { display: none !important; }
+        #main { margin-left: 0 !important; }
     }
 </style>
 {% endblock %}

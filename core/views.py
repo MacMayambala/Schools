@@ -362,3 +362,283 @@ def dashboard_view(request):
     }
     
     return render(request, 'core/index.html', context)
+
+
+
+# Add these at the bottom of core/views.py
+
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.contrib.auth.models import User
+from .models import CustomUser, Role, AuditLog
+from .forms import UserCreationForm
+from .utils import log_activity
+
+
+@login_required
+def user_list(request):
+    status_filter = request.GET.get('status', 'all')
+
+    users = CustomUser.objects.filter(school=request.school).select_related('user', 'role')
+
+    if status_filter == 'active':
+        users = users.filter(user__is_active=True)
+    elif status_filter == 'locked':
+        users = users.filter(user__is_active=False)
+
+    users = users.order_by('-date_joined')
+
+    context = {
+        'users': users,
+        'current_filter': status_filter,
+    }
+    return render(request, 'core/user_list.html', context)
+
+
+
+@login_required
+def user_create(request):
+    # Safe Permission Check
+    try:
+        custom_user = request.user.customuser
+        if not custom_user.role or not custom_user.role.can_manage_users:
+            messages.error(request, "You do not have permission to manage users.")
+            return redirect('core:user_list')
+    except CustomUser.DoesNotExist:
+        messages.error(request, "Your account is not properly configured. Contact Administrator.")
+        return redirect('core:index')
+
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST, school=request.school)
+        if form.is_valid():
+            username = form.cleaned_data['username']
+            if User.objects.filter(username=username).exists():
+                messages.error(request, "Username already exists.")
+            else:
+                user = User.objects.create_user(
+                    username=username,
+                    email=form.cleaned_data['email'],
+                    password=form.cleaned_data['password'],
+                    first_name=form.cleaned_data['first_name'],
+                    last_name=form.cleaned_data['last_name'],
+                )
+                
+                CustomUser.objects.create(
+                    user=user,
+                    school=request.school,
+                    role=form.cleaned_data['role'],
+                    is_active=True
+                )
+                
+                # === FIXED: Use correct function name and import ===
+                from .utils import log_activity
+                
+                log_activity(
+                    request, 
+                    action="User Created", 
+                    resource="User", 
+                    object_id=user.id,
+                    details={"username": username, "role": form.cleaned_data['role'].name}
+                )
+                
+                messages.success(request, f"User '{username}' created successfully!")
+                return redirect('core:user_list')
+    else:
+        form = UserCreationForm(school=request.school)
+
+    return render(request, 'core/user_form.html', {'form': form})
+
+from django.contrib.auth.models import Group
+@login_required
+def user_edit(request, pk):
+    # 1. Fetch the CustomUser profile
+    custom_user = get_object_or_404(CustomUser, pk=pk, school=request.school)
+    # 2. Get the actual Django User object attached to that profile
+    auth_user = custom_user.user 
+
+    if request.method == 'POST':
+        # Fetch the selected group (ensure it belongs to the school if you've extended Group)
+        group_id = request.POST.get('role')
+        new_group = get_object_or_404(Group, id=group_id)
+
+        # Update auth_user groups
+        # .set() replaces all existing groups with the new one
+        auth_user.groups.set([new_group])
+        
+        # Update CustomUser fields
+        custom_user.is_active = bool(request.POST.get('is_active'))
+        custom_user.phone = request.POST.get('phone', '')
+        custom_user.position = request.POST.get('position', '')
+        custom_user.save()
+
+        # Update the auth_user's active status as well
+        auth_user.is_active = custom_user.is_active
+        auth_user.save()
+
+        # Activity Logging
+        from .utils import log_activity
+        log_activity(
+            request, 
+            action="User Updated", 
+            resource="User", 
+            object_id=auth_user.id,
+            details={"username": auth_user.username, "role": new_group.name}
+        )
+        
+        messages.success(request, f"Permissions updated for {auth_user.username}")
+        return redirect('core:user_list')
+
+    # Fetch groups for the dropdown
+    # Note: If your Groups aren't school-specific, remove the school filter
+    groups = Group.objects.all() 
+    
+    context = {
+        'custom_user': custom_user, 
+        'groups': groups
+    }
+    return render(request, 'core/user_edit.html', context)
+
+
+# Add this function to core/views.py
+
+@login_required
+def unlock_user(request, pk):
+    """Unblock a user who was locked due to too many failed attempts"""
+    if not request.user.customuser.role or not request.user.customuser.role.can_manage_users:
+        messages.error(request, "You don't have permission to unlock users.")
+        return redirect('core:user_list')
+
+    custom_user = get_object_or_404(CustomUser, pk=pk, school=request.school)
+    user = custom_user.user
+
+    if request.method == 'POST':
+        user.is_active = True
+        custom_user.failed_login_attempts = 0
+        user.save()
+        custom_user.save()
+
+        from .utils import log_activity
+        log_activity(request, "User Unlocked", "User", user.id, 
+                    {"username": user.username, "unlocked_by": request.user.username})
+
+        messages.success(request, f"User '{user.username}' has been successfully unlocked.")
+        return redirect('core:user_list')
+
+    # GET request - Show confirmation
+    context = {
+        'custom_user': custom_user,
+        'user': user
+    }
+    return render(request, 'core/user_unlock_confirm.html', context)
+
+@login_required
+def user_delete(request, pk):
+    custom_user = get_object_or_404(CustomUser, pk=pk, school=request.school)
+    
+    # Prevent deleting yourself or last admin
+    if custom_user.user == request.user:
+        messages.error(request, "You cannot delete your own account.")
+        return redirect('core:user_list')
+    
+    if request.method == 'POST':
+        username = custom_user.user.username
+        custom_user.user.delete()
+        
+        from .utils import log_activity
+        log_activity(request, "User Deleted", "User", None, {"username": username})
+        
+        messages.success(request, f"User {username} has been permanently deleted.")
+        return redirect('core:user_list')
+    
+    return render(request, 'core/user_confirm_delete.html', {'custom_user': custom_user})
+
+
+@login_required
+def audit_logs(request):
+    logs = AuditLog.objects.filter(school=request.school).select_related('user')[:300]
+    return render(request, 'core/audit_logs.html', {'logs': logs})
+
+
+
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.models import User, Permission
+from django.contrib.auth.decorators import user_passes_test
+from django.contrib import messages
+
+@user_passes_test(lambda u: u.is_superuser)
+def assign_rights(request):
+    # Fetch all staff users (excluding superusers if you want to protect them)
+    staff_users = User.objects.exclude(is_superuser=True).order_by('-date_joined')
+    
+    # Optional: Group permissions by module (content_type) for the modal
+    # In a real app, you might want to filter specific app permissions like 'finance' or 'students'
+    all_permissions = Permission.objects.select_related('content_type').all()
+
+    context = {
+        'staff_users': staff_users,
+        # In a real scenario, you'd group these in a dictionary for the template loop
+        'permissions': all_permissions, 
+    }
+    return render(request, 'core/assign_rights.html', context)
+
+@user_passes_test(lambda u: u.is_superuser)
+def update_user_rights(request, user_id):
+    if request.method == 'POST':
+        target_user = get_object_or_404(User, id=user_id)
+        
+        # 1. Update Staff Status
+        is_staff = request.POST.get('is_staff') == 'on'
+        target_user.is_staff = is_staff
+        
+        # 2. Update Individual Permissions
+        # Get list of permission IDs from the checkboxes
+        perm_ids = request.POST.getlist('perms')
+        
+        # Clear existing permissions and set new ones
+        target_user.user_permissions.set(perm_ids)
+        target_user.save()
+        
+        messages.success(request, f"Permissions for {target_user.username} updated successfully.")
+        return redirect('core:assign_rights')
+
+    return redirect('core:assign_rights')
+
+
+
+
+from django.contrib.auth.models import Group, Permission
+from django.contrib.contenttypes.models import ContentType
+
+@user_passes_test(lambda u: u.is_superuser)
+def group_list(request):
+    groups = Group.objects.all().prefetch_related('permissions', 'user_set')
+    return render(request, 'core/group_list.html', {'groups': groups})
+
+@user_passes_test(lambda u: u.is_superuser)
+def create_group(request):
+    if request.method == 'POST':
+        name = request.POST.get('group_name')
+        group, created = Group.objects.get_or_create(name=name)
+        return redirect('core:edit_group', group_id=group.id)
+    return redirect('core:group_list')
+
+@user_passes_test(lambda u: u.is_superuser)
+def edit_group(request, group_id):
+    group = get_object_or_404(Group, id=group_id)
+    
+    if request.method == 'POST':
+        perm_ids = request.POST.getlist('permissions')
+        group.permissions.set(perm_ids)
+        messages.success(request, f"Permissions for '{group.name}' updated.")
+        return redirect('core:group_list')
+
+    # Group permissions by app for easier selection
+    all_perms = Permission.objects.select_related('content_type').order_by('content_type__app_label')
+    
+    context = {
+        'group': group,
+        'all_perms': all_perms,
+    }
+    return render(request, 'core/edit_group.html', context)

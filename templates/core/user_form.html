@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <!-- Header Section -->
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <div>
+            <h4 class="fw-bold mb-1" style="color: var(--primary);">
+                <i class="fas fa-user-plus me-2"></i>Onboard New Staff
+            </h4>
+            <p class="text-muted small mb-0">Create a new system account and assign specific access permissions.</p>
+        </div>
+        <a href="{% url 'core:user_list' %}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+            <i class="fas fa-arrow-left me-1"></i> Back to Directory
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-xl-8">
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-body p-4 p-md-5">
+                    <form method="POST">
+                        {% csrf_token %}
+
+                        <!-- Section: Credentials -->
+                        <div class="mb-4">
+                            <h6 class="fw-bold text-uppercase small letter-spacing-1 mb-3" style="color: var(--primary); opacity: 0.8;">Login Credentials</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold small">Username / Staff ID <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light border-end-0"><i class="fas fa-at text-muted"></i></span>
+                                        {{ form.username }}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold small">Temporary Password <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light border-end-0"><i class="fas fa-key text-muted"></i></span>
+                                        {{ form.password }}
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label fw-semibold small">Email Address</label>
+                                    {{ form.email }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4 opacity-10">
+
+                        <!-- Section: Personal Info -->
+                        <div class="mb-4">
+                            <h6 class="fw-bold text-uppercase small letter-spacing-1 mb-3" style="color: var(--primary); opacity: 0.8;">Profile Information</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold small">First Name</label>
+                                    {{ form.first_name }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold small">Last Name</label>
+                                    {{ form.last_name }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4 opacity-10">
+
+                        <!-- Section: Access Level -->
+                        <div class="mb-5">
+                            <h6 class="fw-bold text-uppercase small letter-spacing-1 mb-3" style="color: var(--primary); opacity: 0.8;">System Access</h6>
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <label class="form-label fw-semibold small">Assign Role <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light border-end-0"><i class="fas fa-user-shield text-primary"></i></span>
+                                        {{ form.role }}
+                                    </div>
+                                    <div class="form-text mt-2 small">This user will inherit all permissions defined in the selected role.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="d-flex gap-3 pt-3">
+                            <button type="submit" class="btn btn-primary px-5 py-2 rounded-pill fw-bold shadow-sm">
+                                <i class="fas fa-check-circle me-2"></i>Create Staff Account
+                            </button>
+                            <a href="{% url 'core:user_list' %}" class="btn btn-light px-4 py-2 rounded-pill fw-bold border">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Info -->
+        <div class="col-xl-4">
+            <div class="card border-0 bg-primary-soft rounded-4 p-4 mb-4">
+                <h6 class="fw-bold text-primary mb-3">Onboarding Tip</h6>
+                <p class="small text-muted">
+                    Ensure the username is unique (e.g., using staff initials or ID number). New users are active by default and can log in immediately with the temporary password provided.
+                </p>
+            </div>
+            
+            <div class="card border-0 border-start border-primary border-4 shadow-sm rounded-3 p-3 bg-white">
+                <div class="d-flex align-items-center gap-3">
+                    <i class="fas fa-shield-halved fa-2x text-primary opacity-25"></i>
+                    <div>
+                        <div class="fw-bold small">Secure Setup</div>
+                        <p class="small text-muted mb-0">Ask users to update their password after their first successful login.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Styling to inject into Django Form Widgets */
+    input[type="text"], input[type="email"], input[type="password"], select {
+        display: block;
+        width: 100%;
+        padding: 0.6rem 1rem;
+        font-size: 0.9rem;
+        font-weight: 400;
+        line-height: 1.5;
+        color: var(--text-main);
+        background-color: var(--card-bg);
+        background-clip: padding-box;
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+    }
+    input:focus, select:focus {
+        border-color: var(--primary) !important;
+        outline: 0;
+        box-shadow: 0 0 0 0.25rem rgba(46, 139, 87, 0.1) !important;
+    }
+    .input-group-text {
+        border: 1px solid var(--border-color);
+        border-radius: 10px 0 0 10px;
+    }
+    .input-group > :not(:first-child) {
+        border-top-left-radius: 0 !important;
+        border-bottom-left-radius: 0 !important;
+    }
+    .bg-primary-soft { background-color: var(--primary-soft) !important; }
+</style>
+{% endblock %}

@@ -4,61 +4,104 @@ from django.utils import timezone
 from django.db import transaction
 from .models import Mark, Subject, Classroom, SubjectAssignment
 from students.models import Student
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
+from django.utils import timezone
+from django.db import transaction
+from django.contrib.auth.decorators import login_required
+from .models import Mark, Subject, Classroom, SubjectAssignment
+from students.models import Student
 
+@login_required
 def enter_marks(request, classroom_id, subject_id):
-    classroom = get_object_or_404(Classroom, id=classroom_id, school=request.school)
-    subject = get_object_or_404(Subject, id=subject_id, school=request.school)
+    # 1. Multi-Tenant Safety Check
+    # request.school should be set by your context processor/middleware
+    school = getattr(request, 'school', None)
     
-    # Allow dynamic selection of term/year from GET or default to current
+    if not school:
+        messages.error(request, "School context not found. Please log in again.")
+        return redirect('account_login')
+
+    # 2. Fetch Core Objects (filtered by school for security)
+    classroom = get_object_or_404(Classroom, id=classroom_id, school=school)
+    subject = get_object_or_404(Subject, id=subject_id, school=school)
+    
+    # 3. Handle Term/Year Selection
     selected_term = request.GET.get('term', 'Term 1')
-    selected_year = int(request.GET.get('year', timezone.now().year))
+    try:
+        selected_year = int(request.GET.get('year', timezone.now().year))
+    except (ValueError, TypeError):
+        selected_year = timezone.now().year
     
-    # 1. SECURITY: Superuser or Assigned Teacher
+    # 4. SECURITY: Check if user has permission
+    # Superusers bypass, but teachers must be assigned to this specific combination
     if not request.user.is_superuser:
         teacher_profile = getattr(request.user, 'teacher_profile', None)
+        
         if not teacher_profile:
-            messages.error(request, "Teacher Profile missing.")
+            messages.error(request, "Access Denied: No teacher profile associated with this account.")
             return redirect('academic:dashboard')
 
+        # Verify the teacher is assigned to this Subject + Classroom this year
         is_assigned = SubjectAssignment.objects.filter(
-            teacher=teacher_profile, subject=subject,
-            classroom=classroom, year=selected_year
+            teacher=teacher_profile, 
+            subject=subject,
+            classroom=classroom, 
+            year=selected_year
         ).exists()
 
         if not is_assigned:
-            messages.error(request, f"Access Denied for {subject.name} in {selected_year}.")
+            messages.error(request, f"You are not authorized to enter marks for {subject.name} in {classroom.name} for {selected_year}.")
             return redirect('academic:dashboard')
 
-    # 2. Fetch students and existing marks for this specific term/year
-    students = Student.objects.filter(classroom=classroom, school=request.school, is_active=True)
+    # 5. Fetch students and existing marks
+    students = Student.objects.filter(
+        class_stream__classroom=classroom,
+        school=school, 
+        is_active=True
+    ).order_by('first_name', 'last_name')
     
-    # Map existing marks to a dictionary {student_id: mark_object} for easy lookup in template
+    # Lookup dictionary: {student_id: mark_object}
     existing_marks = {
         m.student_id: m for m in Mark.objects.filter(
-            subject=subject, term=selected_term, year=selected_year
+            subject=subject, 
+            term=selected_term, 
+            year=selected_year,
+            school=school
         )
     }
 
+    # 6. Handle Mark Submission
     if request.method == "POST":
-        post_term = request.POST.get('term')
-        post_year = int(request.POST.get('year'))
+        post_term = request.POST.get('term', selected_term)
+        try:
+            post_year = int(request.POST.get('year', selected_year))
+        except ValueError:
+            post_year = selected_year
         
+        def to_float(val):
+            """Helper to sanitize input into float or None"""
+            try:
+                if val is None or str(val).strip() == "":
+                    return None
+                return float(val)
+            except (ValueError, TypeError):
+                return None
+
         try:
             with transaction.atomic():
                 for student in students:
                     mid_val = request.POST.get(f'mid_{student.id}')
                     end_val = request.POST.get(f'end_{student.id}')
                     
-                    def to_float(val):
-                        try:
-                            return float(val) if val and str(val).strip() else None
-                        except (ValueError, TypeError):
-                            return None
-
+                    # Update or Create specific to this student/subject/term/year/school
                     Mark.objects.update_or_create(
-                        student=student, subject=subject,
-                        classroom=classroom, school=request.school,
-                        term=post_term, year=post_year,
+                        student=student, 
+                        subject=subject,
+                        classroom=classroom, 
+                        school=school,
+                        term=post_term, 
+                        year=post_year,
                         defaults={
                             'mid_term_mark': to_float(mid_val),
                             'end_term_mark': to_float(end_val),
@@ -66,21 +109,25 @@ def enter_marks(request, classroom_id, subject_id):
                         }
                     )
             
-            messages.success(request, f"Marks saved for {post_term} {post_year}.")
+            messages.success(request, f"Marks successfully saved for {post_term} {post_year}.")
             return redirect('academic:dashboard')
             
         except Exception as e:
-            messages.error(request, f"Error: {e}")
+            messages.error(request, f"An error occurred while saving marks: {e}")
 
-    return render(request, 'academic/mark_sheet.html', {
+    # 7. Render Template
+    context = {
         'classroom': classroom,
         'subject': subject,
         'students': students,
         'existing_marks': existing_marks,
         'selected_term': selected_term,
         'selected_year': selected_year,
-        'years': range(2024, timezone.now().year + 2) # List for year dropdown
-    })
+        'years': range(timezone.now().year - 1, timezone.now().year + 2),
+        'school': school,
+    }
+    
+    return render(request, 'academic/mark_sheet.html', context)
 
 from django.shortcuts import render, get_object_or_404
 from .models import Mark, Subject
@@ -100,16 +147,23 @@ def student_report_card(request, student_id, term, year):
     student = get_object_or_404(Student, id=student_id, school=request.school)
 
     # ✅ Normalize
+    # clean_term will be "1"
     clean_term = term.replace("Term-", "").strip()
+    
+    # ✅ FIX FOR MARKS:
+    # Your Mark model uses choices like 'Term 1', 'Term 2', etc.
+    # We must filter using the full string to find them in the DB.
+    db_term_full = f"Term {clean_term}"
+
     try:
         clean_year = int(year)
     except (ValueError, TypeError):
         clean_year = 2026
 
-    # ✅ Fetch marks
+    # ✅ Fetch marks using the full "Term X" string
     marks = Mark.objects.filter(
         student=student,
-        term=clean_term,
+        term=db_term_full,  # Fixed: Filtering by "Term 1" instead of "1"
         year=clean_year,
         school=request.school
     ).select_related('subject')
@@ -119,21 +173,22 @@ def student_report_card(request, student_id, term, year):
     average = sum(scores) / len(scores) if scores else 0
 
     # ✅ Requirements Logic
+    # (Leaving this as is since you said requirements are working)
     next_term_map = {"1": "2", "2": "3", "3": "1"}
     target_term = next_term_map.get(clean_term, "1")
     target_year = clean_year + 1 if clean_term == "3" else clean_year
 
     requirements = ClassRequirement.objects.filter(
-        classroom=student.classroom,
+        classroom = student.class_stream.classroom if student.class_stream else None,
         term=target_term,
         year=target_year,
         school=request.school
     ).first()
 
-    # ✅ Rank Logic
+    # ✅ Rank Logic (Fixed filter here as well)
     class_marks = Mark.objects.filter(
-        classroom=student.classroom,
-        term=clean_term,
+        classroom = student.class_stream.classroom if student.class_stream else None,  # Fixed: Use class_stream.classroom for accurate filtering
+        term=db_term_full, # Fixed here too
         year=clean_year,
         school=request.school
     )
@@ -181,39 +236,32 @@ def student_report_card(request, student_id, term, year):
         'average': average,
         'rank': rank,
         'total_students': len(totals),
-        'term': f"Term {clean_term}",
+        'term': db_term_full,
         'year': clean_year,
         'target_term': target_term,
         'school': request.school,
         'division': get_division(marks),
         'teacher_comment': get_teacher_comment(average),
         'requirements': requirements,
-        'is_pdf': False,  # flag for template
+        'is_pdf': False,
     }
 
-    # ✅ PDF Download — triggered by ?download=pdf
+    # ✅ PDF Download Logic
     if request.GET.get('download') == 'pdf':
         context['is_pdf'] = True
         template = get_template('academic/report_card.html')
         html = template.render(context, request)
-
         buffer = BytesIO()
         pdf = pisa.CreatePDF(BytesIO(html.encode('utf-8')), dest=buffer)
-
         if pdf.err:
-            return HttpResponse("Error generating PDF. Please try again.", status=500)
-
-        # File named: StudentName_Term1_2026.pdf
-        safe_name = student.get_full_name().replace(" ", "_")
-        filename = f"{safe_name}_Term{clean_term}_{clean_year}.pdf"
-
+            return HttpResponse("Error generating PDF.", status=500)
+        
         response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+        filename = f"{student.get_full_name().replace(' ', '_')}_Term{clean_term}_{clean_year}.pdf"
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         return response
 
-    # ✅ Normal HTML preview
     return render(request, 'academic/report_card.html', context)
-
 # from django.shortcuts import get_object_or_404
 # from django.http import HttpResponse
 # from django.template.loader import get_template
@@ -481,30 +529,41 @@ from django.views.decorators.http import require_POST
 from .models import Teacher, Subject
 from students.models import Classroom
 
+def get_user_school(request):
+    """Helper to get school regardless of user type"""
+    # 1. Try Admin relationship
+    if hasattr(request.user, 'managed_school'): # Assuming related_name='managed_school'
+        return request.user.managed_school
+    
+    # 2. Try Teacher Profile relationship
+    profile = getattr(request.user, 'teacher_profile', None)
+    if profile:
+        return profile.school
+        
+    return None
+
 def teacher_directory(request):
+    # CRITICAL: Detect school for both Admin and Teacher
+    user_school = get_user_school(request)
+    
+    if not user_school:
+        messages.error(request, "Access Denied: No school associated with this account.")
+        return redirect('core:home')
+
     query = request.GET.get('q', '').strip()
     
-    # 1. Multi-Tenant Security Check
-    if not hasattr(request.user, 'teacher_profile'):
-        messages.error(request, f"Access Denied: Account '{request.user.username}' is not linked to a school profile.")
-        return redirect('/')
-
-    user_school = request.user.teacher_profile.school
-    
-    # 2. Fetch School-Specific Data
+    # Filter everything by the detected school
     teacher_list = Teacher.objects.filter(school=user_school).select_related('user').prefetch_related('subjects', 'classrooms')
     all_subjects = Subject.objects.filter(school=user_school)
     all_classrooms = Classroom.objects.filter(school=user_school)
 
-    # 3. Apply Search Filter
     if query:
         teacher_list = teacher_list.filter(
-            Q(user__first_name__icontains=query) | 
-            Q(user__last_name__icontains=query) |
+            Q(first_name__icontains=query) | 
+            Q(last_name__icontains=query) |
             Q(staff_id__icontains=query)
         )
 
-    # 4. Pagination
     paginator = Paginator(teacher_list, 12)
     page_obj = paginator.get_page(request.GET.get('page'))
 
@@ -517,6 +576,7 @@ def teacher_directory(request):
         'all_classrooms': all_classrooms,
     }
     return render(request, 'teachers/directory.html', context)
+
 
 @require_POST
 def update_teacher_assignments(request, teacher_id):
