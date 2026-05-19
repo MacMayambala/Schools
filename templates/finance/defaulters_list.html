@@ -7,7 +7,6 @@
 {% block content %}
 <div class="container-fluid py-4">
 
-    <!-- Header -->
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-5 gap-4">
         <div>
             <nav aria-label="breadcrumb">
@@ -32,7 +31,6 @@
         </div>
     </div>
 
-    <!-- Search + Filter -->
     <div class="glass-card p-4 mb-4 no-print">
         <div class="row g-3 align-items-center">
             <div class="col-md-6">
@@ -60,7 +58,6 @@
         </div>
     </div>
 
-    <!-- Table -->
     <div class="glass-card">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0" id="defaultersTable">
@@ -93,7 +90,7 @@
                                 </div>
                             </a>
                         </td>
-                        <td><span class="badge bg-dark border">{{ inv.student.classroom.name }}</span></td>
+                        <td><span class="badge bg-dark border">{{ inv.student.class_stream }}</span></td>
                         <td>UGX {{ inv.total_amount|floatformat:0|intcomma }}</td>
                         <td class="text-success fw-medium">UGX {{ inv.paid_amount|floatformat:0|intcomma }}</td>
                         <td class="text-end pe-4 fw-bold text-danger">
@@ -114,7 +111,6 @@
         </div>
     </div>
 
-    <!-- Professional Green Pagination - Right Corner -->
     <div class="d-flex justify-content-end mt-5 no-print">
         {% if is_paginated %}
         <nav aria-label="Page navigation">
@@ -125,17 +121,14 @@
                 </li>
                 {% endif %}
 
-                <!-- Show first page -->
                 <li class="page-item {% if page_obj.number == 1 %}active{% endif %}">
                     <a class="page-link" href="?page=1{% if request.GET.classroom %}&classroom={{ request.GET.classroom }}{% endif %}">1</a>
                 </li>
 
-                <!-- Ellipsis if needed -->
                 {% if page_obj.number > 3 %}
                 <li class="page-item disabled"><span class="page-link">...</span></li>
                 {% endif %}
 
-                <!-- Middle pages -->
                 {% for num in page_obj.paginator.page_range %}
                     {% if num > page_obj.number|add:"-2" and num < page_obj.number|add:"2" and num != 1 and num != page_obj.paginator.num_pages %}
                     <li class="page-item {% if num == page_obj.number %}active{% endif %}">
@@ -144,12 +137,10 @@
                     {% endif %}
                 {% endfor %}
 
-                <!-- Ellipsis before last -->
                 {% if page_obj.number < page_obj.paginator.num_pages|add:"-2" %}
                 <li class="page-item disabled"><span class="page-link">...</span></li>
                 {% endif %}
 
-                <!-- Last page -->
                 {% if page_obj.paginator.num_pages > 1 %}
                 <li class="page-item {% if page_obj.number == page_obj.paginator.num_pages %}active{% endif %}">
                     <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.classroom %}&classroom={{ request.GET.classroom }}{% endif %}">{{ page_obj.paginator.num_pages }}</a>
@@ -167,7 +158,6 @@
     </div>
 </div>
 
-<!-- SMS Confirmation Modal -->
 <div class="modal fade" id="smsConfirmModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content rounded-4 border-0 shadow">

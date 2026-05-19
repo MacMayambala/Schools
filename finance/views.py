@@ -468,20 +468,25 @@ from django.core.paginator import Paginator
 from django.db.models import F, Sum, DecimalField
 from django.db.models.functions import Coalesce
 
+from django.db.models import F, Sum, DecimalField
+from django.db.models.functions import Coalesce
+from django.core.paginator import Paginator
+from django.shortcuts import render
+
 def defaulters_report(request):
     school = request.school
     classroom_id = request.GET.get('classroom')
     page_number = request.GET.get('page', 1)
 
-    # Base queryset
+    # Base queryset - Fixed select_related to use 'student__class_stream'
     defaulters_qs = Invoice.objects.filter(
         school=school,
         total_amount__gt=F('paid_amount')
-    ).select_related('student', 'student__classroom').order_by('-created_at')
+    ).select_related('student', 'student__class_stream').order_by('-created_at')
 
-    # Apply classroom filter if provided
+    # Apply classroom filter if provided - Fixed to look up via class_stream_id
     if classroom_id:
-        defaulters_qs = defaulters_qs.filter(student__classroom_id=classroom_id)
+        defaulters_qs = defaulters_qs.filter(student__class_stream_id=classroom_id)
 
     # Total count for badge and SMS modal (full records, not paginated)
     total_defaulters = defaulters_qs.count()
@@ -499,7 +504,7 @@ def defaulters_report(request):
     page_obj = paginator.get_page(page_number)
 
     context = {
-        'defaulters': page_obj,           # Paginated records for table
+        'defaulters': page_obj,                 # Paginated records for table
         'total_defaulters': total_defaulters,   # Full count for badge & SMS
         'actual_balance': actual_balance,
         'classrooms': Classroom.objects.filter(school=school),
