@@ -832,7 +832,7 @@ from django.shortcuts import render, get_object_or_404
 from django.utils import timezone
 
 
-from django.utils import timezone
+
 
 def student_statement(request, student_id):
     student = get_object_or_404(Student, id=student_id, school=request.school)
@@ -863,10 +863,16 @@ def student_statement(request, student_id):
         # If date_paid is a date object, we might need to combine it with time for sorting
         sort_dt = timezone.make_aware(timezone.datetime.combine(dt, timezone.datetime.min.time())) if not hasattr(dt, 'hour') else dt
 
+        # FIXED: Added () to execute get_payment_method_display method call
+        if hasattr(pay, 'get_payment_method_display'):
+            method_display = pay.get_payment_method_display()
+        else:
+            method_display = pay.payment_method
+
         ledger.append({
             'sort_key': sort_dt,
             'date': dt,
-            'description': f"Fee Payment ({pay.get_payment_method_display if hasattr(pay, 'get_payment_method_display') else pay.payment_method})",
+            'description': f"Fee Payment ({method_display})",
             'reference': pay.transaction_id or pay.receipt_number or f"PAY-{pay.id}",
             'debit': 0,
             'credit': pay.amount_paid,
@@ -888,8 +894,6 @@ def student_statement(request, student_id):
         'final_balance': running_total,
         'today': timezone.now().date(),
     })
-
-
 
 from django.shortcuts import render, redirect
 from django.contrib import messages
