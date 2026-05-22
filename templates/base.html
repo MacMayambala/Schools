@@ -254,7 +254,7 @@
                         <ul class="nav flex-column ps-4 small mt-1">
                             <li><a class="nav-link py-2" href="{% url 'students:student_list' %}">Student Registry</a></li>
                             {% if "Principal" in user.groups.all.0.name or "Registrar" in user.groups.all.0.name %}
-                            <li><a class="nav-link py-2" href="{% url 'students:student_create' %}">Admit New Student</a></li>
+                            <li><a class="nav-link py-2" href="{% url 'students:student_add' %}">Admit New Student</a></li>
                             {% endif %}
                         </ul>
                     </div>
