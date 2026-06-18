@@ -213,11 +213,25 @@ from datetime import date  # Change this to 'from datetime import date' for clea
 from .models import FeeStructure, Invoice, FeeLineItem, FeeCategory
 from students.models import Student, Classroom
 
-from django.db import models
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.db import transaction
 from django.db.models import Sum, F
 from django.db.models.functions import Coalesce
 from decimal import Decimal
 from datetime import date
+from .models import FeeStructure, Invoice, FeeLineItem, FeeCategory
+from students.models import Student, Classroom
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.db import transaction, models
+from django.db.models import Sum, F
+from django.db.models.functions import Coalesce
+from decimal import Decimal
+from datetime import date
+from .models import FeeStructure, Invoice, FeeLineItem, FeeCategory
+from students.models import Student, Classroom
 
 @transaction.atomic
 def run_bulk_billing(request):
@@ -243,26 +257,32 @@ def run_bulk_billing(request):
             messages.error(request, f"No fee structure defined for {target_classroom.name} in Term {term} {year}.")
             return redirect('finance:bulk_bill')
 
-        # 2. Map structures by section (Day/Boarding)
+        # 2. Map structures by section
         fee_map = {fs.section.strip().lower(): fs for fs in structures}
 
-        # 3. Use the corrected filter: class_stream__classroom
+        # 3. Fetch active students
         students = Student.objects.filter(
             class_stream__classroom=target_classroom,
             school=request.school,
             is_active=True
         ).prefetch_related('invoices')
 
+        # 4. Helper for Tuition category
+        tuition_category, _ = FeeCategory.objects.get_or_create(
+            name="Tuition", 
+            school=request.school,
+            defaults={'is_mandatory': True}
+        )
+
         count = 0
         for student in students:
-            # Normalize section lookup
             section_key = (student.section or "day").strip().lower()
             structure = fee_map.get(section_key)
 
             if not structure:
                 continue 
 
-            # 4. Arrears calculation
+            # Arrears calculation
             previous_unpaid = student.invoices.exclude(
                 term=term, year=year
             ).aggregate(
@@ -273,39 +293,48 @@ def run_bulk_billing(request):
                 )
             )['unpaid']
 
-            # 5. Create/Update Invoice
+            # Create/Update Invoice
             invoice, created = Invoice.objects.update_or_create(
                 student=student,
                 term=term,
                 year=year,
                 school=request.school,
                 defaults={
-                    'current_fees': structure.total_fees, # Matches structure sum
+                    'current_fees': structure.total_fees,
                     'previous_balance': previous_unpaid,
                 }
             )
 
-            # 6. Clear old items to avoid duplicates on re-run
+            # Clear old items
             invoice.invoice_items.all().delete()
 
-            # 7. Add all items from the template structure
-            # Note: Ensure your FeeStructure template actually includes a "Tuition" category item
+            # Prepare list of all line items (Including school=request.school)
             line_items = [
                 FeeLineItem(
-                    invoice=invoice,
-                    category=fee_item.category,
-                    amount=fee_item.amount
-                ) for fee_item in structure.template_items.all()
+                    invoice=invoice, 
+                    category=tuition_category, 
+                    amount=structure.tuition_amount,
+                    school=request.school
+                )
             ]
             
-            if line_items:
-                FeeLineItem.objects.bulk_create(line_items)
+            line_items.extend([
+                FeeLineItem(
+                    invoice=invoice, 
+                    category=item.category, 
+                    amount=item.amount,
+                    school=request.school
+                )
+                for item in structure.template_items.all()
+            ])
+            
+            FeeLineItem.objects.bulk_create(line_items)
 
-            # Update final total_amount (usually current_fees + previous_balance)
+            # Recalculate total_amount
             invoice.save() 
             count += 1
 
-        messages.success(request, f"Processed {count} invoices for {target_classroom.name}.")
+        messages.success(request, f"Successfully processed {count} invoices.")
         return redirect('finance:dashboard')
 
     # GET logic
@@ -315,7 +344,6 @@ def run_bulk_billing(request):
         'current_year': date.today().year,
     }
     return render(request, 'finance/bulk_bill.html', context)
-
 
 from django.shortcuts import render, redirect, get_object_or_404
 from .models import Invoice, Payment

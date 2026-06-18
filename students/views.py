@@ -100,39 +100,51 @@ class StudentUpdateView(LoginRequiredMixin, UpdateView):
         return super().form_valid(form)
 
 # 3. BULK IMPORT (Updated for Guardian Details)
+import pandas as pd
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from .models import Student, ClassStream, Classroom, Stream
+
 def bulk_import_students(request):
     if request.method == "POST" and request.FILES.get('excel_file'):
         file = request.FILES['excel_file']
         try:
             df = pd.read_excel(file)
             count = 0
+            
             for _, row in df.iterrows():
-                # Find classroom by name
-                classroom = Classroom.objects.filter(
-                    name__iexact=str(row['Classroom']).strip(), 
+                # 1. Expecting "Classroom" and "Stream" columns in Excel
+                classroom_name = str(row.get('Classroom', '')).strip()
+                stream_name = str(row.get('Stream', '')).strip()
+                
+                # 2. Find the specific ClassStream (e.g., P4 + A)
+                class_stream = ClassStream.objects.filter(
+                    classroom__name__iexact=classroom_name,
+                    stream__name__iexact=stream_name,
                     school=request.school
                 ).first()
                 
-                if classroom:
+                if class_stream:
                     Student.objects.create(
                         school=request.school,
                         first_name=row['First Name'],
                         last_name=row['Last Name'],
-                        classroom=classroom,
-                        gender=row.get('Gender', 'M'),
+                        class_stream=class_stream,  # Use the correct field
+                        gender=str(row.get('Gender', 'M')).upper(),
                         guardian_name=row.get('Guardian Name', 'Not Provided'),
                         guardian_phone=row.get('Guardian Phone', '0000000000'),
-                        guardian_relation=row.get('Relationship', 'FATHER'),
+                        guardian_relation=str(row.get('Relationship', 'FATHER')).upper(),
+                        section=str(row.get('Section', 'Day')).capitalize() # Added for Day/Boarding
                     )
                     count += 1
             
             messages.success(request, f"Successfully imported {count} students!")
             return redirect('students:student_list')
+            
         except Exception as e:
             messages.error(request, f"Error processing Excel file: {e}")
 
     return render(request, 'students/bulk_import.html')
-
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from .models import Student, Classroom
@@ -177,40 +189,47 @@ def promote_students_view(request):
 
 import openpyxl
 from django.http import HttpResponse
-from .models import Classroom
+from .models import Classroom, Stream
 
 def download_student_import_template(request):
-    # Create a workbook and select the active worksheet
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Student Import Template"
 
-    # Define the headers exactly as expected by your bulk_import_students view
+    # Updated headers to reflect the logic in bulk_import_students
     headers = [
-        'First Name', 'Last Name', 'Classroom', 
-        'Gender', 'Guardian Name', 'Guardian Phone', 'Relationship'
+        'First Name', 'Last Name', 'Classroom', 'Stream',
+        'Gender', 'Guardian Name', 'Guardian Phone', 'Relationship', 'Section'
     ]
     ws.append(headers)
 
-    # Optional: Add some sample data and instructions
-    # We can pull existing classroom names to show the user what to type
-    classrooms = Classroom.objects.filter(school=request.school).values_list('name', flat=True)
-    valid_classes = ", ".join(classrooms) if classrooms else "e.g., Senior One"
-
-    ws.append(['John', 'Doe', classrooms[0] if classrooms else 'Senior One', 'M', 'Jane Doe', '0700123456', 'MOTHER'])
+    # Gather data for instructions
+    classrooms = list(Classroom.objects.filter(school=request.school).values_list('name', flat=True))
+    streams = list(Stream.objects.filter(school=request.school).values_list('name', flat=True))
     
-    # Add a small instruction note at the bottom
-    ws.append([])
-    ws.append([f"Note: Classroom names must match exactly: {valid_classes}"])
+    valid_classes = ", ".join(classrooms) if classrooms else "None"
+    valid_streams = ", ".join(streams) if streams else "None"
 
-    # Prepare the response
+    # Add sample data row
+    sample_classroom = classrooms[0] if classrooms else 'Senior One'
+    sample_stream = streams[0] if streams else 'A'
+    
+    ws.append(['John', 'Doe', sample_classroom, sample_stream, 'M', 'Jane Doe', '0700123456', 'MOTHER', 'Day'])
+    
+    # Add instructions
+    ws.append([])
+    ws.append(["--- INSTRUCTIONS ---"])
+    ws.append([f"Classroom must be one of: {valid_classes}"])
+    ws.append([f"Stream must be one of: {valid_streams}"])
+    ws.append(["Relationship choices: FATHER, MOTHER, GUARDIAN, RELATIVE, OTHER"])
+    ws.append(["Section choices: Day, Boarding"])
+
     response = HttpResponse(
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
     response['Content-Disposition'] = 'attachment; filename=student_import_template.xlsx'
     wb.save(response)
     return response
-
 
 
 from django.shortcuts import redirect

@@ -397,6 +397,14 @@ def user_list(request):
 
 
 
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
+from .forms import UserCreationForm
+from .models import CustomUser
+from .utils import log_activity
+
 @login_required
 def user_create(request):
     # Safe Permission Check
@@ -413,9 +421,13 @@ def user_create(request):
         form = UserCreationForm(request.POST, school=request.school)
         if form.is_valid():
             username = form.cleaned_data['username']
+            
+            # Check for existing username (UserCreationForm may handle this, 
+            # but explicit check is safer if using a custom base User model)
             if User.objects.filter(username=username).exists():
                 messages.error(request, "Username already exists.")
             else:
+                # Create the base Django User
                 user = User.objects.create_user(
                     username=username,
                     email=form.cleaned_data['email'],
@@ -424,6 +436,7 @@ def user_create(request):
                     last_name=form.cleaned_data['last_name'],
                 )
                 
+                # Create the linked CustomUser (Tenant-aware)
                 CustomUser.objects.create(
                     user=user,
                     school=request.school,
@@ -431,15 +444,16 @@ def user_create(request):
                     is_active=True
                 )
                 
-                # === FIXED: Use correct function name and import ===
-                from .utils import log_activity
-                
+                # Log the activity
                 log_activity(
                     request, 
                     action="User Created", 
                     resource="User", 
                     object_id=user.id,
-                    details={"username": username, "role": form.cleaned_data['role'].name}
+                    details={
+                        "username": username, 
+                        "role": form.cleaned_data['role'].name
+                    }
                 )
                 
                 messages.success(request, f"User '{username}' created successfully!")
