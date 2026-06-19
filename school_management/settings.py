@@ -10,28 +10,10 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 # settings.py
-
 import os
 
+
 from pathlib import Path
-
-def config(key, default=None, cast=None):
-    value = os.environ.get(key, default)
-    if cast is bool:
-        return str(value).lower() in ('1', 'true', 'yes', 'on')
-    if cast and value is not None:
-        return cast(value)
-    return value
-
-# ====================== EXAMPLE USAGE ======================
-
-DEBUG = config('DEBUG', default=False, cast=bool)
-SECRET_KEY = config('SECRET_KEY')
-
-# Your SchoolPay variables
-SCHOOLPAY_API_PASSWORD = config('SCHOOLPAY_API_PASSWORD')
-SCHOOLPAY_API_ID = config('SCHOOLPAY_API_ID')           # example
-# ... other variables
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 
@@ -54,17 +36,6 @@ USE_TZ = True
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-ntzesv86q%w)4dfr(nezu!(&22lth5l!+oeb)g95kxj6&q8qtq'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-LOGOUT_REDIRECT_URL = 'core:login'
-
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
-
-# Application definition
-
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -75,10 +46,10 @@ INSTALLED_APPS = [
     'django.contrib.humanize', # For better number formatting in templates
     # Your Apps
     'core',
+    'reports',
     'students',
     'finance',
     'academic',
-    'reports',
     
     # Third party (Install these via pip if missing)
     'crispy_forms',
@@ -94,9 +65,6 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 LOGIN_URL = 'core:login'
 LOGIN_REDIRECT_URL = 'core:index'
 LOGOUT_REDIRECT_URL = 'core:login'
-
-SCHOOLPAY_API_PASSWORD = 'your_schoolpay_api_'   # Get from SchoolPay portal
-
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -133,18 +101,112 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'school_management.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+# Database
+# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+from decouple import config, Csv
+from pathlib import Path
+import os
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Security
+SECRET_KEY = config('SECRET_KEY')
+DEBUG =False
+
+# Use Csv() to handle the comma-separated string in your .env
+ALLOWED_HOSTS = config('DJANGO_ALLOWED_HOSTS', cast=Csv())
+
+# Database - Pointing to your PostgreSQL instance
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('DATABASE_NAME'),
+        'USER': config('DATABASE_USER'),
+        'PASSWORD': config('DATABASE_PASSWORD'),
+        'HOST': config('DATABASE_HOST'),
+        'PORT': config('DATABASE_PORT'),
     }
 }
 
+# Static & Media (Critical for Production)
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [BASE_DIR / "static"]
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+UTH_PASSWORD_VALIDATORS = [
+    {
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+]
 
+
+# Internationalization
+# https://docs.djangoproject.com/en/5.2/topics/i18n/
+
+LANGUAGE_CODE = 'en-us'
+
+
+USE_I18N = True
+
+TIME_ZONE = 'Africa/Kampala'
+USE_TZ = True
+
+# Static files (CSS, JavaScript, Images)
+# https://docs.djangoproject.com/en/5.2/howto/static-files/
+
+STATIC_URL = 'static/'
+
+# Default primary key field type
+# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+LOGOUT_REDIRECT_URL = '/' 
+# Prevent caching of authenticated pages
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # Forces logout when the browser is closed
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True  
+SESSION_COOKIE_AGE = 1800  # 30 minutes
+
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = True
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
+
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+
+X_FRAME_OPTIONS = 'DENY'
+
+SECURE_SSL_REDIRECT = True
+
+SECURE_HSTS_SECONDS = 31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+
+
+# Prevent session extension on new requests (forces login after 30 min)
+SESSION_SAVE_EVERY_REQUEST = False
+
+#SCHOOLPAY_API_PASSWORD = config('SCHOOLPAY_API_PASSWORD')
+#SCHOOLPAY_API_ID = config('SCHOOLPAY_API_ID')
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
@@ -175,27 +237,30 @@ USE_I18N = True
 
 USE_TZ = True
 
-SCHOOLPAY_API_ID = config('SCHOOLPAY_API_ID') 
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
-
 STATIC_URL = 'static/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 # --- Email Configuration ---
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_USE_SSL = False
-EMAIL_HOST_USER = 'markmayambala1@gmail.com'
-EMAIL_HOST_PASSWORD = 'nwyh yoab bpbp rrmg'
+EMAIL_BACKEND = config("EMAIL_BACKEND")
+EMAIL_HOST = config("EMAIL_HOST")
+EMAIL_PORT = config("EMAIL_PORT", cast=int)
+EMAIL_USE_TLS = config("EMAIL_USE_TLS", cast=bool)
+EMAIL_USE_SSL = config("EMAIL_USE_SSL", cast=bool)
+
+EMAIL_HOST_USER = config("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD")
+
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL")
+SERVER_EMAIL = config("SERVER_EMAIL")
 
 # CRITICAL: Gmail will often reject emails if these aren't set
-DEFAULT_FROM_EMAIL = 'markmayambala1@gmail.com'
-SERVER_EMAIL = 'markmayambala1@gmail.com'
+
 
 # --- Other Settings ---
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
