@@ -251,19 +251,29 @@ from .models import (
 )
 
 
+from django.db import transaction
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.db.models import Sum, F, DecimalField
+from django.db.models.functions import Coalesce
+from decimal import Decimal
+from datetime import date
+
+from finance.models import Invoice, FeeStructure, FeeLineItem, FeeCategory
+from students.models import Student,Classroom
+
+
 @transaction.atomic
 def run_bulk_billing(request):
+
     if request.method == "POST":
 
         classroom_id = request.POST.get("classroom")
         term = request.POST.get("term")
-        year = int(request.POST.get("year"))
+        year = request.POST.get("year")
 
         if not all([classroom_id, term, year]):
-            messages.error(
-                request,
-                "Please select Class, Term and Year."
-            )
+            messages.error(request, "Please select Class, Term and Year.")
             return redirect("finance:bulk_bill")
 
         classroom = get_object_or_404(
@@ -273,33 +283,25 @@ def run_bulk_billing(request):
         )
 
         # =====================================
-        # LOAD FEE STRUCTURES ONCE
+        # LOAD STRUCTURES
         # =====================================
 
-        structures = (
-            FeeStructure.objects
-            .filter(
-                school=request.school,
-                classroom=classroom,
-                term=term,
-                year=year
-            )
-            .prefetch_related(
-                "template_items__category"
-            )
-        )
+        structures = FeeStructure.objects.filter(
+            school=request.school,
+            classroom=classroom,
+            term=term,
+            year=year
+        ).prefetch_related("template_items__category")
 
         if not structures.exists():
             messages.error(
                 request,
-                f"No fee structure defined for "
-                f"{classroom.name} "
-                f"Term {term} {year}"
+                f"No fee structure defined for {classroom.name} Term {term} {year}"
             )
             return redirect("finance:bulk_bill")
 
         fee_map = {
-            fs.section.strip().lower(): fs
+            fs.section.strip().lower() if fs.section else "day": fs
             for fs in structures
         }
 
@@ -310,125 +312,90 @@ def run_bulk_billing(request):
         tuition_category, _ = FeeCategory.objects.get_or_create(
             school=request.school,
             name="Tuition",
-            defaults={
-                "is_mandatory": True
-            }
+            defaults={"is_mandatory": True}
         )
 
         # =====================================
         # STUDENTS
         # =====================================
 
-        students = (
-            Student.objects
-            .filter(
-                school=request.school,
-                is_active=True,
-                class_stream__classroom=classroom
-            )
-            .prefetch_related("invoices")
-        )
+        students = Student.objects.filter(
+            school=request.school,
+            is_active=True,
+            class_stream__classroom=classroom
+        ).prefetch_related("invoices")
 
         count = 0
 
         for student in students:
 
-            section = (
-                getattr(student, "section", None)
-                or "Day"
-            ).strip().lower()
+            section = (getattr(student, "section", None) or "Day")
+            section = section.strip().lower()
 
-            structure = fee_map.get(section)
+            structure = fee_map.get(section) or fee_map.get("day")
 
             if not structure:
                 continue
 
             # =====================================
-            # ARREARS
+            # PREVIOUS BALANCE (OPTIMIZED PER STUDENT)
             # =====================================
 
-            previous_balance = (
-                Invoice.objects
-                .filter(
-                    student=student,
-                    school=request.school
-                )
-                .exclude(
-                    term=term,
-                    year=year
-                )
-                .aggregate(
-                    balance=Coalesce(
-                        Sum(
-                            F("total_amount")
-                            - F("paid_amount"),
-                            output_field=DecimalField()
-                        ),
-                        Decimal("0.00")
-                    )
-                )["balance"]
+            previous_balance = sum(
+                (inv.total_amount - inv.paid_amount)
+                for inv in student.invoices.all()
+                if str(inv.term) != str(term) or str(inv.year) != str(year)
             )
 
             # =====================================
-            # INVOICE
+            # INVOICE (SAFE CREATE)
             # =====================================
 
-            invoice, created = Invoice.objects.get_or_create(
+            invoice = Invoice.objects.filter(
                 student=student,
                 school=request.school,
                 term=term,
-                year=year,
-                defaults={
-                    "current_fees": structure.total_fees,
-                    "previous_balance": previous_balance,
-                }
-            )
+                year=year
+            ).first()
 
-            if not created:
-                invoice.current_fees = structure.total_fees
-                invoice.previous_balance = previous_balance
-                invoice.save(
-                    update_fields=[
-                        "current_fees",
-                        "previous_balance",
-                        "total_amount",
-                        "updated_at"
-                    ]
+            if not invoice:
+                invoice = Invoice(
+                    student=student,
+                    school=request.school,
+                    term=term,
+                    year=year
                 )
 
+            invoice.current_fees = structure.tuition_amount
+            invoice.previous_balance = previous_balance
+            invoice.save()
+
             # =====================================
-            # REBUILD LINE ITEMS
+            # LINE ITEMS
             # =====================================
 
             invoice.invoice_items.all().delete()
 
-            line_items = []
-
-            # Tuition
-            line_items.append(
+            line_items = [
                 FeeLineItem(
                     school=request.school,
                     invoice=invoice,
                     category=tuition_category,
                     amount=structure.tuition_amount
                 )
-            )
+            ]
 
-            # Other charges
-            for item in structure.template_items.all():
-                line_items.append(
-                    FeeLineItem(
-                        school=request.school,
-                        invoice=invoice,
-                        category=item.category,
-                        amount=item.amount
-                    )
+            line_items += [
+                FeeLineItem(
+                    school=request.school,
+                    invoice=invoice,
+                    category=item.category,
+                    amount=item.amount
                 )
+                for item in structure.template_items.all()
+            ]
 
-            FeeLineItem.objects.bulk_create(
-                line_items,
-                batch_size=100
-            )
+            FeeLineItem.objects.bulk_create(line_items, batch_size=100)
 
             count += 1
 
@@ -439,15 +406,14 @@ def run_bulk_billing(request):
 
         return redirect("finance:dashboard")
 
-    classrooms = Classroom.objects.filter(
-        school=request.school
-    ).order_by("name")
-
+    # GET request
     return render(
         request,
         "finance/bulk_bill.html",
         {
-            "classrooms": classrooms,
+            "classrooms": Classroom.objects.filter(
+                school=request.school
+            ).order_by("name"),
             "current_year": date.today().year,
         },
     )
