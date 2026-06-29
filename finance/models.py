@@ -82,8 +82,20 @@ from django.db.models import Sum
 from core.models import TenantModel
 
 
+from decimal import Decimal
+from django.db import models, transaction
+from django.utils import timezone
+from django.db.models import Sum
+from core.models import TenantModel
+
+
 class Invoice(TenantModel):
-    student = models.ForeignKey('students.Student', on_delete=models.CASCADE, related_name='invoices')
+    student = models.ForeignKey(
+        'students.Student',
+        on_delete=models.CASCADE,
+        related_name='invoices'
+    )
+
     term = models.CharField(max_length=20)
     year = models.IntegerField(default=timezone.now().year)
 
@@ -91,52 +103,93 @@ class Invoice(TenantModel):
     current_fees = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     previous_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
-    # Stored totals
+    # Totals
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
-    invoice_number = models.CharField(max_length=50, unique=True, editable=False)
+    # Invoice number (generated safely)
+    invoice_number = models.CharField(max_length=50, editable=False)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         unique_together = ('student', 'term', 'year', 'school')
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=['school', 'invoice_number'],
+                name='unique_school_invoice_number'
+            )
+        ]
+
         ordering = ['-year', '-term', '-created_at']
 
+    # --------------------------------------------------
+    # BALANCE
+    # --------------------------------------------------
     @property
     def balance(self):
-        """Always return the correct remaining balance"""
         return self.total_amount - self.paid_amount
 
+    # --------------------------------------------------
+    # SYNC PAYMENTS
+    # --------------------------------------------------
     def sync_paid_amount(self):
-        """Recalculate paid_amount from actual payments - this is the source of truth"""
         total_paid = self.payments.filter(status='Completed').aggregate(
             total=Sum('amount_paid')
         )['total'] or Decimal('0.00')
 
-        # Update without triggering save() again
         Invoice.objects.filter(pk=self.pk).update(paid_amount=total_paid)
-        self.paid_amount = total_paid  # Update in-memory object too
+        self.paid_amount = total_paid
         return total_paid
 
+    # --------------------------------------------------
+    # SAVE (SAFE VERSION)
+    # --------------------------------------------------
     def save(self, *args, **kwargs):
-        # 1. Always recalculate total_amount from current_fees + previous_balance
-        self.total_amount = (self.current_fees or Decimal('0')) + (self.previous_balance or Decimal('0'))
 
-        # 2. Generate invoice number if new
-        if not self.invoice_number:
-            base_count = Invoice.objects.filter(
-                school=self.school, year=self.year
-            ).count() + 1
-            while True:
-                candidate = f"INV-{self.year}-{base_count:04d}"
-                if not Invoice.objects.filter(invoice_number=candidate, school=self.school).exists():
-                    self.invoice_number = candidate
-                    break
-                base_count += 1
+        # Always recompute total
+        self.total_amount = (
+            (self.current_fees or Decimal('0'))
+            + (self.previous_balance or Decimal('0'))
+        )
+
+        # Generate invoice number ONLY on creation
+        if not self.pk and not self.invoice_number:
+
+            with transaction.atomic():
+
+                last_invoice = (
+                    Invoice.objects
+                    .select_for_update()
+                    .filter(
+                        school=self.school,
+                        year=self.year
+                    )
+                    .order_by('-id')
+                    .first()
+                )
+
+                if last_invoice and last_invoice.invoice_number:
+                    try:
+                        last_number = int(
+                            last_invoice.invoice_number.split('-')[-1]
+                        )
+                    except (ValueError, IndexError):
+                        last_number = 0
+                else:
+                    last_number = 0
+
+                self.invoice_number = (
+                    f"INV-{self.year}-{last_number + 1:04d}"
+                )
 
         super().save(*args, **kwargs)
 
+    # --------------------------------------------------
+    # STRING
+    # --------------------------------------------------
     def __str__(self):
         return f"{self.invoice_number} - {self.student.get_full_name() if self.student else 'No Student'}"
     
