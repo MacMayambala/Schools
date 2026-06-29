@@ -104,47 +104,132 @@ import pandas as pd
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from .models import Student, ClassStream, Classroom, Stream
+import pandas as pd
+from django.shortcuts import render, redirect
+from django.contrib import messages
+
+from students.models import Student,Classroom, Stream
+
+
+import pandas as pd
+from django.shortcuts import render, redirect
+from django.contrib import messages
+
+from students.models import Student
+
+
+
+
+
 
 def bulk_import_students(request):
-    if request.method == "POST" and request.FILES.get('excel_file'):
-        file = request.FILES['excel_file']
-        try:
-            df = pd.read_excel(file)
-            count = 0
-            
-            for _, row in df.iterrows():
-                # 1. Expecting "Classroom" and "Stream" columns in Excel
-                classroom_name = str(row.get('Classroom', '')).strip()
-                stream_name = str(row.get('Stream', '')).strip()
-                
-                # 2. Find the specific ClassStream (e.g., P4 + A)
-                class_stream = ClassStream.objects.filter(
-                    classroom__name__iexact=classroom_name,
-                    stream__name__iexact=stream_name,
-                    school=request.school
-                ).first()
-                
-                if class_stream:
-                    Student.objects.create(
-                        school=request.school,
-                        first_name=row['First Name'],
-                        last_name=row['Last Name'],
-                        class_stream=class_stream,  # Use the correct field
-                        gender=str(row.get('Gender', 'M')).upper(),
-                        guardian_name=row.get('Guardian Name', 'Not Provided'),
-                        guardian_phone=row.get('Guardian Phone', '0000000000'),
-                        guardian_relation=str(row.get('Relationship', 'FATHER')).upper(),
-                        section=str(row.get('Section', 'Day')).capitalize() # Added for Day/Boarding
-                    )
-                    count += 1
-            
-            messages.success(request, f"Successfully imported {count} students!")
-            return redirect('students:student_list')
-            
-        except Exception as e:
-            messages.error(request, f"Error processing Excel file: {e}")
 
-    return render(request, 'students/bulk_import.html')
+    if request.method == "POST" and request.FILES.get('excel_file'):
+
+        file = request.FILES['excel_file']
+
+        df = pd.read_excel(file)
+        df.columns = df.columns.str.strip()
+
+        print("COLUMNS:", df.columns.tolist())
+
+        count = 0
+        skipped = 0
+
+        def clean(v):
+            if pd.isna(v):
+                return ""
+            return str(v).replace("\xa0", " ").strip()
+
+        for i, row in df.iterrows():
+
+            try:
+                classroom_name = clean(row.get('Classroom'))
+                stream_name = clean(row.get('Stream'))
+
+                print("\nROW", i)
+                print("CLASS:", classroom_name, "STREAM:", stream_name)
+
+                # ----------------------------
+                # CLASSROOM
+                # ----------------------------
+                classroom = Classroom.objects.filter(
+                    school=request.school,
+                    name__iexact=classroom_name
+                ).first()
+
+                if not classroom:
+                    print("SKIP classroom:", classroom_name)
+                    skipped += 1
+                    continue
+
+                # ----------------------------
+                # STREAM
+                # ----------------------------
+                stream = Stream.objects.filter(
+                    school=request.school,
+                    name__iexact=stream_name
+                ).first()
+
+                if not stream:
+                    print("SKIP stream:", stream_name)
+                    skipped += 1
+                    continue
+
+                # ----------------------------
+                # CLASSSTREAM (🔥 FIX HERE)
+                # ----------------------------
+                class_stream = ClassStream.objects.filter(
+                    school=request.school,
+                    classroom=classroom,
+                    stream=stream
+                ).first()
+
+                if not class_stream:
+                    print("SKIP class_stream not found")
+                    skipped += 1
+                    continue
+
+                # ----------------------------
+                # REQUIRED FIELDS
+                # ----------------------------
+                first_name = clean(row.get('First Name'))
+                last_name = clean(row.get('Last Name'))
+
+                if not first_name or not last_name:
+                    print("SKIP missing name")
+                    skipped += 1
+                    continue
+
+                # ----------------------------
+                # CREATE STUDENT
+                # ----------------------------
+                Student.objects.create(
+                    school=request.school,
+                    first_name=first_name,
+                    last_name=last_name,
+                    class_stream=class_stream,   # ✅ FIXED
+                    gender=clean(row.get('Gender')) or "M",
+                    guardian_name=clean(row.get('Guardian Name')),
+                    guardian_phone=clean(row.get('Guardian Phone')),
+                    guardian_relation=clean(row.get('Relationship')),
+                    section=clean(row.get('Section')) or "Day",
+                )
+
+                count += 1
+
+            except Exception as e:
+                print("ROW ERROR:", e)
+                skipped += 1
+
+        messages.success(
+            request,
+            f"Imported {count} students. Skipped {skipped} rows."
+        )
+
+        return redirect("students:student_list")
+
+    return render(request, "students/bulk_import.html")
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from .models import Student, Classroom
@@ -189,48 +274,91 @@ def promote_students_view(request):
 
 import openpyxl
 from django.http import HttpResponse
-from .models import Classroom, Stream
+
+
+
 
 def download_student_import_template(request):
+
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Student Import Template"
 
-    # Updated headers to reflect the logic in bulk_import_students
+    # -----------------------------
+    # HEADERS
+    # -----------------------------
     headers = [
-        'First Name', 'Last Name', 'Classroom', 'Stream',
-        'Gender', 'Guardian Name', 'Guardian Phone', 'Relationship', 'Section'
+        'First Name',
+        'Last Name',
+        'Classroom',
+        'Stream',
+        'Gender',
+        'Guardian Name',
+        'Guardian Phone',
+        'Relationship',
+        'Section'
     ]
     ws.append(headers)
 
-    # Gather data for instructions
-    classrooms = list(Classroom.objects.filter(school=request.school).values_list('name', flat=True))
-    streams = list(Stream.objects.filter(school=request.school).values_list('name', flat=True))
-    
-    valid_classes = ", ".join(classrooms) if classrooms else "None"
-    valid_streams = ", ".join(streams) if streams else "None"
+    # -----------------------------
+    # FETCH DATA
+    # -----------------------------
+    classrooms = Classroom.objects.filter(
+        school=request.school
+    ).order_by("name")
 
-    # Add sample data row
-    sample_classroom = classrooms[0] if classrooms else 'Senior One'
-    sample_stream = streams[0] if streams else 'A'
-    
-    ws.append(['John', 'Doe', sample_classroom, sample_stream, 'M', 'Jane Doe', '0700123456', 'MOTHER', 'Day'])
-    
-    # Add instructions
+    streams = Stream.objects.filter(
+        school=request.school
+    ).order_by("name")
+
+    class_streams = ClassStream.objects.filter(
+        school=request.school
+    ).select_related("classroom", "stream")
+
+    # -----------------------------
+    # GENERATE SAMPLE ROWS (ALL COMBINATIONS)
+    # -----------------------------
+    row_count = 0
+
+    for cs in class_streams:
+
+        ws.append([
+            f"Student{row_count + 1}",
+            "Test",
+            cs.classroom.name,
+            cs.stream.name,
+            "M",
+            "Guardian Name",
+            "0700000000",
+            "FATHER",
+            "Day"
+        ])
+
+        row_count += 1
+
+        # limit to avoid huge files
+        if row_count >= 50:
+            break
+
+    # -----------------------------
+    # INSTRUCTIONS
+    # -----------------------------
     ws.append([])
     ws.append(["--- INSTRUCTIONS ---"])
-    ws.append([f"Classroom must be one of: {valid_classes}"])
-    ws.append([f"Stream must be one of: {valid_streams}"])
-    ws.append(["Relationship choices: FATHER, MOTHER, GUARDIAN, RELATIVE, OTHER"])
-    ws.append(["Section choices: Day, Boarding"])
+    ws.append(["Do NOT change Classroom and Stream names exactly as shown"])
+    ws.append(["Relationship: FATHER, MOTHER, GUARDIAN, RELATIVE, OTHER"])
+    ws.append(["Section: Day or Boarding"])
 
+    # -----------------------------
+    # RESPONSE
+    # -----------------------------
     response = HttpResponse(
-        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
-    response['Content-Disposition'] = 'attachment; filename=student_import_template.xlsx'
+    response["Content-Disposition"] = "attachment; filename=student_import_template.xlsx"
+
     wb.save(response)
     return response
-
 
 from django.shortcuts import redirect
 from django.contrib import messages
